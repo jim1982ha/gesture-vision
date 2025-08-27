@@ -1,0 +1,56 @@
+/* FILE: packages/frontend/css/components/desktop/desktop-layout.css */
+/* General layout adjustments for desktop screens (>= 769px), using variables. */
+
+@media screen and (min-width: 769px) and (any-pointer: fine) {
+  html {
+    font-size: var(--font-size-root);
+  }
+
+  /* REMOVED: Incorrect padding override for main-content. */
+  /* This was causing content to hide under the top nav. */
+
+  .bottom-nav,
+  #gestureConfigToggleMobile,
+  #historyToggleMobile,
+  .nav-controls > #cameraSelectButtonMobile {
+    display: none !important;
+  }
+
+  .mobile-header-controls-container.mobile-only-inline-flex {
+    display: none !important;
+  }
+  .desktop-header-dropdown-triggers {
+    display: none !important;
+  }
+  .header-toggle-groups-container {
+    display: flex !important;
+  }
+
+  .desktop-only-flex {
+    display: flex !important;
+    align-items: center;
+  }
+
+  .sidebar-edge-toggle {
+    display: flex !important;
+  }
+
+  .sidebar-backdrop {
+    display: block;
+    pointer-events: none;
+    z-index: var(--z-backdrop);
+    background: transparent;
+    backdrop-filter: none;
+  }
+  body.backdrop-visible .main-content:not(.modal-open) {
+    filter: none;
+  }
+
+  #gestureAlert {
+    bottom: var(--space-md);
+  }
+
+  .individual-button-row > .btn {
+    margin: 0 !important; 
+  }
+}

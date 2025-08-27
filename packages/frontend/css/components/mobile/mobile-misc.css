@@ -1,0 +1,39 @@
+/* FILE: ./css/components/mobile/mobile-misc.css */
+/* Miscellaneous adjustments for mobile screens (<= 768px), using variables. */
+
+@media (max-width: 768px) {
+  /* Consider var(--breakpoint-mobile-end) */
+  #gestureAlert {
+    /* Adjust bottom position to be above the bottom nav bar */
+    bottom: calc(var(--bottom-nav-height) + var(--space-sm));
+    max-width: calc(100% - (2 * var(--space-sm)));
+    font-size: var(--font-size-small);
+  }
+
+  .theme-mode-selector {
+    /* Container for "Color Mode" label + mode toggle group in Theme settings */
+    flex-wrap: wrap; /* Allow label and group to stack */
+    justify-content: center;
+    gap: var(--space-xs);
+    margin-bottom: var(--space-sm); /* Space below this section */
+  }
+  .theme-mode-selector label.form-label {
+    /* The "Color Mode" label */
+    flex-basis: 100%; /* Label takes full width */
+    text-align: center; /* Center the label text */
+    margin-bottom: var(--space-xs);
+    /* Font size/weight from .form-label in forms.css */
+  }
+
+  /* #themeToggleGroup is for base theme selection (Main, Ocean, etc.) */
+  /* This group has individual buttons by default (not segmented) */
+  #themeToggleGroup {
+    gap: var(--space-xs); /* Consistent gap */
+    /* min-height, height: auto from themes.css */
+  }
+  /* Individual theme buttons (.theme-item-btn) inside #themeToggleGroup use .btn .btn-secondary */
+  #themeToggleGroup .theme-item-btn.btn.btn-secondary {
+    flex-basis: calc(50% - var(--space-xs));
+    min-width: calc(var(--space-unit) * 25);
+  }
+}

@@ -1,0 +1,71 @@
+{
+  "globalCooldown": 1.0,
+  "rtspSources": [
+    {
+      "name": "Living Room Cam",
+      "url": "rtsp://user:password@camera_ip:554/stream1",
+      "sourceOnDemand": true,
+      "roi": {
+        "x": 10,
+        "y": 15,
+        "width": 50,
+        "height": 60
+      }
+    },
+    {
+      "name": "Bedroom Cam",
+      "url": "rtsp://another_user:another_password@another_camera_ip:554/stream2",
+      "sourceOnDemand": false
+    }
+  ],
+  "gestureConfigs": [
+    {
+      "gesture": "THUMB_UP",
+      "confidence": 50,
+      "duration": 1,
+      "actionConfig": {
+        "pluginId": "gesture-vision-plugin-home-assistant",
+        "settings": {
+          "entityId": "light.office_light",
+          "service": "turn_on"
+        }
+      }
+    },
+    {
+      "gesture": "CLOSED_FIST",
+      "confidence": 60,
+      "duration": 0.5,
+      "actionConfig": {
+        "pluginId": "gesture-vision-plugin-os-command",
+        "settings": {
+          "osCommand": "media_play_pause"
+        }
+      }
+    },
+    {
+      "pose": "Your Custom Pose Name",
+      "confidence": 75,
+      "duration": 1.5,
+      "actionConfig": {
+        "pluginId": "gesture-vision-plugin-webhook",
+        "settings": {
+          "webhookUrl": "https://your-webhook-url.com/trigger",
+          "webhookMethod": "POST"
+        }
+      }
+    }
+  ],
+  "targetFpsPreference": 15,
+  "telemetryEnabled": false,
+  "enableBuiltInHandGestures": true,
+  "enableCustomHandGestures": false,
+  "enablePoseProcessing": false,
+  "lowLightBrightness": 100,
+  "lowLightContrast": 100,
+  "handDetectionConfidence": 0.5,
+  "handPresenceConfidence": 0.5,
+  "handTrackingConfidence": 0.4,
+  "poseDetectionConfidence": 0.5,
+  "posePresenceConfidence": 0.5,
+  "poseTrackingConfidence": 0.4
+}

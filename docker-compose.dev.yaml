@@ -1,0 +1,59 @@
+# FILE: docker-compose.dev.yaml
+# docker-compose.dev.yaml - Development Environment (MODIFIED for packages/)
+
+services:
+  gesturevision-dev:
+    image: ${DEV_IMAGE_NAME?Variable DEV_IMAGE_NAME is not set}
+    build:
+      context: . # Build context is still the project root
+      target: development
+      labels:
+        - "project=gesturevision"
+      args:
+        - TARGETARCH=amd64
+    container_name: gesturevision-dev
+
+    # MODIFICATION: Use host networking for simplified WebRTC & service access in dev
+    network_mode: "host"
+    # REMOVED: 'ports' and 'networks' are not used with network_mode: "host"
+
+    volumes:
+      # Mount the entire packages directory for live editing of backend, frontend, shared
+      - ./packages:/app/packages:rw
+      # Mount the entire extensions directory for live editing of plugins and custom gestures
+      - ./extensions:/app/extensions:rw
+      # Mount the root package.json and lock file for npm scripts
+      - ./package.json:/app/package.json:ro
+      - ./package-lock.json:/app/package-lock.json:ro
+      # Mount config.dev.json to the expected /app/config.json path in the container
+      - ./config/config.dev.json:/app/config.json:rw
+      # Preserve node_modules at the root of the container if installed there by Dockerfile
+      # This avoids overwriting container's node_modules if host has a different version/OS
+      - /app/node_modules
+
+    env_file:
+      - ./config/.env.dev # Loads dev ports, Vite URLs, etc.
+
+    environment:
+      # Node environment
+      - NODE_ENV=development
+      # --- MODIFICATION: The container now uses host ports directly ---
+      # Vite's internal listening port (as defined in its npm script)
+      - DEV_VITE_PORT=${DEV_VITE_PORT:-8001}
+      # Backend API's internal listening port
+      - DEV_BACKEND_API_PORT_INTERNAL=${DEV_BACKEND_API_PORT_INTERNAL:-9001}
+      # MediaMTX's internal listening ports
+      - MTX_WEBRTCADDRESS=:${MTX_DEV_WEBRTC_PORT:-8889}
+      - MTX_RTSPADDRESS=:${MTX_DEV_RTSP_PORT:-8554}
+      - MTX_WEBRTCUDPMUXADDRESS=:${MTX_DEV_ICE_UDP_PORT:-8189}
+      - MTX_APIADDRESS=:${MTX_APIADDRESS_INTERNAL:-9997}
+
+      # MediaMTX runtime settings (passed to container environment)
+      - MTX_LOGLEVEL=${MTX_LOGLEVEL:-debug}
+      - MTX_API=${MTX_API:-yes}
+      # Correct variable for MediaMTX ICE candidates
+      - MTX_WEBRTC_ADDITIONAL_HOSTS=${MTX_ICE_HOST}
+      # Vite dev server specific
+      - VITE_DEV_HA_DEFAULT_URL=${VITE_DEV_HA_DEFAULT_URL:-}
+
+    restart: unless-stopped

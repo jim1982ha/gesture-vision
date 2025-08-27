@@ -1,0 +1,25 @@
+<!-- FILE: ./src/partials/_modal_confirmation.html -->
+<div id="confirmationModal" class="modal confirmation-modal hidden" role="alertdialog" aria-modal="true"
+    aria-labelledby="confirmationModalTitle" aria-describedby="confirmationModalMessage">
+    <div class="modal-content">
+        <h3 id="confirmationModalTitle" class="confirmation-modal-title">
+            <!-- Title will be set by JS, e.g., "Confirm Deletion" -->
+        </h3>
+        <div class="modal-scrollable-content confirmation-modal-message-content">
+            <p id="confirmationModalMessage">
+                <!-- Message will be set by JS -->
+            </p>
+        </div>
+        <div class="modal-actions confirmation-modal-actions">
+            <button id="confirmationModalCancelBtn" class="btn btn-secondary">
+                <span class="material-icons"></span>
+                <span id="confirmationModalCancelBtnText">Cancel</span>
+            </button>
+            <button id="confirmationModalConfirmBtn" class="btn btn-primary">
+                <!-- Default to primary, JS can change to btn-danger -->
+                <span class="material-icons"></span>
+                <span id="confirmationModalConfirmBtnText">Confirm</span>
+            </button>
+        </div>
+    </div>
+</div>

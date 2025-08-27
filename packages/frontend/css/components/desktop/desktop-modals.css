@@ -1,0 +1,92 @@
+/* FILE: packages/frontend/css/components/desktop/desktop-modals.css */
+/* Modal adjustments for desktop screens (>= 769px), using variables. */
+
+@media screen and (min-width: 769px) and (any-pointer: fine) {
+  /* Consider var(--breakpoint-desktop-start) */
+  .modal {
+    align-items: flex-start; /* Default alignment for all modals, including camera select */
+    justify-content: center;
+    padding: var(--space-xl) var(--space-sm) var(--space-lg) var(--space-sm);
+    overflow: hidden;
+  }
+
+  .modal-content {
+    position: relative;
+    top: auto;
+    bottom: auto;
+    left: auto;
+    right: auto;
+    max-width: var(--modal-max-width-default);
+    width: 100%;
+    height: auto;
+    max-height: calc(100vh - (2 * var(--space-xl)));
+    border-radius: var(--radius-large);
+    transform: none;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 0;
+    border: none;
+    box-shadow: var(--shadow-strong);
+  }
+
+  /* Specific Modal Widths */
+  #mainSettingsModal .modal-content {
+    max-width: var(--modal-max-width-settings);
+  }
+  .docs-modal .modal-content {
+    max-width: var(--modal-max-width-docs);
+    width: var(--modal-width-docs);
+    height: var(--modal-height-docs);
+    max-height: var(--modal-max-height-docs);
+  }
+
+  /* Camera Select Modal Specifics for Desktop */
+  #cameraSelectModal .modal-content {
+    width: auto;
+    min-width: 320px;
+    max-width: 90vw;
+    flex-shrink: 1;
+  }
+
+  /* Modal Content Scrolling */
+  .modal-scrollable-content,
+  .modal-list {
+    padding: var(--space-md);
+  }
+  .docs-modal .modal-scrollable-content {
+    padding: 0;
+  }
+
+  /* Modal Header & Footer */
+  .modal-content h3,
+  .sidebar .sidebar-header {
+    padding: var(--space-md);
+    padding-bottom: var(--space-sm);
+  }
+  .modal-actions {
+    order: 0;
+    border-top: var(--border-width-standard) var(--border-style-standard)
+      var(--border);
+    border-bottom: none;
+    padding: var(--space-sm) var(--space-md);
+  }
+  #mainSettingsModal .modal-actions #cancelConfigBtn.btn.btn-secondary {
+    display: inline-flex;
+  }
+
+  #cameraSelectModal .modal-actions {
+    display: none;
+  }
+  #cameraSelectModal .modal-list {
+    padding: var(--space-md);
+    width: auto;
+    max-height: 60vh;
+    overflow-y: auto;
+  }
+  #cameraList li.list-placeholder {
+    padding: var(--space-md) 0;
+    color: var(--text-secondary);
+  }
+}

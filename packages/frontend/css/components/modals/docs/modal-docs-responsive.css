@@ -1,0 +1,82 @@
+/* FILE: ./css/components/modals/docs/modal-docs-responsive.css */
+/* Responsive adjustments for the Documentation Modal, using variables. */
+
+/* Tablet and Mobile Portrait/Landscape (max-width 900px - generic tablet breakpoint) */
+@media (max-width: 900px) {
+  /* Consider var(--breakpoint-tablet-end) */
+  .docs-modal .modal-scrollable-content {
+    padding: var(--space-sm);
+  }
+
+  .docs-container-modal {
+    flex-direction: column;
+    padding: 0;
+    gap: 0;
+  }
+
+  .docs-toc-modal {
+    position: sticky;
+    top: calc(-1 * var(--space-sm));
+    align-self: auto;
+    height: auto;
+    max-height: none;
+    flex: 0 0 auto;
+    border-right: none;
+    border-bottom: var(--border-width-standard) var(--border-style-standard)
+      var(--border);
+    margin-bottom: var(--space-sm);
+    padding: 0 var(--space-sm);
+    width: 100%;
+    background-color: var(--surface);
+    z-index: var(--z-dropdown);
+  }
+
+  .docs-toc-modal h2,
+  .docs-toc-modal ul#modalTocList {
+    display: none !important;
+  }
+
+  .docs-toc-modal .docs-modal-controls {
+    display: flex !important;
+    margin-top: 0;
+    padding: var(--space-xs) 0;
+    border-top: none;
+  }
+
+  .docs-toc-modal .docs-modal-controls .btn.btn-secondary {
+    padding: var(--button-padding-small-vertical)
+      var(--button-padding-small-horizontal);
+    font-size: var(--font-size-extra-small);
+  }
+
+  .docs-content-modal {
+    height: auto;
+    overflow-y: visible;
+    padding-left: 0;
+    min-width: unset;
+    display: block;
+    overflow-x: hidden;
+  }
+
+  .docs-content-modal .docs-modal-controls {
+    display: none !important;
+  }
+
+  .docs-content-modal article {
+    overflow-wrap: break-word !important;
+    word-break: break-word !important;
+    white-space: normal !important;
+  }
+
+  .docs-content-modal article pre,
+  .docs-content-modal article pre code {
+    white-space: pre !important;
+    word-break: normal !important;
+    overflow-x: auto !important;
+  }
+
+  .docs-content-modal article code:not(pre code) {
+    white-space: pre-wrap !important;
+    word-break: break-all !important;
+  }
+}

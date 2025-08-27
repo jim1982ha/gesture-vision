@@ -1,0 +1,119 @@
+/* FILE: css/components/forms/_checkbox_radio.css */
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--primary);
+  width: var(--checkbox-radio-size); /* Ensure this variable is defined */
+  height: var(--checkbox-radio-size); /* Ensure this variable is defined */
+  cursor: pointer;
+  outline-offset: var(--focus-outline-offset);
+  vertical-align: middle;
+  margin: 0;
+}
+input[type="checkbox"]:focus-visible,
+input[type="radio"]:focus-visible {
+  outline: var(--border-width-active) var(--border-style-standard)
+    var(--primary);
+}
+input[type="checkbox"]:disabled,
+input[type="radio"]:disabled {
+  cursor: not-allowed;
+  opacity: var(--opacity-disabled);
+}
+
+.radio-group {
+  display: flex;
+  flex-direction: column; /* Stack legend and options wrapper vertically */
+  gap: var(
+    --space-xs
+  ); /* Gap between legend and options, and between options if they wrap */
+  /* flex-wrap: wrap; Not needed if direction is column */
+  /* align-items: flex-start; Default for column */
+  margin-bottom: var(--space-sm);
+  padding: var(--space-sm);
+  border: var(--border-width-standard) var(--border-style-standard)
+    var(--border);
+  border-radius: var(--radius);
+  background-color: var(--surface);
+  min-height: var(--input-min-height);
+  box-sizing: border-box;
+  position: relative;
+}
+.radio-group legend {
+  padding: 0 var(--space-xs);
+  margin-left: var(--space-xs);
+  margin-bottom: 0;
+  font-weight: var(--font-weight-medium);
+  font-size: var(--font-size-small);
+  color: var(--text-secondary);
+  width: auto;
+  line-height: 1;
+  position: absolute; /* Keep absolute positioning for overlap effect */
+  top: calc(-0.7 * var(--font-size-small));
+  left: var(--space-xs);
+  background-color: var(--surface); /* Match parent bg for overlap */
+  z-index: 1; /* Ensure legend is above border */
+}
+.radio-options-wrapper {
+  display: flex;
+  flex-wrap: wrap; /* Allow radio options themselves to wrap */
+  gap: var(--space-xs) var(--space-md); /* row-gap column-gap */
+  /* flex-basis: 100%; Removed, not strictly needed if parent is column */
+  align-items: center;
+  padding-top: calc(
+    var(--font-size-small) * 0.3 + var(--space-xs)
+  ); /* More space to clear legend */
+}
+.radio-group label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs); /* Gap between radio and its text */
+  cursor: pointer;
+  font-weight: var(--font-weight-normal);
+  margin-bottom: 0;
+  font-size: var(--font-size-normal);
+  padding: 0;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.radio-group input[type="radio"] {
+  /* width: auto; Size inherited from global radio style */
+  /* height: auto; */
+  margin: 0;
+  flex-shrink: 0;
+}
+
+/* Specific layout for feature toggles within the radio-group like structure */
+#featuresFieldset .radio-options-wrapper.features-wrapper {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-xs);
+  width: 100%;
+}
+
+.feature-toggle-group {
+  display: inline-flex;
+  flex-wrap: wrap; /* Allow items in this sub-group to wrap */
+  gap: var(--space-xs) var(--space-md); /* Consistent gap */
+  align-items: center;
+}
+.feature-toggle-group label {
+  font-size: var(--font-size-normal);
+  gap: calc(var(--space-xs) / 2);
+}
+
+.form-group-checkbox-inline {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs); /* Gap between checkbox and label */
+  margin-bottom: var(--space-sm);
+}
+.form-group-checkbox-inline input[type="checkbox"] {
+  /* width: auto; Size inherited */
+  /* height: auto; */
+  margin: 0;
+}
+.form-group-checkbox-inline label {
+  margin-bottom: 0;
+  font-weight: var(--font-weight-normal);
+  font-size: var(--font-size-normal);
+}

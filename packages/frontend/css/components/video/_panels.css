@@ -1,0 +1,163 @@
+/* FILE: packages/frontend/css/components/video/_panels.css */
+
+/* Base styles for all overlay panels */
+.video-overlay-panel {
+    background-color: var(--video-overlay-panel-bg);
+    backdrop-filter: var(--video-overlay-panel-blur);
+    -webkit-backdrop-filter: var(--video-overlay-panel-blur);
+    border: var(--video-overlay-panel-border);
+    border-radius: var(--radius);
+    padding: var(--space-sm);
+    z-index: 3;
+    position: absolute;
+    pointer-events: auto;
+  }
+  
+  #display-adjustments-panel {
+      bottom: var(--space-xs);
+      right: calc(var(--button-icon-size) + var(--space-sm));
+      display: flex;
+      flex-direction: row;
+      gap: var(--space-sm);
+  }
+  
+  #ai-tuning-panel {
+    bottom: var(--space-xs);
+    left: var(--space-xs); 
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+  }
+  
+  .tuning-slider-group {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: calc(var(--space-xs) / 2);
+      font-size: 0.75rem;
+  }
+  
+  .tuning-slider-group label {
+      font-weight: 500;
+      white-space: nowrap;
+      color: var(--text-on-primary); /* Adjusted for overlay */
+      order: 1;
+  }
+  
+  .tuning-slider-group input[type="range"] {
+      order: 2;
+      -webkit-appearance: none;
+      appearance: none;
+      background: rgba(var(--background-rgb, 255, 255, 255), 0.3);
+      border-radius: 4px;
+      outline: none;
+      cursor: pointer;
+      padding: 0;
+      margin: 0;
+      writing-mode: vertical-lr; /* Modern standard for vertical sliders */
+      width: 8px; /* Track thickness */
+      height: 70px; /* Track length */
+      transform: rotate(180deg); /* Ensure min is at the bottom */
+  }
+  
+  .tuning-slider-group input[type="range"]:hover {
+    opacity: 1;
+  }
+  
+  .tuning-slider-group input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      background: var(--primary);
+      cursor: pointer;
+      border-radius: 50%;
+      border: 2px solid var(--surface);
+      box-shadow: 0 1px 2px rgba(0,0,0,0.5);
+      /* No margin needed with writing-mode */
+  }
+  
+  .tuning-slider-group input[type="range"]::-moz-range-thumb {
+      width: 14px;
+      height: 14px;
+      background: var(--primary);
+      cursor: pointer;
+      border-radius: 50%;
+      border: 2px solid var(--surface);
+      box-shadow: 0 1px 2px rgba(0,0,0,0.5);
+  }
+  
+  .tuning-slider-group output {
+      order: 3;
+      font-variant-numeric: tabular-nums;
+      font-weight: 600;
+      font-size: 0.75rem;
+      color: var(--text-on-primary); /* Adjusted for overlay */
+      width: 4ch;
+      text-align: center;
+  }
+
+/* Mobile Adjustments for Tuning Panels */
+@media (max-width: 768px) {
+    .video-overlay-panel {
+        padding: var(--space-xs); /* Smaller padding for panels */
+        gap: var(--space-xs); /* Smaller gap within panels */
+    }
+
+    #ai-tuning-panel {
+        gap: var(--space-xs); /* Smaller gap for AI tuning panel elements */
+    }
+    #ai-tuning-group-selector .btn {
+        padding: calc(var(--button-icon-padding) * 0.8); /* Smaller button padding */
+        min-width: calc(var(--button-icon-size) * 0.8); /* Adjust min-width */
+        height: calc(var(--button-icon-size) * 0.8); /* Adjust height */
+    }
+    #ai-tuning-group-selector .btn .material-icons {
+        font-size: calc(var(--icon-size-button) * 0.8); /* Smaller icons in buttons */
+    }
+
+    .tuning-sliders-container {
+        gap: var(--space-xs); /* Smaller gap between vertical sliders */
+    }
+
+    .tuning-slider-group {
+        font-size: 0.65rem; /* Smaller font for label/output */
+        gap: calc(var(--space-xs) / 4); /* Tighter gap */
+    }
+
+    .tuning-slider-group input[type="range"] {
+        width: 6px; /* Thinner track */
+        height: 50px; /* Shorter track */
+        margin: calc(var(--space-xs) / 2) 0; /* Reduced margin */
+    }
+
+    .tuning-slider-group input[type="range"]::-webkit-slider-thumb {
+        width: 14px; /* Smaller thumb */
+        height: 14px;
+        border-width: 1.5px;
+    }
+    .tuning-slider-group input[type="range"]::-moz-range-thumb {
+        width: 12px; /* Smaller thumb for Firefox */
+        height: 12px;
+        border-width: 1.5px;
+    }
+
+    .tuning-slider-group output {
+        font-size: 0.65rem; /* Smaller output font */
+        width: 3ch; /* Adjust width if needed */
+    }
+
+    /* Specific to horizontal sliders in display-adjustments-panel */
+    #display-adjustments-panel .tuning-slider-group.horizontal {
+        gap: calc(var(--space-xs)/2);
+    }
+    #display-adjustments-panel .slider-group.horizontal .form-slider {
+        /* If it uses .form-slider, that's in forms.css.
+           Assuming it's similar to tuning-slider-group input[type="range"] for sizing control */
+        height: 6px; /* Thinner track for horizontal sliders too */
+    }
+     #display-adjustments-panel .slider-group.horizontal .slider-output-text {
+        font-size: 0.65rem; /* Smaller output font */
+        width: 3ch;
+     }
+}

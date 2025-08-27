@@ -1,0 +1,30 @@
+<!-- FILE: packages/frontend/src/partials/_modal_documentation.html -->
+<!-- Documentation Modal -->
+<div id="docsModal" class="modal docs-modal">
+    <div class="modal-content docs-modal-content">
+        <h3 id="docsModalTitle"><span class="material-icons header-icon"></span><span
+                class="header-title">Documentation</span>
+            <button id="docsCloseButton" class="btn btn-icon header-close-btn"
+                aria-label="Close Docs"><span class="mdi" aria-hidden="true"></span></button>
+        </h3>
+        <div class="modal-scrollable-content" id="docsModalScrollableContent">
+            <div class="docs-container-modal">
+                <aside class="docs-toc-modal" id="modalTocSidebar">
+                    <ul id="modalTocList"></ul>
+                    <nav class="controls docs-modal-controls" id="modalTocControls">
+                        <button id="modalLoadAboutBtn" class="btn btn-secondary">ABOUT</button>
+                        <button id="modalLoadDevBtn" class="btn btn-secondary">DEV</button>
+                        <button id="modalLoadPluginDevBtn" class="btn btn-secondary">SDK</button>
+                        <button id="modalLoadProdBtn" class="btn btn-secondary">PROD</button>
+                        <button id="modalLoadGuidesBtn" class="btn btn-secondary">GUIDES</button>
+                    </nav>
+                </aside>
+                <main class="docs-content-modal" id="modalDocsContent">
+                    <article id="modalContent">
+                        <p>Select doc.</p>
+                    </article>
+                </main>
+            </div>
+        </div>
+    </div>
+</div>

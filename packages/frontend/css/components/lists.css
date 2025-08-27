@@ -1,0 +1,131 @@
+/* FILE: packages/frontend/css/components/lists.css */
+/* Styles for various list structures. Many items are now based on .card-item. */
+
+/* Config List - Mobile-first: default is a single, stacked column. */
+.config-list {
+  display: flex;
+  flex-direction: column; /* Default to a vertical stack */
+  gap: var(--card-gap);
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  width: 100%;
+  box-sizing: border-box;
+  align-items: center; /* Center items for desktop grid, harmless on mobile column */
+}
+
+/* Desktop override: Apply flex-wrap for a grid-like layout only on larger screens */
+@media screen and (min-width: 769px) {
+  .config-list {
+    flex-direction: row; /* Change direction for desktop */
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: flex-start; /* Keeps cards top-aligned if they have varying heights */
+  }
+
+  /* REFACTORED: This rule is now more generic to apply to any .config-list on desktop. */
+  .config-list > .card-item {
+    flex-grow: 0;
+    flex-shrink: 1;
+    flex-basis: auto;
+    width: auto;
+    min-width: 280px;
+    max-width: var(--card-max-width-desktop);
+  }
+}
+
+/* History List - should display items in a single column, full width */
+.history-list {
+  display: grid !important;
+  grid-template-columns: 1fr;
+  gap: var(--card-gap);
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* --- Specific List Item Content (Pills - these are generic, not tied to cards.css pills) --- */
+.confidence-pill,
+.duration-pill,
+.presence-pill {
+  background-color: var(--background);
+  border: var(--border-width-standard) var(--border-style-standard)
+    var(--border);
+  padding: var(--pill-padding-y) var(--pill-padding-x);
+  border-radius: var(--pill-radius);
+  font-size: var(--font-size-small);
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  height: var(--pill-height);
+  color: var(--text-secondary);
+}
+.presence-pill {
+  border-style: var(--border-style-dashed);
+  opacity: var(--opacity-disabled);
+}
+
+/* Stream Status Indicator */
+.stream-status-indicator {
+  display: inline-block;
+  width: var(--stream-indicator-size);
+  height: var(--stream-indicator-size);
+  min-width: var(--stream-indicator-size);
+  min-height: var(--stream-indicator-size);
+  line-height: var(--stream-indicator-size);
+  border-radius: var(--radius-round);
+  vertical-align: middle;
+  flex-grow: 0;
+  flex-shrink: 0;
+  border: var(--border-width-standard) solid var(--stream-indicator-border);
+  box-sizing: border-box;
+}
+.stream-status-indicator.active {
+  background-color: var(--success);
+  border-color: var(--success);
+}
+.stream-status-indicator.error {
+  background-color: var(--error);
+  border-color: var(--error);
+}
+.stream-status-indicator.inactive {
+  background-color: var(--text-secondary);
+  opacity: var(--opacity-disabled);
+  border-color: var(--text-secondary);
+}
+.stream-status-indicator.unknown {
+  background-color: transparent;
+  border-color: var(--text-secondary);
+  opacity: 0.7;
+}
+
+/* Plugin Developer Info Link */
+.plugin-dev-info-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+  padding: var(--space-sm) 0;
+  font-size: var(--font-size-small);
+  color: var(--text-secondary);
+}
+
+.plugin-dev-info-container .material-icons {
+  font-size: var(--icon-size-normal);
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  color: var(--primary);
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+  font-size: inherit;
+  font-family: inherit;
+}
+.btn-link:hover {
+  color: var(--primary-hover);
+}

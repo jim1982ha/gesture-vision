@@ -1,0 +1,119 @@
+/* FILE: packages/frontend/css/components/desktop/desktop-nav.css */
+/* Top Navigation styles - these now apply to mobile as well by default for the header structure */
+
+.header-left-section {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  flex-shrink: 0;
+}
+
+.header-left-section > #wsStatusIndicator {
+  height: var(--button-height-normal);
+  width: var(--button-icon-size);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nav-brand {
+  display: flex;
+  align-items: center;
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+#appTitle {
+  font-size: var(--font-size-large);
+  font-weight: var(--font-weight-semibold);
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-primary);
+  line-height: var(--header-height);
+}
+
+#appTitle:hover {
+  cursor: pointer;
+  transition: color var(--transition-duration-short) ease;
+}
+
+.nav-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md); /*  margin between elements in the nav bar */
+  height: 100%;
+  flex-grow: 0;
+  min-width: 0;
+  justify-content: flex-end;
+  position: relative;
+}
+
+.desktop-header-dropdown-triggers {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  height: 100%;
+  flex-shrink: 0;
+}
+
+.header-toggle-groups-container {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  
+  display: flex;
+  align-items: center;
+  gap: var(--space-md); /* margin between groups in the container groups */
+  height: var(--button-height-normal);
+  overflow-x: auto;
+  overflow-y: hidden;
+  flex-shrink: 1;
+  flex-grow: 0;
+  min-width: 0;
+  justify-content: center; /* Center the groups within the container */
+
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.header-toggle-groups-container::-webkit-scrollbar {
+  display: none;
+  height: 0;
+  width: 0;
+}
+
+.header-toggle-groups-container .toggle-group {
+  flex-shrink: 0;
+}
+
+.nav-controls > #mainSettingsToggle {
+  flex-shrink: 0;
+}
+
+/* NEW: Styles for the plugin contribution slot container */
+.header-plugin-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  height: 100%;
+}
+
+.nav-controls
+  > .btn:not(#mainSettingsToggle):not(
+    .header-dropdown-trigger
+  ) {
+  min-width: var(--button-icon-size);
+  padding: var(--button-icon-padding);
+  justify-content: center;
+}
+.nav-controls
+  > .btn:not(#mainSettingsToggle):not(
+    .header-dropdown-trigger
+  )
+  .material-icons {
+  font-size: var(--icon-size-button);
+  margin: 0;
+}

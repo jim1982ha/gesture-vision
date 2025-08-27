@@ -1,0 +1,479 @@
+/* FILE: packages/frontend/src/ui/ui-header-toggles-controller.ts */
+import { type GestureCategoryIconType } from '#shared/constants/index.js';
+import { translate } from '#shared/services/translations.js';
+import {
+  updateButtonGroupActiveState,
+  updateButtonToggleActiveState,
+  setIcon,
+} from './helpers/index.js';
+
+import type { FullConfiguration } from '#shared/types/index.js';
+import type { UIController } from '#frontend/ui/ui-controller-core.js';
+import type { AppStore } from '../core/state/app-store.js';
+
+type FeatureConfigKey = Extract<
+  keyof FullConfiguration,
+  | 'enableBuiltInHandGestures'
+  | 'enableCustomHandGestures'
+  | 'enablePoseProcessing'
+>;
+type HTMLElementOrNull = HTMLElement | null;
+type HTMLButtonElementOrNull = HTMLButtonElement | null;
+export interface HeaderToggleElements {
+  [key: string]: HTMLElementOrNull | HTMLButtonElementOrNull | undefined;
+}
+
+interface PanelItemConfig {
+  id: string;
+  iconKey: GestureCategoryIconType;
+  labelKey: string;
+  handler: () => void;
+  value?: string;
+  configKey?: FeatureConfigKey;
+}
+interface MobileDropdownConfig {
+  type: string;
+  triggerIconKey: GestureCategoryIconType;
+  titleKey: string;
+  items: PanelItemConfig[];
+}
+
+export class HeaderTogglesController {
+  #elements: HeaderToggleElements = {};
+  #appStore: AppStore;
+  #activeDropdown: {
+    type: string;
+    panel: HTMLElement;
+    button: HTMLButtonElement;
+  } | null = null;
+
+  constructor(
+    elements: HeaderToggleElements,
+    appStore: AppStore,
+    _ui: UIController
+  ) {
+    this.#elements = elements;
+    this.#appStore = appStore;
+    this.#ensureCriticalElementsExist();
+    this.#createMobileDropdowns();
+    this.#attachDOMEventListeners();
+    this.#subscribeToCoreState();
+    this.updateAllButtonStates();
+    this.applyTranslations();
+  }
+  destroy(): void {
+    document.removeEventListener('click', this.#handleClickOutside);
+  }
+
+  #ensureCriticalElementsExist(): void {
+    const toEnsure: Array<{ key: keyof HeaderToggleElements; id: string }> = [
+      { key: 'builtInHandBtnDesktop', id: 'headerToggleBuiltInHand' },
+      {
+        key: 'customHandGesturesBtnDesktop',
+        id: 'headerToggleCustomHandGestures',
+      },
+      { key: 'poseProcessingBtnDesktop', id: 'headerTogglePoseDetection' },
+      { key: 'handLandmarksBtnDesktop', id: 'headerToggleHandLandmarks' },
+      { key: 'numHands1BtnDesktop', id: 'headerToggleNumHands1' },
+      { key: 'numHands2BtnDesktop', id: 'headerToggleNumHands2' },
+      { key: 'poseLandmarksBtnDesktop', id: 'headerTogglePoseLandmarks' },
+    ];
+    toEnsure.forEach((item) => {
+      if (!this.#elements[item.key])
+        this.#elements[item.key] = document.getElementById(item.id) as
+          | HTMLElement
+          | HTMLButtonElement
+          | null;
+    });
+  }
+
+  #createMobileDropdowns(): void {
+    const navControls = document.querySelector('.nav-controls');
+    if (!navControls) {
+      console.error(
+        '[HeaderTogglesCtrl] .nav-controls container not found for mobile triggers.'
+      );
+      return;
+    }
+
+    let mobileContainer = document.getElementById(
+      'mobile-controls-container'
+    ) as HTMLElement;
+    if (!mobileContainer) {
+      mobileContainer = document.createElement('div');
+      mobileContainer.id = 'mobile-controls-container';
+      mobileContainer.className =
+        'mobile-header-controls-container mobile-only-inline-flex';
+      const referenceNode = navControls.querySelector('#mainSettingsToggle');
+      if (referenceNode)
+        navControls.insertBefore(mobileContainer, referenceNode);
+      else navControls.appendChild(mobileContainer);
+    }
+    this.#elements.mobileControlsContainer = mobileContainer;
+    mobileContainer.innerHTML = '';
+
+    const dropdownConfigs: MobileDropdownConfig[] = [
+      {
+        type: 'features',
+        triggerIconKey: 'UI_FEATURES_DROPDOWN_TRIGGER',
+        titleKey: 'desktopFeaturesDropdownTitle',
+        items: [
+          {
+            id: 'itemToggleBuiltInHand',
+            iconKey: 'BUILT_IN_HAND',
+            labelKey: 'toggleBuiltInHandGesturesTitle',
+            handler: () =>
+              this.#handleFeatureToggleClick('enableBuiltInHandGestures'),
+            configKey: 'enableBuiltInHandGestures',
+          },
+          {
+            id: 'itemToggleCustomHandGestures',
+            iconKey: 'CUSTOM_HAND',
+            labelKey: 'toggleCustomHandGesturesTitle',
+            handler: () =>
+              this.#handleFeatureToggleClick('enableCustomHandGestures'),
+            configKey: 'enableCustomHandGestures',
+          },
+          {
+            id: 'itemTogglePoseProcessing',
+            iconKey: 'CUSTOM_POSE',
+            labelKey: 'togglePoseProcessingTitle',
+            handler: () =>
+              this.#handleFeatureToggleClick('enablePoseProcessing'),
+            configKey: 'enablePoseProcessing',
+          },
+        ],
+      },
+      {
+        type: 'handsAndLandmarks',
+        triggerIconKey: 'UI_HANDS_LANDMARKS_DROPDOWN_TRIGGER',
+        titleKey: 'desktopHandsDropdownTitle',
+        items: [
+          {
+            id: 'itemToggleHandLandmarks',
+            value: '0',
+            iconKey: 'UI_HAND_LANDMARK_HIDE',
+            labelKey: 'toggleHandLandmarksTitle',
+            handler: () => this.#handleHandsAndLandmarksSelection(0),
+          },
+          {
+            id: 'itemToggleNumHands1',
+            value: '1',
+            iconKey: 'UI_HAND_DETECT_ONE',
+            labelKey: 'detect1HandTitle',
+            handler: () => this.#handleHandsAndLandmarksSelection(1),
+          },
+          {
+            id: 'itemToggleNumHands2',
+            value: '2',
+            iconKey: 'UI_HAND_DETECT_TWO',
+            labelKey: 'detect2HandsTitle',
+            handler: () => this.#handleHandsAndLandmarksSelection(2),
+          },
+        ],
+      },
+    ];
+
+    dropdownConfigs.forEach(
+      ({ type, triggerIconKey, titleKey: _titleKey, items }) => {
+        const trigger = document.createElement('button');
+        trigger.className = 'btn btn-secondary header-dropdown-trigger';
+        trigger.id = `mobile${type}DropdownTrigger`;
+        setIcon(trigger, triggerIconKey);
+
+        const panel = document.createElement('div');
+        panel.id = `mobile${type}DropdownPanel`;
+        panel.className = 'header-dropdown-panel hidden';
+        panel.setAttribute('role', 'menu');
+
+        items.forEach((item) => {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'btn btn-secondary';
+          button.id = item.id;
+          if (item.value) button.dataset.value = item.value;
+          if (item.configKey) button.dataset.configKey = item.configKey;
+          button.addEventListener('click', () => {
+            item.handler();
+            this.#closeActiveDropdown();
+          });
+
+          // FIX: Create a dedicated span for the icon
+          const iconSpan = document.createElement('span');
+          setIcon(iconSpan, item.iconKey);
+
+          const textSpan = document.createElement('span');
+          textSpan.textContent = translate(item.labelKey);
+
+          button.appendChild(iconSpan);
+          button.appendChild(textSpan);
+          panel.appendChild(button);
+          this.#elements[item.id] = button;
+        });
+
+        trigger.addEventListener('click', () =>
+          this.#toggleDropdown(type, trigger, panel)
+        );
+        mobileContainer.appendChild(trigger);
+        navControls.appendChild(panel);
+      }
+    );
+
+    const directPoseButton = document.createElement('button');
+    directPoseButton.type = 'button';
+    directPoseButton.id = 'mobileTogglePoseLandmarksDirect';
+    directPoseButton.className = 'btn btn-secondary header-dropdown-trigger';
+    directPoseButton.dataset.landmarkType = 'pose';
+    directPoseButton.innerHTML = `<span class="material-icons"></span>`;
+    directPoseButton.addEventListener('click', () =>
+      this.#handleLandmarkToggleClick('pose')
+    );
+    mobileContainer.appendChild(directPoseButton);
+    this.#elements.mobileTogglePoseLandmarksDirect = directPoseButton;
+  }
+
+  #attachDOMEventListeners(): void {
+    document.addEventListener('click', this.#handleClickOutside);
+    this.#elements.builtInHandBtnDesktop?.addEventListener('click', () =>
+      this.#handleFeatureToggleClick('enableBuiltInHandGestures')
+    );
+    this.#elements.customHandGesturesBtnDesktop?.addEventListener('click', () =>
+      this.#handleFeatureToggleClick('enableCustomHandGestures')
+    );
+    this.#elements.poseProcessingBtnDesktop?.addEventListener('click', () =>
+      this.#handleFeatureToggleClick('enablePoseProcessing')
+    );
+    this.#elements.handLandmarksBtnDesktop?.parentElement?.addEventListener(
+      'click',
+      (e) => {
+        const btn = (e.target as HTMLElement).closest<HTMLButtonElement>(
+          'button[data-value]'
+        );
+        if (btn?.dataset.value !== undefined)
+          this.#handleHandsAndLandmarksSelection(
+            parseInt(btn.dataset.value, 10)
+          );
+      }
+    );
+    this.#elements.poseLandmarksBtnDesktop?.addEventListener('click', () =>
+      this.#handleLandmarkToggleClick('pose')
+    );
+  }
+  #subscribeToCoreState(): void {
+    this.#appStore.subscribe(() => {
+      this.updateAllButtonStates();
+      this.applyTranslations();
+    });
+  }
+
+  #handleFeatureToggleClick = (configKey: FeatureConfigKey): void => {
+    void this.#appStore.getState().actions.requestBackendPatch({
+      [configKey]: !this.#appStore.getState()[configKey],
+    });
+  };
+  #handleLandmarkToggleClick = (type: 'hand' | 'pose'): void => {
+    const state = this.#appStore.getState();
+    if (type === 'pose') {
+      if (state.enablePoseProcessing)
+        state.actions.setLocalPreference(
+          'showPoseLandmarks',
+          !state.showPoseLandmarks
+        );
+    } else {
+      if (state.enableBuiltInHandGestures || state.enableCustomHandGestures)
+        state.actions.setLocalPreference(
+          'showHandLandmarks',
+          !state.showHandLandmarks
+        );
+    }
+  };
+  #handleHandsAndLandmarksSelection = (value: number): void => {
+    const { actions } = this.#appStore.getState();
+    actions.setLocalPreference('showHandLandmarks', value !== 0);
+    actions.setLocalPreference('numHandsPreference', value === 0 ? 1 : value);
+  };
+
+  #toggleDropdown = (
+    type: string,
+    button: HTMLButtonElement,
+    panel: HTMLElement
+  ): void => {
+    if (button.disabled) {
+      this.#closeActiveDropdown();
+      return;
+    }
+    const isOpening =
+      !this.#activeDropdown || this.#activeDropdown.type !== type;
+    this.#closeActiveDropdown();
+    if (isOpening) {
+      const topAnchor = button
+        .closest('.top-nav')!
+        .getBoundingClientRect().bottom;
+      panel.style.top = `${topAnchor + 4}px`;
+      panel.style.left = '50%';
+      panel.style.right = 'auto';
+      panel.style.setProperty(
+        '--dropdown-initial-transform',
+        'translateX(-50%) translateY(-10px) scale(0.95)'
+      );
+      panel.style.setProperty(
+        '--dropdown-visible-transform',
+        'translateX(-50%) translateY(0) scale(1)'
+      );
+      panel.classList.remove('hidden');
+      panel.classList.add('visible');
+      button.setAttribute('aria-expanded', 'true');
+      button.classList.add('active');
+      this.#activeDropdown = { type, panel, button };
+    }
+  };
+  #closeActiveDropdown = (): void => {
+    if (!this.#activeDropdown) return;
+    this.#activeDropdown.panel.classList.add('hidden');
+    this.#activeDropdown.panel.classList.remove('visible');
+    this.#activeDropdown.button.setAttribute('aria-expanded', 'false');
+    this.#activeDropdown.button.classList.remove('active');
+    this.#activeDropdown = null;
+  };
+  #handleClickOutside = (event: MouseEvent): void => {
+    if (
+      this.#activeDropdown &&
+      !this.#activeDropdown.button.contains(event.target as Node) &&
+      !this.#activeDropdown.panel.contains(event.target as Node)
+    )
+      this.#closeActiveDropdown();
+  };
+
+  updateAllButtonStates = (): void => {
+    const state = this.#appStore.getState();
+    const {
+      builtInHandBtnDesktop,
+      customHandGesturesBtnDesktop,
+      poseProcessingBtnDesktop,
+      handLandmarksBtnDesktop,
+      poseLandmarksBtnDesktop,
+      mobileTogglePoseLandmarksDirect,
+      itemToggleBuiltInHand,
+      itemToggleCustomHandGestures,
+      itemTogglePoseProcessing,
+    } = this.#elements;
+    const builtInOn = state.enableBuiltInHandGestures,
+      customHandOn = state.enableCustomHandGestures,
+      poseOn = state.enablePoseProcessing;
+    const anyHandOn = builtInOn || customHandOn;
+    const showHandLm = state.showHandLandmarks,
+      showPoseLm = state.showPoseLandmarks,
+      numHands = state.numHandsPreference;
+
+    updateButtonToggleActiveState(
+      builtInHandBtnDesktop as HTMLButtonElementOrNull,
+      builtInOn
+    );
+    updateButtonToggleActiveState(
+      customHandGesturesBtnDesktop as HTMLButtonElementOrNull,
+      customHandOn
+    );
+    updateButtonToggleActiveState(
+      poseProcessingBtnDesktop as HTMLButtonElementOrNull,
+      poseOn
+    );
+    updateButtonGroupActiveState(
+      handLandmarksBtnDesktop?.parentElement,
+      showHandLm ? String(numHands) : '0',
+      !anyHandOn
+    );
+    updateButtonToggleActiveState(
+      poseLandmarksBtnDesktop as HTMLButtonElementOrNull,
+      showPoseLm,
+      !poseOn
+    );
+
+    updateButtonToggleActiveState(
+      mobileTogglePoseLandmarksDirect as HTMLButtonElementOrNull,
+      showPoseLm,
+      !poseOn
+    );
+    updateButtonToggleActiveState(
+      itemToggleBuiltInHand as HTMLButtonElementOrNull,
+      builtInOn
+    );
+    updateButtonToggleActiveState(
+      itemToggleCustomHandGestures as HTMLButtonElementOrNull,
+      customHandOn
+    );
+    updateButtonToggleActiveState(
+      itemTogglePoseProcessing as HTMLButtonElementOrNull,
+      poseOn
+    );
+
+    const mobileHandsValue = showHandLm ? String(numHands) : '0';
+    updateButtonGroupActiveState(
+      document.getElementById('mobilehandsAndLandmarksDropdownPanel'),
+      mobileHandsValue,
+      !anyHandOn
+    );
+
+    const mobileHandsAndLandmarksTrigger = document.getElementById(
+      'mobilehandsAndLandmarksDropdownTrigger'
+    );
+    if (mobileHandsAndLandmarksTrigger)
+      mobileHandsAndLandmarksTrigger.toggleAttribute('disabled', !anyHandOn);
+
+    if (this.#activeDropdown?.type === 'handsAndLandmarks' && !anyHandOn)
+      this.#closeActiveDropdown();
+  };
+
+  applyTranslations = (): void => {
+    this.#createMobileDropdowns();
+    const setTooltip = (el: Element | null | undefined, key: string) =>
+      el?.setAttribute('title', translate(key));
+    setTooltip(
+      this.#elements.builtInHandBtnDesktop,
+      'toggleBuiltInHandGesturesTitle'
+    );
+    setTooltip(
+      this.#elements.customHandGesturesBtnDesktop,
+      'toggleCustomHandGesturesTitle'
+    );
+    setTooltip(
+      this.#elements.poseProcessingBtnDesktop,
+      'togglePoseProcessingTitle'
+    );
+    setTooltip(
+      this.#elements.handLandmarksBtnDesktop,
+      'toggleHandLandmarksTitle'
+    );
+    setTooltip(this.#elements.numHands1BtnDesktop, 'detect1HandTitle');
+    setTooltip(this.#elements.numHands2BtnDesktop, 'detect2HandsTitle');
+    setTooltip(
+      this.#elements.poseLandmarksBtnDesktop,
+      'togglePoseLandmarksTitle'
+    );
+    setTooltip(
+      document.getElementById('mobilehandsAndLandmarksDropdownTrigger'),
+      'desktopHandsDropdownTitle'
+    );
+    setTooltip(
+      document.getElementById('mobilefeaturesDropdownTrigger'),
+      'desktopFeaturesDropdownTitle'
+    );
+    setTooltip(
+      this.#elements.mobileTogglePoseLandmarksDirect,
+      'togglePoseLandmarksTitle'
+    );
+
+    setIcon(this.#elements.builtInHandBtnDesktop, 'BUILT_IN_HAND');
+    setIcon(this.#elements.customHandGesturesBtnDesktop, 'CUSTOM_HAND');
+    setIcon(this.#elements.poseProcessingBtnDesktop, 'CUSTOM_POSE');
+    setIcon(this.#elements.handLandmarksBtnDesktop, 'UI_HAND_LANDMARK_HIDE');
+    setIcon(this.#elements.numHands1BtnDesktop, 'UI_HAND_DETECT_ONE');
+    setIcon(this.#elements.numHands2BtnDesktop, 'UI_HAND_DETECT_TWO');
+    setIcon(this.#elements.poseLandmarksBtnDesktop, 'UI_POSE_LANDMARK_TOGGLE');
+    setIcon(
+      this.#elements.mobileTogglePoseLandmarksDirect,
+      'UI_POSE_LANDMARK_TOGGLE'
+    );
+
+    this.updateAllButtonStates();
+  };
+}

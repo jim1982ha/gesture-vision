@@ -1,0 +1,53 @@
+/* FILE: packages/frontend/css/components/video/_base.css */
+
+.video-container {
+  width: 100%; /* MODIFICATION: Restored this critical property */
+  max-width: var(--video-max-width); 
+  margin: var(--space-sm) auto;
+  aspect-ratio: 16 / 9;
+  overflow: hidden; 
+  border-radius: var(--card-radius);
+  display: flex; 
+  align-items: center;
+  justify-content: center;
+  position: relative; 
+  background-color: var(--surface); 
+  transition: width 0.3s ease-in-out, max-width 0.3s ease-in-out; 
+}
+
+.video-container.size-constrained {
+  width: 66.66%;
+}
+
+video#webcam,
+canvas#output_canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(1);
+  transition: transform var(--transition-duration-short) ease-out;
+  border-radius: inherit;
+  background-color: transparent;
+}
+
+video#webcam {
+  z-index: 1;
+  display: none !important;
+}
+
+canvas#output_canvas {
+  z-index: 2; 
+  pointer-events: auto;
+}
+
+video#webcam.video-placeholder-active {
+  display: none !important;
+  visibility: hidden !important;
+  width: 0 !important;
+  height: 0 !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}

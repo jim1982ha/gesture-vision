@@ -1,0 +1,73 @@
+/* FILE: packages/frontend/css/components/video/_toolbar.css */
+
+/* MODIFICATION: Style for the now-independent size toggle button */
+#videoSizeToggleButton {
+  position: absolute;
+  top: var(--space-xs);
+  left: var(--space-xs);
+  z-index: 4; /* Above toolbar container */
+  background-color: rgba(var(--overlay-gray-rgb), 0.3); 
+  color: var(--text-on-primary); 
+  border: none; 
+  box-shadow: var(--shadow-subtle);
+  pointer-events: auto;
+}
+#videoSizeToggleButton:hover {
+  background-color: rgba(var(--overlay-gray-rgb), 0.5); 
+}
+
+#video-toolbar-container {
+  position: absolute;
+  top: var(--space-xs);
+  right: var(--space-xs);
+  z-index: 3; 
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  pointer-events: none; 
+  opacity: 0;
+  transition: opacity var(--transition-duration-normal) ease-in-out;
+}
+
+.video-container:hover #video-toolbar-container,
+#video-toolbar-container.visible { 
+  opacity: 1;
+  pointer-events: auto; 
+}
+
+#video-toolbar-container > .btn {
+  background-color: rgba(var(--overlay-gray-rgb), 0.3); 
+  color: var(--text-on-primary); 
+  border: none; 
+  box-shadow: var(--shadow-subtle);
+  pointer-events: auto; 
+}
+
+#video-toolbar-container > .btn:hover {
+  background-color: rgba(var(--overlay-gray-rgb), 0.5); 
+}
+
+#video-toolbar-container > .btn.active {
+  background-color: var(--primary); 
+  color: var(--text-on-primary);
+}
+
+#video-toolbar-container > .btn.active:hover {
+  background-color: var(--primary-hover);
+}
+
+#video-toolbar-container > .btn .material-icons,
+#video-toolbar-container > .btn .mdi { 
+  font-size: var(--icon-size-medium); 
+}
+
+
+@media (max-width: 768px) {
+  #video-toolbar-container > .btn.btn-icon .material-icons,
+  #video-toolbar-container > .btn.btn-icon .mdi {
+      margin: 0; 
+  }
+  #video-toolbar-container {
+      gap: calc(var(--space-xs) / 2); 
+  }
+}

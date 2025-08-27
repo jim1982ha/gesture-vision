@@ -1,0 +1,54 @@
+/* FILE: ./css/components/modals/modal-confirmation.css */
+
+.confirmation-modal .modal-content {
+  max-width: 400px; /* Smaller width for confirmation */
+  /* min-height: auto; /* Let content define height, or set a smaller specific min-height */
+  /* max-height: 80vh; /* Prevent it from being too tall */
+  padding: 0; /* Handled by inner sections */
+}
+
+.confirmation-modal-title {
+  padding: var(--space-sm) var(--space-md);
+  font-size: var(
+    --font-size-large
+  ); /* Slightly smaller than main modal title */
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+  text-align: center;
+  border-bottom: var(--border-width-standard) var(--border-style-standard)
+    var(--border);
+}
+/* Remove default header icon and close button styling if not needed for simple confirm */
+.confirmation-modal-title .header-icon,
+.confirmation-modal-title .header-close-btn {
+  display: none;
+}
+
+.confirmation-modal-message-content {
+  padding: var(--space-md);
+  text-align: center; /* Center the message text */
+  font-size: var(--font-size-normal);
+  line-height: var(--line-height-prose);
+  /* Override general modal scrollable content styles for confirmation modal specifically */
+  flex-grow: 0 !important; /* Prevent this section from growing to fill space */
+  flex-shrink: 1; /* Allow shrinking */
+  min-height: auto !important; /* Let content define its minimum height, override mobile default */
+  /* max-height will be constrained by modal-content's max-height if content is very long */
+  /* overflow-y: auto; /* Keep this so if content IS too long, it scrolls */
+}
+
+.confirmation-modal-message-content p {
+  margin: 0; /* Remove default paragraph margin if needed */
+}
+
+.confirmation-modal-actions {
+  justify-content: flex-end; /* Align buttons to the right */
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  border-top: var(--border-width-standard) var(--border-style-standard)
+    var(--border);
+}
+
+.confirmation-modal-actions .btn {
+  min-width: calc(var(--space-unit) * 20); /* e.g., 80px */
+}

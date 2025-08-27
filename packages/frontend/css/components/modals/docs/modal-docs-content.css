@@ -1,0 +1,258 @@
+/* FILE: ./css/components/modals/docs/modal-docs-content.css */
+/* Styles for the rendered Markdown content within the Documentation Modal, using variables. */
+
+/* Headings */
+.docs-content-modal h1,
+.docs-content-modal h2,
+.docs-content-modal h3,
+.docs-content-modal h4 {
+  margin-top: var(--space-md);
+  margin-bottom: var(--space-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+  line-height: var(--line-height-tight);
+}
+.docs-content-modal h1 {
+  font-size: var(--font-size-h1-docs);
+  border-bottom: var(--border-width-standard) var(--border-style-standard)
+    var(--border);
+  padding-bottom: var(--space-sm);
+}
+.docs-content-modal h2 {
+  font-size: var(--font-size-h2-docs);
+  border-bottom: var(--border-width-standard) var(--border-style-dashed)
+    var(--border-light);
+  padding-bottom: var(--space-xs);
+}
+.docs-content-modal h3 {
+  font-size: var(--font-size-h3-docs);
+}
+.docs-content-modal h4 {
+  font-size: var(--font-size-h4-docs);
+}
+
+/* Paragraphs */
+.docs-content-modal p {
+  margin-bottom: var(--space-sm);
+  line-height: var(--line-height-prose);
+  overflow-wrap: break-word;
+  word-break: break-word;
+  white-space: normal;
+}
+
+/* Links */
+.docs-content-modal a {
+  color: var(--primary);
+  text-decoration: underline;
+}
+.docs-content-modal a:hover {
+  color: var(--primary-hover);
+  text-decoration: underline wavy;
+}
+
+/* Inline Code */
+.docs-content-modal code {
+  background-color: var(--code-inline-bg);
+  padding: calc(var(--space-unit) * 0.5) var(--space-unit);
+  border-radius: var(--radius-small);
+  font-size: 0.95em;
+  font-family: monospace;
+  color: var(--code-inline-text);
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* Code Blocks */
+.docs-content-modal pre {
+  background-color: var(--code-block-bg);
+  border: var(--border-width-standard) var(--border-style-standard)
+    var(--border);
+  padding: var(--space-sm);
+  border-radius: var(--radius);
+  overflow-x: auto;
+  font-size: 0.9em;
+  line-height: var(--line-height-normal);
+  white-space: pre;
+}
+.docs-content-modal pre code {
+  background-color: transparent;
+  padding: 0;
+  border-radius: 0;
+  color: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  white-space: pre !important;
+  word-break: normal !important;
+}
+
+/* Blockquotes */
+.docs-content-modal blockquote {
+  border-left: var(--space-unit) var(--border-style-standard) var(--border);
+  padding-left: var(--space-sm);
+  margin-left: 0;
+  margin-bottom: var(--space-sm);
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+/* Lists */
+.docs-content-modal ul,
+.docs-content-modal ol {
+  margin-left: var(--space-lg);
+  margin-bottom: var(--space-sm);
+  padding-left: 0;
+}
+.docs-content-modal li {
+  margin-bottom: var(--space-xs);
+  line-height: var(--line-height-prose);
+}
+
+/* Tables */
+.docs-content-modal table {
+  border-collapse: collapse;
+  width: 100%;
+  margin-bottom: var(--space-sm);
+  border: var(--border-width-standard) var(--border-style-standard)
+    var(--border);
+}
+.docs-content-modal th,
+.docs-content-modal td {
+  border: var(--border-width-standard) var(--border-style-standard)
+    var(--border);
+  padding: var(--space-xs) var(--space-sm);
+  text-align: left;
+  line-height: var(--line-height-normal);
+}
+.docs-content-modal th {
+  background-color: var(--background);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* Images */
+.docs-content-modal img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius);
+  margin-top: var(--space-sm);
+  margin-bottom: var(--space-sm);
+  display: block;
+}
+
+/* SVG Diagram Specific Styles */
+.docs-content-modal .svg-rect {
+  stroke: var(--text-primary);
+  stroke-width: var(--border-width-standard);
+}
+.docs-content-modal .svg-text,
+.docs-content-modal .arch-text,
+.docs-content-modal .tech-icon-text,
+.docs-content-modal .pie-label,
+.docs-content-modal .pie-legend-text,
+.docs-content-modal .timeline-milestone-text {
+  font-family: inherit;
+  fill: var(
+    --text-primary
+  ) !important; /* Important might be needed for SVG fill */
+}
+.docs-content-modal .arch-label,
+.docs-content-modal .timeline-date-text,
+.docs-content-modal .tech-icon-subtext {
+  font-family: inherit;
+  fill: var(
+    --text-secondary
+  ) !important; /* Important might be needed for SVG fill */
+}
+
+.docs-content-modal .arch-text {
+  font-size: 9.5px; /* Kept as specific pixel value for SVG precision */
+}
+.docs-content-modal .arch-label {
+  font-size: 7.5px;
+}
+.docs-content-modal .tech-icon-text {
+  font-size: 9px;
+  font-weight: var(--font-weight-bold);
+}
+.docs-content-modal .tech-icon-subtext {
+  font-size: 8px;
+}
+.docs-content-modal .pie-label {
+  font-size: 10px;
+}
+.docs-content-modal .pie-legend-text {
+  font-size: 9px;
+}
+.docs-content-modal .timeline-milestone-text {
+  font-size: 9px;
+}
+.docs-content-modal .timeline-date-text {
+  font-size: 8px;
+}
+
+.docs-content-modal .svg-arrow {
+  stroke: var(--text-primary);
+  stroke-width: var(--border-width-medium); /* MODIFIED */
+  marker-end: url(#arrowhead);
+}
+.docs-content-modal .svg-arrow.control-flow {
+  stroke: var(--primary);
+}
+.docs-content-modal .svg-line {
+  stroke: var(--text-primary);
+  stroke-width: var(--border-width-standard);
+}
+.docs-content-modal .arch-component {
+  fill: var(--info-light, var(--surface));
+  stroke: var(--info-border, var(--border));
+  stroke-width: var(--border-width-standard);
+}
+.docs-content-modal .arch-user {
+  fill: var(--warning-light, var(--surface));
+  stroke: var(--warning-border, var(--border));
+  stroke-width: var(--border-width-standard);
+}
+.docs-content-modal .arch-integration {
+  fill: var(--success-light, var(--surface));
+  stroke: var(--success-border, var(--border));
+  stroke-width: var(--border-width-standard);
+}
+.docs-content-modal .arch-arrow {
+  stroke: var(--text-secondary);
+  stroke-width: var(--border-width-standard);
+  fill: none;
+}
+
+.docs-content-modal .tech-icon-rect {
+  fill: var(--background);
+  stroke: var(--border);
+  stroke-width: var(--border-width-hairline); /* MODIFIED */
+}
+.docs-content-modal .pie-slice {
+  stroke: var(--surface);
+  stroke-width: var(--border-width-standard);
+}
+.docs-content-modal .pie-legend-rect {
+  stroke: var(--border);
+  stroke-width: var(--border-width-hairline); /* MODIFIED */
+}
+.docs-content-modal .timeline-line {
+  stroke: var(--primary);
+  stroke-width: var(--border-width-strong); /* MODIFIED */
+}
+.docs-content-modal .timeline-milestone-circle {
+  fill: var(--primary);
+  stroke: var(--surface);
+  stroke-width: var(--border-width-medium); /* MODIFIED */
+}
+.docs-content-modal .timeline-milestone-rect {
+  fill: var(--primary-light, var(--surface));
+  stroke: var(--primary);
+  stroke-width: var(--border-width-hairline); /* MODIFIED */
+}
+
+.docs-content-modal .diagram-caption {
+  font-size: var(--font-size-small);
+  color: var(--text-secondary);
+  margin-top: var(--space-xs);
+  font-style: italic;
+}

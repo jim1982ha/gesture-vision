@@ -1,0 +1,10 @@
+/* FILE: ./css/variables/_scrollbars.css */
+/* Defines shared CSS custom properties for Scrollbars. */
+/* These apply to all themes and modes. */
+:root,
+[data-theme*="-light"],
+[data-theme*="-dark"] {
+  /* Scrollbars */
+  --scrollbar-size: var(--space-xs);
+  --scrollbar-thumb-radius: var(--radius-small);
+}

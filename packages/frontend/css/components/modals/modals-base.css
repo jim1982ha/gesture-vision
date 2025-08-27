@@ -1,0 +1,9 @@
+/* css/components/modals-base.css */
+/* Main import file for base modal component styles */
+
+@import url("./modals/modal-structure.css");
+@import url("./modals/modal-header.css");
+@import url("./modals/modal-tabs.css");
+@import url("./modals/modal-footer.css");
+@import url("./modals/modal-scroll.css");
+@import url("./modals/modal-responsive.css");

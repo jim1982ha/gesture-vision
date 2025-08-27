@@ -1,0 +1,38 @@
+/* packages/frontend/css/layout/_responsive-display-utilities.css */
+/* Utility classes for showing/hiding elements based on viewport size. */
+
+.desktop-only-flex,
+.desktop-only-inline-flex,
+.desktop-only-block {
+  display: none !important;
+}
+.mobile-only-flex {
+  display: flex !important;
+  align-items: center;
+}
+.mobile-only-inline-flex {
+  display: inline-flex !important;
+  align-items: center;
+}
+.mobile-only-block {
+  display: block !important;
+}
+
+@media screen and (min-width: 769px) and (any-pointer: fine) {
+  .desktop-only-flex {
+    display: flex !important;
+  }
+  .desktop-only-inline-flex {
+    display: inline-flex !important;
+    align-items: center;
+  }
+  .desktop-only-block {
+    display: block !important;
+  }
+
+  .mobile-only-flex,
+  .mobile-only-inline-flex,
+  .mobile-only-block {
+    display: none !important;
+  }
+}

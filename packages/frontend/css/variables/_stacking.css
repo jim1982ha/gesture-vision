@@ -1,0 +1,32 @@
+/* FILE: ./css/variables/_stacking.css */
+/* Defines shared CSS custom properties for Z-Indexes. */
+/* These apply to all themes and modes. */
+:root,
+[data-theme*="-light"],
+[data-theme*="-dark"] {
+  /* Z-Indexes (Consolidated) */
+  --z-video-overlay: 1;
+  --z-progress-rings: 2;
+  --z-status-overlay: 3;
+  --z-connecting-overlay: 4;
+  
+  /* Dashboard is a major UI mode, sits above content but below modals */
+  --z-dashboard-overlay: 200;
+  --z-dashboard-content: 201;
+  --z-dashboard-cursor: 202;
+
+  --z-header: 300;
+  --z-backdrop: 390;
+  --z-sidebar: 400;
+  --z-sidebar-toggle: 401;
+  --z-bottom-nav: 500;
+  
+  --z-modal-overlay: 900;
+  --z-modal-content: 901;
+  
+  /* Sub-modal for things that appear OVER another modal/overlay, like widget editor */
+  --z-sub-modal-overlay: 950;
+  
+  --z-dropdown: 1000;
+  --z-alert: 1100;
+}

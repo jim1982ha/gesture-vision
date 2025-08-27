@@ -1,0 +1,140 @@
+/* FILE: css/components/forms/_form_groups_layout.css */
+/* Base layout for form groups and rows */
+
+.form-section {
+  margin-bottom: var(--space-xl);
+}
+.form-section:last-child {
+  margin-bottom: 0;
+}
+.form-section > .form-label:first-child,
+.form-section > .label-with-icon:first-child {
+  display: block;
+  margin-bottom: var(--space-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--text-secondary);
+  text-align: left;
+  font-size: var(--font-size-small);
+}
+
+.form-group {
+  position: relative;
+  margin-bottom: var(--space-sm);
+}
+
+.form-section > .form-group:last-of-type,
+form > .form-group:last-of-type {
+  margin-bottom: 0;
+}
+
+.form-section > .form-group:not(:last-child) {
+  margin-bottom: var(--space-sm);
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: calc(var(--space-xs) / 2);
+  font-weight: var(--font-weight-medium);
+  font-size: var(--font-size-small);
+  color: var(--text-secondary);
+  text-align: left;
+}
+
+.individual-button-row {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: var(--space-xs);
+  margin-top: var(--space-xs);
+}
+
+.individual-button-row > .btn {
+  border-radius: var(--button-radius) !important;
+  border-width: var(--border-width-standard) !important;
+  border-style: var(--border-style-standard) !important;
+  border-color: var(--border) !important;
+  margin: 0 !important;
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+
+.individual-button-row > .btn.active {
+  background-color: var(--primary) !important;
+  color: var(--text-on-primary) !important;
+  border-color: var(--primary) !important;
+  z-index: 1;
+}
+.individual-button-row > .btn:not(.active):hover {
+  background-color: var(--background) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--text-secondary) !important;
+}
+
+.form-section > .button-group-container {
+  margin-bottom: var(--space-sm);
+}
+.form-section > .button-group-container:last-child {
+  margin-bottom: 0;
+}
+
+.button-group-container .form-label {
+  display: block;
+  margin-bottom: var(--space-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--text-secondary);
+  text-align: left;
+  font-size: var(--font-size-small);
+}
+
+.form-grid {
+  display: grid;
+  gap: var(--space-sm);
+}
+
+.form-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+}
+
+form > .form-row:last-of-type {
+  margin-bottom: 0;
+}
+
+.form-row .form-group {
+  flex: 1;
+  min-width: 150px;
+  margin-bottom: 0; 
+}
+
+#configSidebar form > .form-group,
+#configSidebar form > .form-row {
+  margin-bottom: var(--space-sm);
+}
+#configSidebar form > .form-row > .form-group {
+  margin-bottom: 0;
+}
+
+#mainSettingsModal .form-row {
+  margin-bottom: var(--space-sm);
+}
+
+.form-actions-group,
+.integration-form-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-top: var(--space-md);
+}
+
+.form-actions-group.justify-end,
+.integration-form-actions {
+  justify-content: flex-end;
+}
+
+.form-actions-group.justify-space-between {
+  justify-content: space-between;
+}

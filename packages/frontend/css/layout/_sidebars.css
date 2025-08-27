@@ -1,0 +1,179 @@
+/* packages/frontend/css/layout/_sidebars.css */
+/* Styles for sidebars and the sidebar backdrop. */
+
+.sidebar {
+  position: fixed;
+  z-index: var(--z-sidebar);
+  background-color: var(--surface);
+  overflow: hidden;
+  padding: 0;
+  visibility: hidden;
+  transition: transform var(--slide-transition-duration)
+      var(--slide-transition-timing),
+    visibility 0s linear var(--slide-transition-duration),
+    width var(--slide-transition-duration) var(--slide-transition-timing);
+  display: flex !important;
+  flex-direction: column !important;
+  width: 100%; /* Default for mobile, overridden by desktop */
+  box-shadow: 0 calc(-1 * var(--space-unit)) calc(var(--space-unit) * 5)
+    rgba(0, 0, 0, 0.15); /* Mobile-first shadow */
+  top: var(--header-height) !important; /* Mobile-first positioning */
+  bottom: var(--bottom-nav-height) !important; /* Mobile-first positioning */
+}
+
+.sidebar .sidebar-header {
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+  padding: var(--space-sm);
+  padding-bottom: var(--space-xs);
+  border-bottom: var(--border-width-standard) var(--border-style-standard)
+    var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-xs);
+}
+
+.sidebar .sidebar-header .header-title {
+  font-size: var(--font-size-medium);
+  color: var(--text-secondary);
+  font-weight: var(--font-weight-medium);
+}
+
+.sidebar .sidebar-header .sidebar-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  margin-left: auto;
+}
+
+.sidebar-scrollable-content {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: var(--space-sm);
+  box-sizing: border-box;
+  min-height: 0;
+  position: relative;
+  z-index: 0;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+#configSidebar .config-action-buttons {
+  /* Specific to config sidebar footer */
+  flex: 0 0 auto;
+  padding: var(--space-sm);
+  position: relative;
+  z-index: 1;
+}
+
+.sidebar-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: var(--bottom-nav-height); /* Mobile-first */
+  background-color: var(--overlay-bg);
+  backdrop-filter: blur(var(--overlay-blur));
+  -webkit-backdrop-filter: blur(var(--overlay-blur));
+  z-index: var(--z-backdrop);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--slide-transition-duration) ease,
+    visibility 0s linear var(--slide-transition-duration);
+  display: none; /* Hidden by default */
+}
+
+.sidebar-backdrop.visible {
+  display: block;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Mobile-specific sidebar behavior overrides */
+@media (max-width: 768px) {
+  .sidebar {
+    transform: translateY(
+      calc(100svh - var(--header-height) - var(--bottom-nav-height))
+    ) !important;
+    border-top-left-radius: var(--radius-large);
+    border-top-right-radius: var(--radius-large);
+  }
+  
+  body.config-sidebar-active #configSidebar,
+  body.history-sidebar-active #historySidebar {
+    transform: translateY(0) !important; /* Slide into view */
+    visibility: visible;
+    transition-delay: 0s;
+  }
+
+  body.config-sidebar-active .main-content,
+  body.config-sidebar-active .top-nav,
+  body.history-sidebar-active .main-content,
+  body.history-sidebar-active .top-nav {
+    filter: blur(var(--overlay-blur));
+  }
+}
+
+/* Desktop-specific sidebar behavior overrides */
+@media screen and (min-width: 769px) and (any-pointer: fine) {
+  .sidebar {
+    /* Reset mobile-first positioning for desktop */
+    top: var(--header-height);
+    bottom: 0 !important;
+    height: auto;
+    max-height: none;
+    border-radius: 0;
+    max-width: none;
+    box-shadow: var(--shadow-strong);
+    /* transform is handled by specific sidebar IDs for desktop */
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+  }
+
+  #configSidebar {
+    left: 0;
+    right: auto;
+    width: var(--config-sidebar-width);
+    transform: translateX(-100%);
+    border-right: var(--border-width-standard) var(--border-style-standard)
+      var(--border);
+    border-left: none;
+  }
+  #historySidebar {
+    left: auto;
+    right: 0;
+    width: var(--history-sidebar-width);
+    transform: translateX(100%);
+    border-left: var(--border-width-standard) var(--border-style-standard)
+      var(--border);
+    border-right: none;
+  }
+
+  body.config-sidebar-active #configSidebar,
+  body.history-sidebar-active #historySidebar {
+    transform: translateX(0) !important;
+    visibility: visible;
+    transition-delay: 0s;
+  }
+
+  .sidebar-scrollable-content {
+    /* Desktop specific overrides if any */
+    padding: var(--space-md);
+  }
+
+  #configSidebar .config-action-buttons {
+    /* Desktop specific overrides if any */
+    padding: var(--space-md);
+  }
+
+  .sidebar-backdrop {
+    /* Desktop backdrop behavior */
+    display: block;
+    pointer-events: none;
+    background: transparent;
+    backdrop-filter: none;
+  }
+}

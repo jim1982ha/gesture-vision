@@ -1,0 +1,68 @@
+/* FILE: packages/frontend/css/components/modals/modal-structure.css */
+/* Base structure and appearance for modal dialogs */
+
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--overlay-bg); /* Use variable for overlay background */
+  backdrop-filter: blur(var(--overlay-blur));
+  -webkit-backdrop-filter: blur(var(--overlay-blur)); /* For Safari */
+  display: flex; /* Always flex for alignment, visibility is controlled by opacity */
+  align-items: center; /* Default alignment, overridden by desktop/mobile */
+  justify-content: center; /* Default alignment */
+  z-index: var(--z-modal-overlay);
+  padding: var(--space-sm); /* Default viewport padding */
+  visibility: hidden; /* Start hidden */
+  opacity: 0; /* Start transparent */
+  transition: opacity var(--transition-duration-normal) ease-out,
+    visibility 0s linear var(--transition-duration-normal); /* Delay hiding */
+  overflow: hidden; /* Prevent body scroll when modal is shorter than content on some OS */
+}
+
+.modal.visible {
+  display: flex; /* Use flex for alignment capabilities */
+  visibility: visible;
+  opacity: 1;
+  transition-delay: 0s;
+}
+
+.modal-content {
+  background: var(--surface);
+  padding: 0; /* Inner sections (header, content, footer) handle padding */
+  border-radius: var(--radius);
+  width: 100%; /* Default width, constrained by max-width */
+  max-width: var(--modal-max-width-default);
+  box-shadow: var(--shadow-strong);
+  max-height: var(--modal-max-height-viewport);
+  display: flex;
+  flex-direction: column; /* Stack header, content, footer */
+  overflow: hidden; /* Crucial for independent scroll of modal-scrollable-content */
+  transform: scale(0.95); /* Initial state for entry animation */
+  opacity: 0; /* Start transparent */
+  transition: transform var(--transition-duration-normal) ease-out,
+    opacity var(--transition-duration-normal) ease-out; /* Animate scale and opacity */
+  position: relative; /* For z-index stacking within modal if needed */
+  z-index: var(--z-modal-content);
+}
+
+.modal.visible .modal-content {
+  transform: scale(1); /* Animate to full size */
+  opacity: 1;
+}
+
+/* Specific Modal Width Overrides */
+.docs-modal .modal-content {
+  max-width: var(
+    --modal-max-width-docs
+  ) !important; 
+  width: var(--modal-width-docs) !important;
+  height: var(--modal-height-docs) !important;
+  max-height: var(--modal-max-height-docs) !important;
+}
+
+#mainSettingsModal .modal-content {
+  max-width: var(--modal-max-width-settings);
+}

@@ -1,0 +1,48 @@
+<!-- FILE: packages/frontend/src/partials/_modal_settings_tab_general.html -->
+<div class="settings-tab-content active" data-tab-content="general">
+
+    <div class="form-section">
+        <div id="globalCooldownLabel" class="form-label">Global Gesture Cooldown (s)</div>
+        <div class="slider-group">
+            <output for="globalCooldownSlider" id="globalCooldownValue" class="slider-output">2.0s</output>
+            <div class="slider-container">
+                <input type="range" id="globalCooldownSlider" class="form-slider" min="0" max="10" step="0.5"
+                    value="2.0" />
+            </div>
+        </div>
+    </div>
+
+    <div class="form-section">
+        <div id="resolutionPrefLabel" class="form-label">Processing Resolution</div>
+        <div class="individual-button-row" id="resolutionSelectGroup" role="radiogroup" aria-labelledby="resolutionPrefLabel">
+            <!-- Buttons are now rendered by GeneralSettingsTab -->
+        </div>
+    </div>
+    <div class="form-section">
+        <div id="targetFpsLabel" class="form-label label-with-icon">
+            <span>Target Processing FPS</span>
+            <span class="material-icons help-icon" id="targetFpsHelpIcon"
+                title="Max frames sent to the AI per second. Lower values use less CPU/power."
+                style="cursor: help;">info_outline</span>
+        </div>
+        <div class="individual-button-row" id="targetFpsSelectGroup" role="radiogroup" aria-labelledby="targetFpsLabel">
+            <!-- Buttons are now rendered by GeneralSettingsTab -->
+        </div>
+        <small id="targetFpsHelp">Max frames sent to the AI per second. Lower values use less
+            CPU/power.</small>
+    </div>
+    <div class="form-section">
+        <div id="telemetryEnabledLabel" class="form-label label-with-icon">
+            <span>Send Anonymous Usage Data</span>
+            <span class="material-icons help-icon" id="telemetryEnabledHelpIcon"
+                title="Help improve GestureVision by sending anonymous usage statistics and error reports."
+                style="cursor: help;">info_outline</span>
+        </div>
+        <div class="individual-button-row" id="telemetryToggleGroup" role="radiogroup" aria-labelledby="telemetryEnabledLabel">
+             <!-- Buttons are now rendered by GeneralSettingsTab -->
+        </div>
+        <small id="telemetryEnabledHelp">Help improve GestureVision by
+            sending
+            anonymous usage statistics and error reports.</small>
+    </div>
+</div>

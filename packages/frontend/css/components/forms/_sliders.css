@@ -1,0 +1,122 @@
+/* FILE: css/components/forms/_sliders.css */
+/* Styles for input type="range" sliders, using CSS custom properties. */
+
+.slider-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  position: relative;
+  min-height: var(--input-min-height);
+  justify-content: center;
+}
+.slider-container {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.form-slider {
+  flex-grow: 1;
+  accent-color: var(--primary);
+  background: transparent;
+  height: var(--slider-track-height);
+  border-radius: var(--slider-track-radius);
+  outline: none;
+  opacity: 0.9;
+  transition: opacity var(--transition-duration-short)
+    var(--transition-timing-function);
+  min-height: auto;
+  padding: 0;
+  margin: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  box-sizing: border-box;
+  width: 100%;
+}
+.form-slider:hover {
+  opacity: 1;
+}
+
+.form-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: var(--slider-thumb-size);
+  height: var(--slider-thumb-size);
+  background: var(--primary);
+  cursor: pointer;
+  border-radius: var(--radius-round);
+  border: var(--slider-thumb-border-width) var(--border-style-standard)
+    var(--surface);
+  box-shadow: var(--shadow-subtle);
+  margin-top: calc((var(--slider-track-height) - var(--slider-thumb-size)) / 2);
+  position: relative;
+  z-index: 2;
+}
+.form-slider::-webkit-slider-runnable-track {
+  width: 100%;
+  height: var(--slider-track-height);
+  cursor: pointer;
+  background: var(--border-light);
+  border-radius: var(--slider-track-radius);
+}
+
+.form-slider::-moz-range-thumb {
+  width: var(--slider-thumb-size-firefox);
+  height: var(--slider-thumb-size-firefox);
+  background: var(--primary);
+  cursor: pointer;
+  border-radius: var(--radius-round);
+  border: var(--slider-thumb-border-width) var(--border-style-standard)
+    var(--surface);
+  box-shadow: var(--shadow-subtle);
+}
+.form-slider::-moz-range-track {
+  width: 100%;
+  height: var(--slider-track-height);
+  cursor: pointer;
+  background: var(--border-light);
+  border-radius: var(--slider-track-radius);
+}
+
+.slider-output {
+  position: absolute;
+  top: -24px;
+  /* A more robust calculation that accounts for the thumb's width. */
+  /* It positions the center of the bubble to align with the center of the thumb. */
+  --thumb-size: var(--slider-thumb-size);
+  --track-width: 100%;
+  left: calc(
+    var(--thumb-size) / 2 + (var(--track-width) - var(--thumb-size)) *
+      var(--value-percent-raw, 0.5)
+  );
+
+  transform: translateX(-50%);
+  background: var(--primary);
+  color: var(--text-on-primary);
+  padding: 2px 6px;
+  border-radius: var(--radius-small);
+  font-size: 0.8em;
+  font-weight: bold;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease-in-out;
+  white-space: nowrap;
+}
+.slider-group:hover .slider-output {
+  opacity: 1;
+}
+
+@media screen and (min-width: 769px) {
+  .slider-output {
+    top: auto;
+    bottom: -24px;
+  }
+}
+
+/* Specific rule for the global cooldown slider width */
+label[for="globalCooldownSlider"] + .slider-group {
+  width: 66.66%;
+  margin-left: auto;
+  margin-right: auto;
+}

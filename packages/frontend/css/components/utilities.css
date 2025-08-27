@@ -1,0 +1,107 @@
+/* FILE: packages/frontend/css/components/utilities.css */
+/* Utility classes and global component styling. */
+
+.camera-select-label {
+  font-size: var(--font-size-small);
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: inline-block;
+  vertical-align: middle;
+  margin-left: var(--space-xs);
+}
+
+#liveFeedSection,
+#configListContainer {
+  overflow: visible;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.config-section-header {
+  display: none;
+}
+
+h2.config-section-title {
+  font-family: inherit;
+  font-size: var(--font-size-large);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  margin: var(--space-sm) 0 0 0; /* MODIFICATION: Re-added default top margin */
+  justify-content: center;
+  line-height: var(--line-height-tight);
+  
+  position: sticky;
+  top: -1px; 
+  z-index: 10;
+  background-color: var(--surface);
+  width: fit-content;
+  max-width: 95%;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  padding: calc(var(--space-unit) * 1.5) var(--space-sm);
+  border-radius: 0 0 var(--radius-large) var(--radius-large);
+  box-shadow: var(--shadow-strong);
+  border: var(--border-width-standard) var(--border-style-standard) var(--border);
+  border-top: none;
+  transition: all 0.2s ease-in-out;
+}
+
+/* MODIFICATION: Specific rule to remove top margin ONLY from live feed title */
+#liveFeedTitle {
+  margin-top: 0;
+}
+
+.config-section-title .config-title-icon {
+  font-size: 1.3em;
+  color: var(--text-secondary);
+  line-height: 1; /* Keep icon line-height tight */
+  flex-shrink: 0;
+  font-family: "Material Design Icons", sans-serif;
+  font-style: normal;
+  font-weight: var(--font-weight-normal);
+  display: inline-flex;
+}
+
+.config-section-title > span:not(.config-title-icon):not(.material-icons) {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-grow: 0;
+  flex-shrink: 1;
+  min-width: 0;
+}
+
+.config-section-title > .btn.btn-icon {
+  flex-shrink: 0;
+  margin-left: var(--space-xs);
+}
+
+.hidden {
+  display: none !important;
+}
+
+.feature-disabled-section {
+  opacity: var(--opacity-disabled);
+  pointer-events: none;
+  transition: opacity var(--transition-duration-normal) ease;
+}
+.feature-disabled-section .delete-custom-gesture-btn {
+  pointer-events: auto;
+  opacity: 1;
+}
+
+.visually-hidden {
+  position: absolute !important;
+  height: 1px;
+  width: 1px;
+  overflow: hidden;
+  clip: rect(1px 1px 1px 1px);
+  clip: rect(1px, 1px, 1px, 1px);
+  white-space: nowrap;
+}

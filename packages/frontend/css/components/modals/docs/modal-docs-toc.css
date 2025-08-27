@@ -1,0 +1,84 @@
+/* FILE: ./css/components/modals/docs/modal-docs-toc.css */
+/* Styles for the Table of Contents (TOC) in the Documentation Modal, using variables. */
+
+.docs-toc-modal ul#modalTocList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  flex-grow: 1; 
+  overflow-y: auto; 
+  min-height: calc(var(--space-unit) * 12.5); 
+  overscroll-behavior: contain; 
+  padding-bottom: var(--space-sm); 
+}
+
+.docs-toc-modal li {
+  margin-bottom: var(--space-xs); 
+}
+.docs-toc-modal li a {
+  color: var(--text-secondary); 
+  text-decoration: none;
+  display: block; 
+  padding: calc(var(--space-xs) / 2) var(--space-xs);
+  border-radius: var(--radius-small);
+  transition: background-color var(--transition-duration-short) ease,
+    color var(--transition-duration-short) ease;
+  font-size: var(--font-size-small);
+  white-space: nowrap; 
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.docs-toc-modal li a:hover,
+.docs-toc-modal li a.active {
+  background-color: rgba(var(--primary-rgb), var(--overlay-light-alpha));
+  color: var(--primary);
+  font-weight: var(--font-weight-medium);
+}
+
+/* TOC Controls (PROD, DEV, GUIDES, ABOUT buttons) */
+.docs-modal-controls {
+  padding-top: var(--space-xs);
+  padding-bottom: var(--space-xs);
+  border-top: var(--border-width-standard) var(--border-style-dashed)
+    var(--border);
+  display: flex;
+  flex-wrap: nowrap; /* These buttons should not wrap by default */
+  gap: calc(var(--space-xs) / 2);
+  flex-shrink: 0; 
+  width: 100%;
+  box-sizing: border-box;
+  justify-content: space-around; /* Distribute buttons evenly */
+}
+.docs-modal-controls .btn.btn-secondary {
+  flex-grow: 1; /* Make buttons take equal width in this specific nav */
+  flex-basis: 0;
+  min-width: calc(var(--space-unit) * 10); /* Adjusted for 5 buttons */
+  padding: var(--button-padding-small-vertical)
+    calc(var(--button-padding-small-horizontal) / 2);
+  font-size: var(--font-size-extra-small);
+  height: var(--button-height-small);
+  min-height: var(--button-height-small);
+  white-space: nowrap;
+}
+
+.docs-modal-controls .btn.btn-secondary.active {
+  background-color: var(--surface); 
+  color: var(--primary); 
+  border-color: var(--primary); 
+  box-shadow: none; 
+}
+.docs-modal-controls .btn.btn-secondary:not(.active):hover {
+  background-color: var(--background); 
+  color: var(--text-primary);
+  border-color: var(--text-secondary);
+}
+
+#toc-lang-selector-clone.individual-button-row {
+  margin-top: var(--space-sm); 
+  margin-bottom: var(--space-xs); 
+}
+
+#toc-lang-selector-clone .btn span.toggle-button-text {
+    font-size: 0.7em; 
+    font-weight: var(--font-weight-bold);
+}

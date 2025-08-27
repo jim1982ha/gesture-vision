@@ -1,0 +1,27 @@
+/* FILE: css/components/forms/_fieldsets.css */
+/* Reset browser default styles for fieldset used in settings */
+fieldset.form-group {
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+
+/* Normalize legend element to behave like a standard label */
+fieldset.form-group > legend.form-label,
+legend.label-with-icon {
+  padding: 0; /* Reset browser-specific padding */
+  margin-bottom: var(--space-xs); /* Give legends space */
+  width: auto; /* Let the content define the width */
+  float: none; /* Override potential browser float styles */
+  display: block; /* Ensure it behaves like a block-level element */
+  /* Re-apply the font styles that were on the original labels */
+  font-weight: var(--font-weight-medium);
+  font-size: var(--font-size-small);
+  color: var(--text-secondary);
+  text-align: left;
+}
+/* Specific override for legends that are also flex containers */
+legend.label-with-icon {
+    display: flex;
+    width: 100%; /* Take full width to align items correctly */
+}

@@ -1,0 +1,128 @@
+<!-- FILE: packages/frontend/src/partials/_main_content.html -->
+<div class="app-container">
+  <main class="main-content">
+    
+    <h2 id="liveFeedTitle" class="config-section-title">
+      <span class="config-title-icon"></span>
+      <span data-translate-text>Live Feed</span>
+      <button id="toggleVideoButton" class="btn btn-icon btn-icon-primary" title="Hide Video" aria-label="Hide Video"
+        aria-pressed="false">
+        <span class="material-icons"></span>
+      </button>
+    </h2>
+
+    <div class="video-container">
+      <button id="videoSizeToggleButton" class="btn btn-icon" title="Constrain Video Size" aria-label="Toggle Video Size">
+          <span class="material-icons"></span>
+      </button>
+
+      <div id="video-toolbar-container" class="hidden">
+        <button id="videoMirrorBtn" class="btn btn-icon" title="Toggle Mirror View" aria-label="Toggle Mirror View">
+          <span class="material-icons"></span>
+        </button>
+        <button id="flipCameraBtn" class="btn btn-icon hidden" title="Flip Camera" aria-label="Flip Camera">
+            <span class="material-icons"></span>
+        </button>
+        <button id="displayAdjustmentsBtn" class="btn btn-icon" title="Display Adjustments" aria-label="Display Adjustments">
+            <span class="material-icons"></span>
+        </button>
+        <button id="aiTuningBtn" class="btn btn-icon" title="Show Tuning Panel" aria-label="Show Tuning Panel">
+            <span class="material-icons"></span>
+        </button>
+      </div>
+      
+      <div id="display-adjustments-panel" class="video-overlay-panel hidden">
+        <div class="tuning-sliders-container">
+          <div class="tuning-slider-group">
+            <label for="brightnessSlider" id="brightnessLabel">Brightness</label>
+            <input type="range" id="brightnessSlider" data-config-key="lowLightBrightness" min="0" max="200" />
+            <output for="brightnessSlider" id="brightnessValue">100%</output>
+          </div>
+          <div class="tuning-slider-group">
+            <label for="contrastSlider" id="contrastLabel">Contrast</label>
+            <input type="range" id="contrastSlider" data-config-key="lowLightContrast" min="0" max="200" />
+            <output for="contrastSlider" id="contrastValue">100%</output>
+          </div>
+        </div>
+        <button id="resetDisplayAdjustmentsBtn" class="btn btn-icon" title="Reset Adjustments" aria-label="Reset Brightness and Contrast">
+            <span class="material-icons">restart_alt</span>
+        </button>
+      </div>
+      
+      <div id="ai-tuning-panel" class="video-overlay-panel hidden">
+        <div id="handTuningSliders" class="tuning-sliders-container">
+            <div class="tuning-slider-group"><label for="handDetectionConfidenceSlider">Detect</label><input type="range" id="handDetectionConfidenceSlider" data-config-key="handDetectionConfidence" min="0.1" max="0.9" step="0.05"><output for="handDetectionConfidenceSlider" id="handDetectionConfidenceOutput">50%</output></div>
+            <div class="tuning-slider-group"><label for="handPresenceConfidenceSlider">Presence</label><input type="range" id="handPresenceConfidenceSlider" data-config-key="handPresenceConfidence" min="0.1" max="0.9" step="0.05"><output for="handPresenceConfidenceSlider" id="handPresenceConfidenceOutput">50%</output></div>
+            <div class="tuning-slider-group"><label for="handTrackingConfidenceSlider">Track</label><input type="range" id="handTrackingConfidenceSlider" data-config-key="handTrackingConfidence" min="0.1" max="0.9" step="0.05"><output for="handTrackingConfidenceSlider" id="handTrackingConfidenceOutput">40%</output></div>
+        </div>
+        <div id="poseTuningSliders" class="tuning-sliders-container hidden">
+            <div class="tuning-slider-group"><label for="poseDetectionConfidenceSlider">Detect</label><input type="range" id="poseDetectionConfidenceSlider" data-config-key="poseDetectionConfidence" min="0.1" max="0.9" step="0.05"><output for="poseDetectionConfidenceSlider" id="poseDetectionConfidenceOutput">50%</output></div>
+            <div class="tuning-slider-group"><label for="posePresenceConfidenceSlider">Presence</label><input type="range" id="posePresenceConfidenceSlider" data-config-key="posePresenceConfidence" min="0.1" max="0.9" step="0.05"><output for="posePresenceConfidenceSlider" id="posePresenceConfidenceOutput">50%</output></div>
+            <div class="tuning-slider-group"><label for="poseTrackingConfidenceSlider">Track</label><input type="range" id="poseTrackingConfidenceSlider" data-config-key="poseTrackingConfidence" min="0.1" max="0.9" step="0.05"><output for="poseTrackingConfidenceSlider" id="poseTrackingConfidenceOutput">40%</output></div>
+        </div>
+      </div>
+      
+      <video id="webcam" autoplay playsinline muted></video>
+      <canvas id="output_canvas"></canvas>
+      <div class="progress-rings">
+        <svg width="80" height="80" viewBox="0 0 80 80">
+          <circle class="cooldown-progress" cx="40" cy="40" r="36.5" stroke-width="7"></circle>
+          <circle class="gesture-progress" cx="40" cy="40" r="31.5" stroke-width="7"></circle>
+        </svg>
+      </div>
+      <div id="topCenterStatus" class="top-center-status" style="display: none">
+        <div id="status-line-1" class="status-line">
+          <span id="currentGestureSpan">-</span>
+          <span class="status-separator">|</span>
+          <span id="currentConfidenceSpan">-</span>
+        </div>
+        <div id="status-line-2" class="status-line">
+          <div class="confidence-bar-container">
+            <div id="confidenceBar" class="confidence-bar"></div>
+          </div>
+          <div id="holdTimeMetric" class="timer-display" style="display: none;">
+            <span class="status-separator">|</span>
+            <span class="material-icons"></span>
+            <span id="holdTimeDisplay">-</span>
+          </div>
+        </div>
+      </div>
+      
+      <div id="connectingOverlay" class="connecting-overlay state-offline-idle">
+        <div class="overlay-text-container">
+          <div class="spinner"></div>
+          <div id="connectingText" class="connecting-text">Connecting...</div>
+        </div>
+        <div class="overlay-icon-container">
+          <span class="material-icons">play_arrow</span>
+        </div>
+      </div>
+
+    </div>
+
+    <h2 id="desktopConfigListTitle" class="config-section-title">
+      <span class="config-title-icon"></span>
+      <span data-translate-text>Configured Actions</span>
+      <button id="toggleConfigListButton" class="btn btn-icon btn-icon-primary" title="Hide List"
+        aria-label="Hide List" aria-pressed="false">
+        <span class="material-icons"></span>
+      </button>
+    </h2>
+
+    <div id="configListContainer" class="config-section">
+      <div id="configList" class="config-list">
+      </div>
+      <div id="inactiveConfigList" class="config-list hidden">
+      </div>
+    </div>
+  </main>
+
+  <button id="configSidebarToggleBtn" class="sidebar-edge-toggle left desktop-only-flex" aria-controls="configSidebar"
+    aria-expanded="false" title="Toggle Gesture Settings" aria-label="Toggle Gesture Settings">
+    <span class="material-icons"></span>
+  </button>
+  <button id="historySidebarToggleBtn" class="sidebar-edge-toggle right desktop-only-flex"
+    aria-controls="historySidebar" aria-expanded="false" title="Toggle History" aria-label="Toggle History">
+    <span class="material-icons"></span>
+  </button>
+</div>

@@ -1,0 +1,37 @@
+/* FILE: packages/frontend/css/components/modals/modal-rtsp-form.css */
+/* Styles for the RTSP Add/Edit form container within the settings modal's RTSP tab. */
+
+#rtspAddEditFormContainer {
+  /*
+   Initial visibility is handled by the `.hidden` utility class
+   which is present on the element in its HTML partial.
+  */
+  border: var(--border-width-standard) var(--border-style-dashed)
+    var(--border-light); /* Lighter border for form box */
+  border-radius: var(--radius);
+  padding: var(--space-md);
+  margin-top: var(--space-md);
+  background-color: var(
+    --background
+  ); /* Slightly different background from modal surface for visual separation */
+}
+
+/* Title within the RTSP form (e.g., "Add New RTSP Source") */
+#rtspAddEditFormContainer #rtspFormTitle {
+  font-size: var(
+    --font-size-medium
+  ); /* Use medium font size for sub-section title */
+  font-weight: var(--font-weight-semibold); /* Semibold for titles */
+  color: var(--text-primary);
+  margin-bottom: var(--space-md); /* More space below this title */
+  margin-top: 0;
+}
+
+/* Container for action buttons (Save/Cancel) specific to the RTSP form */
+.rtsp-form-actions {
+  display: flex;
+  gap: var(--space-sm); /* Consistent gap for form actions */
+  justify-content: flex-end; /* Align buttons to the right */
+  margin-top: var(--space-md); /* Space above the action buttons */
+}
+/* Buttons themselves use global .btn styles */

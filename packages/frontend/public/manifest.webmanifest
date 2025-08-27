@@ -1,0 +1,79 @@
+{
+  "name": "GestureVision",
+  "short_name": "GestureV",
+  "description": "AI Gesture Recognition WebApp",
+  "start_url": "/",
+  "id": "/",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay"],
+  "background_color": "#ffffff",
+  "theme_color": "#2A9D8F",
+  "lang": "en",
+  "scope": "/",
+  "orientation": "any",
+  "protocol_handler": {
+    "protocol": "web+gesturevision",
+    "url": "/#action-%s"
+  },
+  "protocol_handlers": [
+    {
+      "protocol": "web+gesturevision",
+      "url": "/#action-%s"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/images/gesturevision_dark.webp",
+      "sizes": "1920x1055",
+      "type": "image/webp",
+      "form_factor": "wide",
+      "label": "Main interface on desktop - Light Mode"
+    },
+    {
+      "src": "/images/gesturevision_light.webp",
+      "sizes": "1920x1055",
+      "type": "image/webp",
+      "form_factor": "wide",
+      "label": "Main interface on desktop - Dark Mode"
+    },
+    {
+      "src": "/images/gesturevision_mobile.webp",
+      "sizes": "480x985",
+      "type": "image/webp",
+      "form_factor": "narrow",
+      "label": "Gesture recognition on mobile"
+    }
+  ],
+  "icons": [
+    {
+      "src": "/icons/icon-128.webp",
+      "type": "image/webp",
+      "sizes": "128x128",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-192.webp",
+      "type": "image/webp",
+      "sizes": "192x192",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-256.webp",
+      "type": "image/webp",
+      "sizes": "256x256",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.webp",
+      "type": "image/webp",
+      "sizes": "512x512",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.webp",
+      "type": "image/webp",
+      "sizes": "512x512",
+      "purpose": "maskable"
+    }
+  ]
+}

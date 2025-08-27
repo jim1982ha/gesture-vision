@@ -1,0 +1,83 @@
+/* FILE: packages/frontend/css/components/desktop/desktop-sidebars.css */
+/* Sidebar adjustments for desktop screens (>= 769px), using variables. */
+
+@media screen and (min-width: 769px) and (any-pointer: fine) {
+  .sidebar {
+    top: var(--header-height);
+    bottom: 0 !important;
+    height: auto;
+    max-height: none;
+    border-radius: 0;
+    max-width: none;
+    box-shadow: var(--shadow-strong);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    z-index: var(--z-sidebar);
+    transition: transform var(--slide-transition-duration)
+        var(--slide-transition-timing),
+      visibility 0s linear var(--slide-transition-duration),
+      filter var(--slide-transition-duration) ease,
+      width var(--slide-transition-duration) var(--slide-transition-timing);
+    position: fixed;
+  }
+
+  #configSidebar {
+    left: 0;
+    right: auto;
+    width: var(--config-sidebar-width); /* Use full width variable */
+    transform: translateX(-100%);
+    border-right: var(--border-width-standard) var(--border-style-standard)
+      var(--border);
+    border-left: none;
+  }
+  #historySidebar {
+    left: auto;
+    right: 0;
+    width: var(--history-sidebar-width); /* Use full width variable */
+    transform: translateX(100%);
+    border-left: var(--border-width-standard) var(--border-style-standard)
+      var(--border);
+    border-right: none;
+  }
+
+  body.config-sidebar-active #configSidebar,
+  body.history-sidebar-active #historySidebar {
+    transform: translateX(0) !important;
+    visibility: visible;
+    transition-delay: 0s;
+  }
+
+  /*
+    REMOVED: The padding adjustments on .main-content have been removed
+    to allow the sidebars to slide over the content instead of shifting it.
+  */
+  
+  body.config-sidebar-active #configSidebarToggleBtn {
+    left: var(--config-sidebar-width);
+  }
+  body.history-sidebar-active #historySidebarToggleBtn {
+    right: var(--history-sidebar-width);
+  }
+
+  .sidebar-scrollable-content {
+    max-height: none;
+    height: auto;
+    flex: 1 1 auto;
+    overflow-y: auto;
+    padding: var(--space-md);
+    position: static;
+    bottom: auto;
+  }
+
+  #configSidebar .config-action-buttons {
+    position: static;
+    border-top: var(--border-width-standard) var(--border-style-standard)
+      var(--border);
+    padding: var(--space-md);
+    display: flex;
+    justify-content: flex-end; 
+    align-items: center; 
+    gap: var(--space-sm); 
+  }
+}

@@ -1,0 +1,19 @@
+/* FILE: packages/frontend/css/components/mobile/mobile-nav.css */
+@media (max-width: 768px) {
+  /* Hide the desktop-specific language button group on mobile */
+  #languageSelectGroupHeader {
+    display: none !important;
+  }
+
+  /* Show the mobile-specific dropdown trigger button */
+  .mobile-language-selector-container {
+    display: flex !important;
+    position: relative;
+    align-items: center;
+  }
+
+  /* Reduce the gap between all header controls on mobile for a tighter layout. */
+  .nav-controls {
+    gap: calc(var(--space-unit) / 2); /* Reduces gap to a minimal 2px */
+  }
+}

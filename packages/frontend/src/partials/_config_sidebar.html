@@ -1,0 +1,66 @@
+<!-- FILE: packages/frontend/src/partials/_config_sidebar.html -->
+<aside id="configSidebar" class="sidebar">
+  <div class="sidebar-header">
+    <div class="sidebar-header-main">
+      <span class="material-icons header-icon"></span>
+      <span class="header-title" id="gestureSettingsTitle">Gesture Settings</span>
+    </div>
+    <div class="sidebar-header-actions">
+      <button id="configSidebarHeaderCloseBtn" class="btn btn-icon header-close-btn"
+        aria-label="Close Gesture Settings Sidebar" title="Close Gesture Settings">
+        <span class="mdi" aria-hidden="true"></span>
+      </button>
+    </div>
+  </div>
+  <div class="sidebar-scrollable-content">
+    <form id="gestureConfigForm" onsubmit="return false;">
+      <!-- Gesture Selection -->
+      <div class="form-group">
+        <label for="gestureSelect" id="gestureLabel">Gesture</label>
+        <div class="select-wrapper">
+          <select id="gestureSelect" class="form-control">
+            <option value="NONE" disabled selected>Select Gesture...</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Confidence and Duration -->
+      <div class="form-group">
+        <label for="configConfidenceInput" id="confidenceLabel">Confidence (%)</label>
+        <input type="number" id="configConfidenceInput" class="form-control" min="0" max="100" step="1"
+          title="Confidence Threshold">
+      </div>
+      <div class="form-group">
+        <label for="configDurationInput" id="durationLabel">Hold Duration (s)</label>
+        <input type="number" id="configDurationInput" class="form-control" min="0.1" max="10" step="0.1"
+          title="Hold Duration">
+      </div>
+
+      <!-- Action Type Selection -->
+      <div class="form-group">
+        <label for="actionTypeSelect" id="actionTypeLabel">Action Type</label>
+        <div class="select-wrapper">
+          <select id="actionTypeSelect" class="form-control">
+            <!-- Options populated by JS -->
+          </select>
+        </div>
+      </div>
+
+      <!-- Action Specific Fields Container -->
+      <div id="actionFieldsContainer">
+        <!-- This container is now populated dynamically by JavaScript -->
+      </div>
+    </form>
+  </div>
+  <div class="config-action-buttons">
+    <button id="cancelEditButton" class="btn btn-secondary" style="display: none;"
+      title="Discard changes and cancel editing">
+      <span class="material-icons"></span>
+      <span id="cancelEditButtonLabel">Cancel</span>
+    </button>
+    <button id="addGestureConfig" class="btn btn-primary" title="Add the configured gesture action to the list below">
+      <span class="material-icons"></span>
+      <span id="addConfigButtonLabel">Add Configuration</span>
+    </button>
+  </div>
+</aside>

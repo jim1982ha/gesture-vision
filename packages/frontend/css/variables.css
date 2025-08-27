@@ -1,0 +1,22 @@
+/* FILE: ./css/variables.css */
+/* Main import file for all CSS custom properties. */
+/* Import order can matter for overrides if variables are redefined. */
+
+/* 1. Core shared variables (spacing, typography, base dimensions) */
+@import url("./variables/_core.css");
+
+/* 2. Shared component-specific dimensions and styles */
+@import url("./variables/_components.css");
+
+/* 3. Shared layout-specific dimensions */
+@import url("./variables/_layout.css");
+
+/* 4. Theme-specific color definitions */
+@import url("./variables/themes/main-theme.css");
+@import url("./variables/themes/ocean-theme.css");
+@import url("./variables/themes/forest-theme.css");
+@import url("./variables/themes/sunset-theme.css");
+
+/* 5. Stacking (z-indexes) and Scrollbars */
+@import url("./variables/_stacking.css");
+@import url("./variables/_scrollbars.css");

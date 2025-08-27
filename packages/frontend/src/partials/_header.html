@@ -1,0 +1,60 @@
+<!-- FILE: packages/frontend/src/partials/_header.html -->
+<header class="top-nav">
+  <div class="header-left-section">
+    <div id="wsStatusIndicator" class="status-indicator" title="WebSocket Disconnected">
+      <span class="material-icons"></span>
+    </div>
+    <div class="nav-brand" id="appBrand">
+      <h1 id="appTitle">GestureVision</h1>
+    </div>
+  </div>
+
+  <div class="header-toggle-groups-container">
+    <div class="button-toggle-group header-feature-toggles">
+      <button type="button" class="btn btn-secondary" id="headerToggleBuiltInHand"
+        data-config-key="enableBuiltInHandGestures">
+        <span class="material-icons"></span> <!-- JS sets icon & title -->
+      </button>
+      <button type="button" class="btn btn-secondary" id="headerToggleCustomHandGestures"
+        data-config-key="enableCustomHandGestures">
+        <span class="material-icons"></span> <!-- JS sets icon & title -->
+      </button>
+      <button type="button" class="btn btn-secondary" id="headerTogglePoseDetection"
+        data-config-key="enablePoseProcessing">
+        <span class="material-icons"></span> <!-- JS sets icon & title -->
+      </button>
+    </div>
+
+    <div class="button-toggle-group header-hands-and-landmarks-toggles">
+      <button type="button" class="btn btn-secondary" id="headerToggleHandLandmarks" data-value="0">
+        <span class="material-icons"></span> <!-- JS sets icon & title -->
+      </button>
+      <button type="button" class="btn btn-secondary" id="headerToggleNumHands1" data-value="1">
+        <span class="material-icons"></span> <!-- JS sets icon & title -->
+      </button>
+      <button type="button" class="btn btn-secondary" id="headerToggleNumHands2" data-value="2">
+        <span class="material-icons"></span> <!-- JS sets icon & title -->
+      </button>
+    </div>
+
+    <div class="toggle-group header-pose-landmark-toggle">
+      <button type="button" class="btn btn-secondary" id="headerTogglePoseLandmarks" data-landmark-type="pose">
+        <span class="material-icons"></span> <!-- JS sets icon & title -->
+      </button>
+    </div>
+  </div>
+
+  <div class="nav-controls">
+    <!-- Desktop-only language selector -->
+    <div id="languageSelectGroupHeader" class="button-toggle-group desktop-only-inline-flex">
+    </div>
+
+    <!-- Plugin contribution slot - now visible on mobile & desktop -->
+    <div id="header-plugin-contribution-slot" class="header-plugin-controls"></div>
+
+    <!-- Global settings button -->
+    <button id="mainSettingsToggle" class="btn btn-secondary btn-icon" title="Settings" aria-label="Settings">
+      <span class="material-icons"></span>
+    </button>
+  </div>
+</header>

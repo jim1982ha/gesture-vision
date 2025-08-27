@@ -1,0 +1,103 @@
+/* FILE: packages/frontend/css/components/mobile/mobile-modals.css */
+/* Modal adjustments for mobile screens (<= 768px), using variables */
+
+@media (max-width: 768px) {
+  /* Consider var(--breakpoint-mobile-end) */
+  .modal {
+    /* Modal overlay */
+    align-items: flex-start; /* Align modal content to the top on mobile */
+    padding-top: calc(
+      var(--header-height) + var(--space-sm)
+    ); /* Space below fixed header */
+    padding-bottom: var(
+      --space-lg
+    ); /* More bottom padding to allow scrolling past content */
+    background: var(--overlay-bg); /* Consistent overlay background */
+    backdrop-filter: blur(var(--overlay-blur));
+    -webkit-backdrop-filter: blur(var(--overlay-blur)); /* For Safari */
+    transition: opacity var(--slide-transition-duration) ease-in-out,
+      visibility 0s linear var(--slide-transition-duration);
+    overflow-y: auto; /* Allow overlay to scroll if modal content is too tall */
+    overflow-x: hidden;
+  }
+
+  .modal-content {
+    /* Modal dialog box */
+    width: calc(
+      100% - (2 * var(--space-sm))
+    ); /* Full width with side margins */
+    max-width: var(--modal-max-width-default); /* Respect default max width */
+    margin: 0 auto var(--space-md) auto !important; /* Center, ensure bottom margin for scroll space */
+    max-height: calc(
+      100% - (2 * var(--space-sm)) - var(--header-height)
+    ); /* Ensure modal fits, considering header */
+    border-radius: var(
+      --radius-large
+    ) !important; /* Slightly larger radius for mobile modals */
+    /* transform, opacity, visibility for entry animation from modal-structure.css */
+  }
+
+  .docs-modal .modal-content {
+    /* Docs modal specific sizing */
+    width: calc(100% - (2 * var(--space-xs)));
+    max-width: var(--modal-max-width-docs);
+  }
+
+  .modal-scrollable-content,
+  .modal-list {
+    min-height: var(--modal-scrollable-min-height-mobile);
+    padding: var(
+      --space-md
+    ); /* Standardized padding for scrollable areas on mobile */
+  }
+
+  .modal-content h3 {
+    /* Modal header */
+    padding: var(--space-sm);
+    padding-bottom: var(--space-xs);
+    font-size: var(
+      --font-size-medium
+    ); /* Slightly smaller header text on mobile */
+  }
+
+  .modal-actions {
+    /* Modal footer */
+    order: 1; /* Ensure footer is at bottom in flex column layout */
+    margin-top: auto; /* Push to bottom if content is short */
+    padding: var(--space-sm); /* Standardized padding */
+  }
+
+  .modal-tabs {
+    /* Tab container */
+    padding: 0 var(--space-sm); /* Horizontal padding for tabs */
+    gap: var(--space-xs); /* Tighter gap between tabs on mobile */
+  }
+
+  /* Camera Select Modal (Slide from bottom) */
+  #cameraSelectModal.modal {
+    /* Overlay for camera select */
+    align-items: flex-end; /* Align content to bottom */
+    padding: 0; /* No padding for slide-up modal overlay */
+    bottom: var(--bottom-nav-height);
+  }
+  #cameraSelectModal .modal-content {
+    width: 100%;
+    max-width: 100%; /* Full width */
+    margin: 0 !important; /* No margin */
+    border-radius: var(--radius-large) var(--radius-large) 0 0 !important; /* Rounded top corners */
+    max-height: var(--modal-camera-select-max-height-mobile);
+    /* Override standard animation for slide-up effect */
+    transform: translateY(100%) !important; 
+    opacity: 1; /* It's either on or off screen, no fade needed */
+    transition: transform var(--transition-duration-normal) ease-out !important;
+  }
+  #cameraSelectModal.modal.visible .modal-content {
+    transform: translateY(0) !important; /* Slide into view */
+  }
+
+  #cameraSelectModal #cameraList.modal-list {
+    padding-bottom: var(
+      --space-md
+    ); /* Standard padding at the bottom of the list */
+  }
+}

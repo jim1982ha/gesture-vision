@@ -1,0 +1,63 @@
+/* FILE: packages/frontend/css/components/modals/modal-header.css */
+/* Shared header styles for modals and sidebars */
+
+.modal-content h3, /* Modal header */
+.sidebar .sidebar-header {
+  margin: 0;
+  padding: var(--space-md);
+  padding-bottom: var(--space-sm);
+  border-bottom: var(--border-width-standard) var(--border-style-standard)
+    var(--border);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  /* justify-content: space-between; This was causing the alignment issue */
+  gap: var(--space-xs);
+  position: relative;
+  z-index: 1;
+  font-size: var(--font-size-large);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+}
+
+.sidebar-header-main {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  flex-grow: 1;
+  min-width: 0; 
+}
+
+/* Header Icon Styling */
+.modal-content h3 > span.header-icon,
+.sidebar .sidebar-header .sidebar-header-main > span.header-icon {
+  flex-shrink: 0;
+  font-size: var(--icon-size-header);
+  color: var(--primary);
+}
+
+/* Header Title Styling */
+.modal-content h3 > span.header-title,
+.sidebar .sidebar-header .sidebar-header-main > span.header-title {
+  flex-grow: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+}
+
+/* Header Close Button Styling and Actions Container */
+.modal-content h3 > button.header-close-btn.btn.btn-icon,
+.sidebar .sidebar-header-actions {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  margin-left: auto; /* This ensures it's pushed to the right */
+}
+
+.modal-content h3 .btn.btn-icon .mdi,
+.sidebar .sidebar-header .btn.btn-icon .mdi {
+  font-size: var(--icon-size-header);
+  line-height: 1;
+}

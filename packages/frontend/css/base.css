@@ -1,0 +1,117 @@
+/* css/base.css */
+/* Base Styles: Global resets, default typography, links, and icon styling. */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: var(--font-size-root);
+  height: 100%;
+  scrollbar-width: thin;
+  scrollbar-color: var(--primary) var(--surface);
+}
+
+body {
+  font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Roboto, "Helvetica Neue", Arial, sans-serif;
+  background-color: var(--background);
+  color: var(--text-primary);
+  line-height: var(--line-height-normal);
+  transition: background-color var(--transition-duration-normal) ease,
+    color var(--transition-duration-normal) ease;
+  overflow-x: hidden;
+  height: 100%;
+  position: relative;
+}
+
+.modal-scrollable-content,
+.sidebar-scrollable-content,
+.docs-toc-modal ul,
+.docs-content-modal,
+.main-content {
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--primary) var(--surface);
+}
+.modal-scrollable-content::-webkit-scrollbar,
+.sidebar-scrollable-content::-webkit-scrollbar,
+.docs-toc-modal ul::-webkit-scrollbar,
+.docs-content-modal::-webkit-scrollbar,
+.main-content::-webkit-scrollbar {
+  width: var(--scrollbar-size);
+  height: var(--scrollbar-size);
+}
+.modal-scrollable-content::-webkit-scrollbar-track,
+.sidebar-scrollable-content::-webkit-scrollbar-track,
+.docs-toc-modal ul::-webkit-scrollbar-track,
+.docs-content-modal::-webkit-scrollbar-track,
+.main-content::-webkit-scrollbar-track {
+  background: var(--surface);
+  border-radius: var(--scrollbar-thumb-radius);
+}
+.modal-scrollable-content::-webkit-scrollbar-thumb,
+.sidebar-scrollable-content::-webkit-scrollbar-thumb,
+.docs-toc-modal ul::-webkit-scrollbar-thumb,
+.docs-content-modal::-webkit-scrollbar-thumb,
+.main-content::-webkit-scrollbar-thumb {
+  background-color: var(--primary);
+  border-radius: var(--scrollbar-thumb-radius);
+  border: calc(var(--space-unit) / 2) var(--border-style-standard)
+    var(--surface);
+}
+.modal-scrollable-content::-webkit-scrollbar-thumb:hover,
+.sidebar-scrollable-content::-webkit-scrollbar-thumb:hover,
+.docs-toc-modal ul::-webkit-scrollbar-thumb:hover,
+.docs-content-modal::-webkit-scrollbar-thumb:hover,
+.main-content::-webkit-scrollbar-thumb:hover {
+  background-color: var(--primary-hover);
+}
+.modal-scrollable-content::-webkit-scrollbar-corner,
+.sidebar-scrollable-content::-webkit-scrollbar-corner,
+.docs-toc-modal ul::-webkit-scrollbar-corner,
+.docs-content-modal::-webkit-scrollbar-corner,
+.main-content::-webkit-scrollbar-corner {
+  background: var(--background);
+}
+
+/* Link Styles */
+a {
+  color: var(--primary);
+  text-decoration: none;
+  transition: var(--transition);
+  border-radius: var(--radius-small);
+}
+a:hover {
+  color: var(--primary-hover);
+  text-decoration: underline;
+}
+a:focus-visible {
+  outline: var(--border-width-active) var(--border-style-standard)
+    var(--primary);
+  outline-offset: var(--focus-outline-offset);
+  text-decoration: none;
+}
+
+/* Material Icons baseline */
+.material-icons {
+  /* vertical-align: middle; Removed as display: inline-flex handles this via align-items */
+  line-height: 1; /* Ensures icon size is based on font-size primarily */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Material Icons";
+  font-size: var(--icon-size-normal);
+}
+
+/* MDI baseline */
+.mdi::before {
+  font-size: inherit;
+  line-height: 1;
+  display: inline-block; /* inline-block respects vertical-align if parent needs to align it */
+  /* vertical-align: middle; Removed, parent handles alignment of this inline-block */
+  font-family: "Material Design Icons";
+  font-weight: var(--font-weight-normal);
+  font-style: normal;
+}

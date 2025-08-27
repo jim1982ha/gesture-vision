@@ -1,0 +1,37 @@
+/* FILE: ./css/components/mobile/mobile-video.css */
+/* Video and related overlays adjustments for mobile screens (<= 768px), using variables. */
+
+/* --- Mobile Video Fullscreen --- */
+body.video-fullscreen-active {
+  overflow: hidden !important; /* Prevent scrolling body behind fullscreen video */
+}
+
+body.video-fullscreen-active .video-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100svh; /* Use small viewport height for mobile */
+  margin: 0;
+  border-radius: 0;
+  z-index: var(--z-header); /* Place it above normal content but below modals */
+}
+
+/* Hide other UI elements when video is fullscreen */
+body.video-fullscreen-active .top-nav,
+body.video-fullscreen-active .bottom-nav,
+body.video-fullscreen-active #desktopConfigListTitle,
+body.video-fullscreen-active #configListContainer,
+body.video-fullscreen-active .sidebar-edge-toggle {
+  display: none !important;
+}
+
+/* Show the mobile-specific stop button ONLY during mobile fullscreen */
+body.video-fullscreen-active #mobileVideoStopButton {
+  display: flex !important;
+}
+
+/* Ensure the main size toggle button itself remains visible on top */
+body.video-fullscreen-active #videoSizeToggleButton {
+  z-index: calc(var(--z-header) + 1);
+}

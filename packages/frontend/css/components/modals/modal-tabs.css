@@ -1,0 +1,77 @@
+/* css/components/modals/modal-tabs.css */
+/* Styles for the tabbed interface in modals (e.g., settings) */
+
+.modal-tabs {
+  display: flex;
+  border-bottom: var(--border-width-standard) var(--border-style-standard)
+    var(--border); /* Restored bottom border for the tab bar */
+  flex-shrink: 0;
+  padding: 0 var(--modal-tabs-padding-x);
+  gap: var(--modal-tabs-gap);
+  position: relative;
+  z-index: 1;
+  overflow-x: auto; /* Allow horizontal scrolling */
+  overflow-y: hidden; /* Prevent vertical scrollbar */
+  white-space: nowrap;
+  align-items: center;
+  background-color: var(--surface);
+
+  /* Hide scrollbar for Firefox */
+  scrollbar-width: none;
+  /* Hide scrollbar for IE and Edge */
+  -ms-overflow-style: none;
+}
+
+/* Hide scrollbar for Webkit browsers (Chrome, Safari, Edge Chromium) */
+.modal-tabs::-webkit-scrollbar {
+  display: none;
+  height: 0; /* Also set height to 0 for good measure */
+  width: 0; /* Also set width to 0 for good measure */
+}
+
+.modal-tab-button {
+  /* Reverted to original tab button styling */
+  padding: var(--space-sm) var(--space-xs);
+  margin-bottom: calc(-1 * var(--border-width-standard));
+  white-space: nowrap;
+  flex-shrink: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--text-secondary);
+  border-bottom: var(--modal-tab-underline-height) var(--border-style-standard)
+    transparent;
+  transition: color var(--transition-duration-normal) ease,
+    border-bottom-color var(--transition-duration-normal) ease;
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-medium);
+  font-family: inherit;
+  line-height: var(--line-height-normal);
+  min-height: calc(
+    var(--button-height-normal) + var(--modal-tab-underline-height)
+  );
+}
+
+.modal-tab-button:hover {
+  color: var(--text-primary);
+}
+
+.modal-tab-button.active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+  font-weight: var(--font-weight-semibold);
+}
+
+.settings-tab-content {
+  display: none;
+}
+.settings-tab-content.active {
+  display: block;
+}
+.settings-tab-content > h4 {
+  margin-top: 0;
+  font-size: var(--font-size-large);
+  font-weight: var(--font-weight-semibold);
+  margin-bottom: var(--space-sm);
+  color: var(--text-primary);
+}

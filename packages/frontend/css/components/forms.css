@@ -1,0 +1,13 @@
+/* FILE: css/components/forms.css */
+/* Main import file for all form-related styles */
+
+@import url("./forms/_base_inputs.css");
+@import url("./forms/_form_groups_layout.css");
+@import url("./forms/_checkbox_radio.css");
+@import url("./forms/_dropdowns.css");
+@import url("./forms/_fieldsets.css");
+@import url("./forms/_sliders.css");
+@import url("./forms/_help_text_icons.css");
+
+/* Language toggle buttons specific styling if not fully covered by .button-toggle-group .btn */
+/* .button-toggle-group .btn span.lang-icon is already in themes.css and seems appropriate */

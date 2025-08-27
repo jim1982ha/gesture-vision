@@ -1,0 +1,10 @@
+/* FILE: ./css/desktop.css */
+/* Imports desktop-specific component styles. */
+/* Assumes imported files use global CSS variables. */
+
+@import url("./components/desktop/desktop-layout.css");
+@import url("./components/desktop/desktop-nav.css");
+@import url("./components/desktop/desktop-modals.css");
+@import url("./components/desktop/desktop-sidebars.css");
+@import url("./components/desktop/desktop-toggles.css");
+@import url("./components/desktop/desktop-header-dropdowns.css");

@@ -1,0 +1,122 @@
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# NEW LOCATIONS for build artifacts within packages
+packages/*/dist/
+packages/*/dist-*
+packages/frontend/android/app/build/
+packages/frontend/android/.gradle/
+packages/frontend/android/capacitor-cordova-android-plugins/build/
+android/
+
+# Capacitor/IDE specific local files within android package
+packages/frontend/android/app/src/main/assets/capacitor.config.json
+packages/frontend/android/app/src/main/assets/capacitor.plugins.json
+packages/frontend/android/local.properties
+packages/frontend/android/capacitor.build.gradle
+
+# Maps
+*.js.map
+*.css.map
+
+# Configuration files with sensitive data
+# Ignore the specific dev and prod config files, but track the example.
+config/config.dev.json
+config/config.prod.json
+!config/config.example.json
+# Ignore the root config.json which may be a symlink or leftover file.
+config.json
+
+# Ignore all files within the plugins and custom_gestures directories...
+extensions/plugins/*
+extensions/custom_gestures/*
+# ...but DO NOT ignore the directories themselves, so we can track .gitkeep.
+!extensions/plugins/
+!extensions/custom_gestures/
+# ...and DO NOT ignore the .gitkeep files.
+!extensions/plugins/.gitkeep
+!extensions/custom_gestures/.gitkeep
+
+# Capacitor configuration (local specific, assuming it's now in packages/frontend)
+packages/frontend/capacitor.config.json
+!packages/frontend/capacitor.config.example.json
+
+# Environment files
+config/.env
+config/.env.*
+!config/.env.prod.example
+!config/.env.dev.example
+!config/.env.apk.example
+
+# Logs
+logs/
+*.log
+packages/*/logs/
+packages/*/*.log
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE / Editor specific files
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Temporary files
+*.pid
+*.pid.lock
+generated_mediamtx.yml
+mediamtx.pid
+tsc.pid
+/tmp/generated_mediamtx.yml
+/tmp/mediamtx.pid
+/tmp/tsc.pid
+
+# SQLite database (if at root)
+database.sqlite
+
+# Sensitive or runtime-specific files (if at root)
+keys.json
+
+# Additional context files not part of the core app source code
+additional_context/
+
+# Binary files that are macOS specific or not needed in repo
+._codebase.md
+
+# User-specific files
+gesturevision_prod.tar
+gesturevision_dev.tar
+codebase*.md
+output.txt
+tools/update_code.sh
+tools/update_plugins.sh
+packages/shared/dist-types/
+packages/frontend/public/local-bundles/
+packages/*/node_modules/
+dev-dist/
+dist-backend/
+dist/
+*.tsbuildinfo
+*.d.ts.map
+
+# Coverage output
+coverage/
+packages/*/coverage/
+
+# Specific files from old structure that are no longer at root
+console.log

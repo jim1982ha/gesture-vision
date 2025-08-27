@@ -1,0 +1,114 @@
+/* FILE: ./css/variables/themes/ocean-theme.css */
+/* Defines color variables for the Ocean theme (light and dark modes). */
+[data-theme="ocean-light"] {
+  --primary: #0077b6;
+  --primary-hover: #023e8a;
+  --primary-rgb: 0, 119, 182;
+  --secondary: #caf0f8;
+  --secondary-hover: #b0e9f4;
+  --secondary-rgb: 202, 240, 248;
+  --accent: #ffb703;
+  --background: #e0fbfc;
+  --surface: #ade8f4;
+  --text-primary: #03045e;
+  --text-secondary: #0077b6;
+  --text-on-primary: #ffffff;
+  --text-on-primary-disabled-opacity: 0.65;
+  --text-on-primary-disabled: rgba(
+    255,
+    255,
+    255,
+    var(--text-on-primary-disabled-opacity)
+  );
+  --text-on-secondary: #03045e;
+  --border: #90e0ef;
+  --border-light: #a3e4f1;
+  --error: #d00000;
+  --error-hover: #b00000;
+  --error-border: #d00000;
+  --error-hover-border: #a00000;
+  --error-rgb: 208, 0, 0;
+  --text-on-error: #ffffff;
+  --success: #4caf50;
+  --success-hover: #388e3c;
+  --success-border: #4caf50;
+  --success-hover-border: #2e7d32;
+  --text-on-success: #ffffff;
+  --warning: #ff9800;
+  --warning-hover: #f57c00;
+  --warning-border: #ff9800;
+  --warning-hover-border: #ef6c00;
+  --text-on-warning: #212529;
+  --info: #00b4d8;
+  --info-hover: #0097b3;
+  --info-border: #00b4d8;
+  --info-hover-border: #008db1;
+  --text-on-info: #ffffff;
+  --overlay-bg: rgba(173, 232, 244, 0.7);
+  --overlay-text: #03045e;
+  --overlay-blur: 2px;
+  --overlay-border: rgba(3, 4, 94, 0.1);
+  --overlay-gray-rgb: 0, 119, 182;
+  --overlay-light-alpha: 0.1;
+  --code-inline-bg: rgba(var(--secondary-rgb), 0.3);
+  --code-inline-text: var(--text-secondary);
+  --code-block-bg: #caf0f8;
+  --svg-filter-primary: invert(34%) sepia(99%) saturate(1624%)
+    hue-rotate(173deg) brightness(95%) contrast(101%);
+}
+[data-theme="ocean-dark"] {
+  --primary: #48cae4;
+  --primary-hover: #90e0ef;
+  --primary-rgb: 72, 202, 228;
+  --secondary: #0077b6;
+  --secondary-hover: #0096c7;
+  --secondary-rgb: 0, 119, 182;
+  --accent: #ffb703;
+  --background: #03045e;
+  --surface: #023e8a;
+  --text-primary: #e0fbfc;
+  --text-secondary: #ade8f4;
+  --text-on-primary: #03045e;
+  --text-on-primary-disabled-opacity: 0.6;
+  --text-on-primary-disabled: rgba(
+    3,
+    4,
+    94,
+    var(--text-on-primary-disabled-opacity)
+  );
+  --text-on-secondary: #ffffff;
+  --border: #0077b6;
+  --border-light: #0096c7;
+  --error: #f85149;
+  --error-hover: #f97a74;
+  --error-border: #f85149;
+  --error-hover-border: #f7372f;
+  --error-rgb: 248, 81, 73;
+  --text-on-error: #03045e;
+  --success: #30c551;
+  --success-hover: #59d372;
+  --success-border: #30c551;
+  --success-hover-border: #1fab3a;
+  --text-on-success: #03045e;
+  --warning: #ffda6a;
+  --warning-hover: #ffe082;
+  --warning-border: #ffda6a;
+  --warning-hover-border: #ffd54f;
+  --text-on-warning: #264653;
+  --info: #48cae4;
+  --info-hover: #90e0ef;
+  --info-border: #48cae4;
+  --info-hover-border: #00b4d8;
+  --text-on-info: #03045e;
+  --overlay-bg: rgba(2, 62, 138, 0.7);
+  --overlay-text: #e0fbfc;
+  --overlay-blur: 2px;
+  --overlay-border: rgba(202, 240, 248, 0.2);
+  --overlay-gray-rgb: 173, 232, 244;
+  --overlay-light-alpha: 0.15;
+  --code-inline-bg: rgba(var(--secondary-rgb), 0.2);
+  --code-inline-text: var(--text-secondary);
+  --code-block-bg: #003566;
+  --svg-filter-primary: invert(77%) sepia(41%) saturate(1039%)
+    hue-rotate(145deg) brightness(96%) contrast(89%);
+}

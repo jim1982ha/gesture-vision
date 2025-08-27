@@ -1,0 +1,63 @@
+<!-- FILE: packages/frontend/src/partials/_modal_settings_tab_custom_gestures.html -->
+<div class="settings-tab-content" data-tab-content="customGestures">
+    
+    <div class="form-section">
+        <div class="form-label" id="savedHandGesturesTitleElement">Saved Custom Hand Gestures</div>
+        <div id="customHandGestureListContainer" style="margin-top: var(--space-sm);">
+            <p id="customHandGestureListPlaceholder" class="list-placeholder">No custom hand gestures saved yet.
+            </p>
+        </div>
+    </div>
+
+    <div class="form-section">
+        <div class="form-label" id="savedPoseGesturesTitleElement">Saved Custom Pose Gestures</div>
+        <div id="customPoseGestureListContainer" style="margin-top: var(--space-sm);">
+            <p id="customPoseGestureListPlaceholder" class="list-placeholder">No custom pose gestures saved yet.
+            </p>
+        </div>
+    </div>
+
+    <!-- Actions Area -->
+    <div class="form-section">
+        <form id="custom-gestures-actions-form" onsubmit="return false;" class="form-actions-group justify-end" style="margin-top: var(--space-md);">
+            <!-- Contribution slot for plugins like Gesture Studio -->
+            <div id="custom-gestures-actions-slot" class="button-group-row" style="gap: var(--space-sm);"></div>
+            
+            <!-- Standard file upload, now a secondary action -->
+            <input type="file" id="customGestureFile" class="form-control visually-hidden" accept=".js" />
+            <button id="upload-custom-gesture-file-btn" type="button" class="btn btn-secondary" title="Upload a custom .js gesture file">
+                <span class="material-icons"></span>
+                <span id="upload-custom-gesture-file-btn-text">Upload File...</span>
+            </button>
+        </form>
+
+        <!-- Hidden by default, shown when a file is selected for preview -->
+        <div id="custom-gesture-import-preview" class="hidden" style="margin-top: var(--space-md); border: 1px dashed var(--border-light); padding: var(--space-sm); border-radius: var(--radius);">
+            <h4 id="importPreviewTitle" style="font-size: var(--font-size-medium); margin-bottom: var(--space-sm);">Import Gesture</h4>
+            <div class="form-group">
+                <label id="importPreviewNameLabel" for="importPreviewNameInput">Name</label>
+                <input type="text" id="importPreviewNameInput" class="form-control" />
+            </div>
+            <div class="form-group">
+                <label id="importPreviewDescLabel" for="importPreviewDescTextarea">Description</label>
+                <textarea id="importPreviewDescTextarea" class="form-control" rows="2"></textarea>
+            </div>
+            <div class="form-group">
+                <label id="importPreviewTypeLabel">Type</label>
+                <p id="importPreviewTypeValue" class="form-control-static"></p>
+            </div>
+        </div>
+
+        <!-- Hidden by default, shown when a file is selected for upload -->
+        <div id="custom-gesture-import-actions" class="form-actions-group justify-end hidden" style="margin-top: var(--space-sm);">
+             <button id="cancelCustomGestureImportBtn" type="button" class="btn btn-secondary" title="Cancel file selection">
+                 <span class="material-icons"></span>
+                 <span>Cancel</span>
+             </button>
+             <button id="uploadCustomGestureBtn" type="button" class="btn btn-primary">
+                 <span class="material-icons"></span>
+                 <span id="uploadCustomGestureBtnText">Import File</span>
+             </button>
+        </div>
+    </div>
+</div>

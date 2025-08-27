@@ -1,0 +1,44 @@
+/* FILE: ./css/components/modals/modal-footer.css */
+/* Shared footer/actions area styles for modals and config sidebar */
+
+.modal-actions,
+.config-action-buttons {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  flex-shrink: 0;
+  padding: var(--space-sm) var(--space-md);
+  border-top: var(--border-width-standard) var(--border-style-standard)
+    var(--border);
+  position: relative;
+  z-index: 1;
+  background-color: var(--surface);
+}
+
+/* Version Display Styling */
+.modal-version {
+  font-size: var(--font-size-extra-small);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  flex-grow: 1; /* Allows it to take up space if other elements are on the left */
+  text-align: right; /* Aligns the text content to the right */
+}
+
+.modal-version[style*="cursor: pointer"] {
+  text-decoration: underline;
+  text-decoration-color: var(--primary);
+}
+.modal-version[style*="cursor: pointer"]:hover {
+  color: var(--primary);
+}
+
+/* HA Test/Save Button container in Settings */
+.ha-connection-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  justify-content: flex-end;
+  flex-shrink: 0;
+}

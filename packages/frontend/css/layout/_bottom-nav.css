@@ -1,0 +1,32 @@
+/* packages/frontend/css/layout/_bottom-nav.css */
+/* Styles for the bottom navigation bar, primarily for mobile. */
+
+.bottom-nav {
+  display: none; /* Hidden by default, shown on mobile */
+  justify-content: space-around;
+  align-items: stretch;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: var(--bottom-nav-height);
+  background-color: var(--surface);
+  border-top: var(--border-width-standard) var(--border-style-standard)
+    var(--border);
+  box-shadow: var(--shadow-strong);
+  z-index: var(--z-bottom-nav);
+  transform: translateZ(0);
+  flex-shrink: 0;
+  transition: filter var(--slide-transition-duration) ease;
+}
+
+/* Mobile Overrides for Bottom Nav */
+@media (max-width: 768px) {
+  .bottom-nav {
+    display: flex !important; /* Show on mobile */
+  }
+  body.modal-open .bottom-nav {
+    /* Keep this rule for modal interaction */
+    filter: none !important;
+  }
+}

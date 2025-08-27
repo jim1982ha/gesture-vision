@@ -1,0 +1,39 @@
+/* FILE: packages/frontend/css/components/video/_roi.css */
+/* --- ROI Interaction Cursors --- */
+
+canvas#output_canvas.roi-hover-move,
+canvas#output_canvas.roi-dragging-move {
+  cursor: move;
+}
+canvas#output_canvas.roi-hover-tl,
+canvas#output_canvas.roi-dragging-tl {
+  cursor: nwse-resize;
+}
+canvas#output_canvas.roi-hover-br,
+canvas#output_canvas.roi-dragging-br {
+  cursor: nwse-resize;
+}
+canvas#output_canvas.roi-hover-tr,
+canvas#output_canvas.roi-dragging-tr {
+  cursor: nesw-resize;
+}
+canvas#output_canvas.roi-hover-bl,
+canvas#output_canvas.roi-dragging-bl {
+  cursor: nesw-resize;
+}
+canvas#output_canvas.roi-hover-t,
+canvas#output_canvas.roi-dragging-t {
+  cursor: ns-resize;
+}
+canvas#output_canvas.roi-hover-b,
+canvas#output_canvas.roi-dragging-b {
+  cursor: ns-resize;
+}
+canvas#output_canvas.roi-hover-l,
+canvas#output_canvas.roi-dragging-l {
+  cursor: ew-resize;
+}
+canvas#output_canvas.roi-hover-r,
+canvas#output_canvas.roi-dragging-r {
+  cursor: ew-resize;
+}

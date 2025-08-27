@@ -1,0 +1,12 @@
+/* css/mobile.css */
+/* Main import file for all mobile-specific component styles. */
+/* Assumes imported files use global CSS variables. */
+
+@import url("./components/mobile/mobile-layout.css");
+@import url("./components/mobile/mobile-nav.css");
+@import url("./components/mobile/mobile-sidebars.css");
+@import url("./components/mobile/mobile-modals.css");
+@import url("./components/mobile/mobile-forms.css");
+@import url("./components/mobile/mobile-lists.css");
+@import url("./components/mobile/mobile-video.css");
+@import url("./components/mobile/mobile-misc.css");

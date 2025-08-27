@@ -1,0 +1,26 @@
+/* FILE: packages/frontend/css/components/modals/modal-scroll.css */
+/* Styles for the scrollable content area within modals and sidebars */
+
+.modal-scrollable-content,
+.sidebar-scrollable-content {
+  /* Also applies to sidebar scrollable areas */
+  padding: var(--space-md); /* Default padding for scrollable content */
+  overflow-y: auto;
+  overflow-x: hidden; /* Typically no horizontal scroll in modal content */
+  flex: 1 1 auto; /* Allow it to grow and shrink, basis auto */
+  margin: 0;
+  box-sizing: border-box;
+  min-height: 0; /* Important for flex item scrolling */
+  position: relative; /* For stacking context if needed */
+  z-index: 0; /* Below header/footer if they have z-index: 1 */
+  -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+  overscroll-behavior: contain; /* Prevent scroll chaining to body */
+  /* Scrollbar styling inherited from base.css */
+  transition: opacity 0.15s ease-in-out; /* Add transition for fade effect */
+}
+
+/* Specific padding removal for Docs modal scrollable area */
+.docs-modal .modal-scrollable-content {
+  /* Target docs modal specifically */
+  padding: 0 !important; /* Keep this specific override for docs layout */
+}

@@ -1,0 +1,25 @@
+<!-- FILE: packages/frontend/src/partials/_modal_settings_tab_plugins.html -->
+<div class="settings-tab-content" data-tab-content="plugins">
+    <div class="plugin-list-actions">
+        <div class="form-group" style="flex-grow: 1;">
+            <label for="pluginInstallUrl" id="pluginInstallUrlLabel">Install New Plugin from URL</label>
+            <div class="input-button-group">
+                <input type="url" id="pluginInstallUrl" class="form-control" placeholder="https://github.com/user/gesturevision-plugin.git" autocomplete="off">
+                <button id="pluginInstallBtn" class="btn btn-primary">
+                    <span class="material-icons">download</span>
+                    <span id="pluginInstallBtnText">Install</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="plugin-dev-info-container">
+        <span class="material-icons">code</span>
+        <span id="pluginDevInfoText">Interested in creating your own plugin?</span>
+        <button id="openPluginDevDocsBtn" class="btn-link" type="button">Check out the guide.</button>
+    </div>
+
+    <div class="plugins-config-list" id="pluginsListContainer">
+        <p class="list-placeholder" id="pluginsListPlaceholder">Loading plugins...</p>
+    </div>
+</div>

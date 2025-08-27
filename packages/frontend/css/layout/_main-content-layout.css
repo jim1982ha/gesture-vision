@@ -1,0 +1,47 @@
+/* FILE: packages/frontend/css/layout/_main-content-layout.css */
+/* Styles for sections within .main-content */
+
+.main-content > .video-container {
+  flex-shrink: 0;
+  transition: opacity 0.3s ease, max-height 0.3s ease, margin-bottom 0.3s ease,
+    padding-top 0.3s ease, padding-bottom 0.3s ease, visibility 0s linear 0s, width 0.3s ease-in-out;
+  opacity: 1;
+  max-height: 100vh;
+  margin-bottom: var(--space-sm); 
+  visibility: visible;
+  margin-left: auto; 
+  margin-right: auto; 
+}
+
+.main-content.video-hidden > .video-container {
+  opacity: 0;
+  max-height: 0;
+  margin-bottom: 0;
+  margin-top: 0;
+  overflow: hidden;
+  visibility: hidden;
+  transition-delay: 0s, 0s, 0s, 0s, 0s, 0.3s;
+}
+
+.main-content > #configListContainer.config-section {
+  padding: 0 var(--space-sm) var(--space-md) var(--space-sm) ;
+  display: flex;
+  flex-direction: column;
+  width: 100%; 
+  box-sizing: border-box;
+  transition: 
+    padding-top 0.3s ease, 
+    opacity 0.3s ease, 
+    max-height 0.3s ease, 
+    visibility 0s linear 0.3s;
+  opacity: 1;
+  visibility: visible;
+  flex-grow: 1;
+  flex-shrink: 1;
+  min-height: 0;
+}
+
+#configListContainer > #configList.config-list,
+#configListContainer > #inactiveConfigList.config-list {
+  margin-top: var(--space-xs); 
+}

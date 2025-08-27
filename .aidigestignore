@@ -1,0 +1,98 @@
+# Lines starting with # are comments.
+
+# Node.js dependencies
+node_modules/
+
+# Build artifacts and distribution folders
+dist/
+dist-backend/
+dev-dist/
+dist/
+packages/backend/dist-backend/
+packages/backend/dev-dist/
+packages/backend/dist/
+packages/frontend/dist-backend/
+packages/frontend/dev-dist/
+packages/frontend/dist/
+packages/shared/dist-backend/
+packages/shared/dev-dist/
+packages/shared/dist/
+packages/shared/dist-types/
+
+# Minified or bundled vendor libraries (often very large and not primary source code)
+public/vendor/
+public/local-bundles/
+
+# WebAssembly and Model files (binary and large)
+public/wasm/
+public/models/
+
+# IDE and editor specific files
+.idea/
+.vscode/
+
+# OS-generated files
+.DS_Store
+._*
+Thumbs.db
+
+# Log files
+*.log
+logs/
+
+# Temporary files, PID files
+*.pid
+*.pid.lock
+generated_mediamtx.yml # Runtime generated
+/tmp/ # Ignore any /tmp directory if it appears in the project root
+
+# Capacitor platform-specific folders (generated native code)
+android/
+ios/
+
+# Large resource files for Capacitor or app icons/splash screens
+# The AI doesn't need to analyze these raw assets.
+resources/
+public/icons/
+public/images/
+packages/frontend/public/local-bundles/
+packages/frontend/public/models/
+packages/frontend/public/wasm/
+packages/shared/dist-types/
+packages/backend/custom_gestures
+
+
+# Test coverage reports
+coverage/
+
+# Source maps (can be large)
+*.js.map
+*.css.map
+
+# User-specific files from original .gitignore if not source code
+*codebase*.md
+output.txt
+
+# SQLite database files
+database.sqlite
+keys.json
+
+# Binary files that are duplicates or macOS specific resource forks
+._codebase.md
+public/images/._*
+
+# Package lock files can be very large and change often; package.json is usually sufficient
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Configuration files containing secrets or local setup
+# The AI should focus on config.example.json for structure.
+    # config.json
+    # config.dev.json
+    # *.env
+    # .env.*
+    # capacitor.config.json
+
+# Additional context files that describe the user's specific setup
+    # additional_context/

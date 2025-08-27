@@ -1,0 +1,87 @@
+/* FILE: packages/frontend/css/variables/_components.css */
+/* Defines shared CSS custom properties for various UI components. */
+/* These apply to all themes and modes. */
+:root,
+[data-theme*="-light"],
+[data-theme*="-dark"] {
+  /* Buttons */
+  --button-height-normal: 40px;
+  --button-height-large: 44px;
+  --button-height-small: 32px;
+  --button-padding-vertical: var(--space-xs);
+  --button-padding-horizontal: var(--space-sm);
+  --button-padding-small-vertical: calc(var(--space-unit) * 1.5);
+  --button-padding-small-horizontal: var(--space-xs);
+  --button-radius: var(--radius);
+  --button-icon-size: var(--button-height-normal);
+  --button-icon-padding: var(--space-xs);
+  --button-icon-radius: var(--radius-round);
+  --button-min-width-theme-select: 100px;
+
+  /* Icons */
+  --icon-size-small: 1rem;
+  --icon-size-normal: 1.25rem;
+  --icon-size-medium: 1.5rem;
+  --icon-size-large: 2rem;
+  --icon-size-button: var(--icon-size-normal);
+  --icon-size-header: var(--icon-size-medium);
+  --icon-size-status: var(--icon-size-normal);
+
+  /* Cards */
+  --card-padding: var(--space-sm);
+  --card-gap: var(--space-xs);
+  --card-radius: var(--radius-large);
+  --card-shadow: var(--shadow-subtle);
+  --card-header-padding-bottom: var(--space-xs);
+  --card-details-font-size: var(--font-size-small);
+  --card-title-font-size: var(--font-size-medium);
+  --card-title-min-width: calc(var(--space-unit) * 12.5);
+  --card-max-width-desktop: 200px;
+
+  /* Inputs */
+  --input-padding-vertical: var(--space-xs);
+  --input-padding-horizontal: var(--space-sm);
+  --input-min-height: var(--button-height-large);
+  --input-radius: var(--radius);
+  --textarea-min-height: calc(var(--space-unit) * 20);
+  --input-file-padding: var(--space-xs);
+  --input-file-line-height: 1.8;
+  --input-select-arrow-size: 0.5em;
+  --input-select-padding-right: calc(
+    var(--input-padding-horizontal) + var(--input-select-arrow-size) +
+      var(--space-xs)
+  );
+
+  /* Checkbox/Radio */
+  --checkbox-radio-size: 1.125em;
+
+  /* Dropdowns (general, not header specific) */
+  --dropdown-offset-top: var(--space-unit);
+  --dropdown-max-height: calc(var(--space-unit) * 50);
+  --dropdown-item-padding-y: var(--space-xs);
+  --dropdown-item-padding-x: var(--space-sm);
+  --dropdown-item-font-size: var(--font-size-small);
+
+  /* Sliders */
+  --slider-track-height: var(--space-xs);
+  --slider-track-radius: var(--radius-small);
+  --slider-thumb-size: calc(var(--space-unit) * 5);
+  --slider-thumb-size-firefox: calc(var(--space-unit) * 4.5);
+  --slider-thumb-border-width: 2px;
+  --slider-value-min-width: calc(var(--space-unit) * 10);
+
+  /* Video Overlay Panels */
+  --video-overlay-panel-bg: rgba(var(--surface-rgb, 20, 20, 20), 0.4);
+  --video-overlay-panel-border: 1px solid rgba(var(--overlay-gray-rgb), 0.3);
+  --video-overlay-panel-blur: blur(5px);
+
+  /* Other specific component vars */
+  --alert-translate-y: var(--space-md);
+  --alert-max-width: 600px;
+  --pill-padding-y: calc(var(--space-unit) * 0.75);
+  --pill-padding-x: var(--space-xs);
+  --pill-height: calc(var(--space-unit) * 6);
+  --pill-radius: calc(var(--space-unit) * 4);
+  --stream-indicator-size: calc(var(--space-unit) * 2.5);
+  --stream-indicator-border: rgba(var(--overlay-gray-rgb), 0.2);
+}

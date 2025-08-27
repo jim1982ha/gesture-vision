@@ -1,0 +1,79 @@
+<!-- FILE: packages/frontend/index.html -->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" id="theme-color-meta" content="#2A9D8F" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <link rel="preload" href="https://fonts.googleapis.com/icon?family=Material+Icons&display=swap" as="style"
+        onload="this.onload=null;this.rel='stylesheet'">
+    <noscript>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons&display=swap">
+    </noscript>
+
+    <!-- Paths remain root-relative, assuming Vite's root/publicDir handles resolution -->
+    <link rel="preload" href="/css/fonts.css" as="style" />
+    <link rel="stylesheet" href="/css/fonts.css" />
+
+    <link rel="preload" href="/vendor/mdi/materialdesignicons.min.css" as="style" />
+    <link rel="stylesheet" href="/vendor/mdi/materialdesignicons.min.css" />
+
+    <link rel="manifest" href="/manifest.webmanifest" />
+
+    <link rel="stylesheet" href="/css/variables.css" />
+    <link rel="stylesheet" href="/css/base.css" />
+    <link rel="stylesheet" href="/css/layout.css" />
+    <link rel="stylesheet" href="/css/components.css" />
+    <link rel="stylesheet" href="/css/mobile.css" />
+    <link rel="stylesheet" href="/css/desktop.css" />
+
+    <link rel="icon" type="image/x-icon" href="/icons/favicon.ico" />
+
+    <script src="/vendor/markdown/marked.min.js" defer></script>
+    <script src="/vendor/markdown/purify.min.js" defer></script>
+    
+    <!-- MODIFICATION: Load the shared worker utilities into the main thread's global scope -->
+    <script src="/worker-lib/worker-gesture-utils.js" defer></script>
+
+    <script id="app-config"></script>
+
+    <title>GestureVision</title>
+</head>
+
+<body>
+    <!-- header-inject -->
+    <!-- main-content-inject -->
+    <!-- config-sidebar-inject -->
+    <!-- history-sidebar-inject -->
+
+    <div id="mainSettingsModal" class="modal">
+        <div class="modal-content">
+            <!-- modal-settings-head-inject -->
+            <div class="modal-scrollable-content">
+                <!-- general-settings-tab-inject -->
+                <!-- custom-gestures-settings-tab-inject -->
+                <!-- integrations-settings-tab-inject -->
+                <!-- plugins-settings-tab-inject -->
+                <!-- rtsp-settings-tab-inject -->
+                <!-- theme-settings-tab-inject -->
+            </div>
+            <!-- modal-settings-footer-inject -->
+        </div>
+    </div>
+
+    <!-- modal-camera-select-inject -->
+    <!-- modal-documentation-inject -->
+    <!-- modal-gesture-alert-inject -->
+    <!-- modal-sidebar-backdrop-inject -->
+    <!-- bottom-nav-inject -->
+    <!-- modal-confirmation-inject -->
+    
+    <script type="module" src="/src/main.ts"></script>
+</body>
+
+</html>

@@ -1,0 +1,24 @@
+<!-- FILE: packages/frontend/src/partials/_history_sidebar.html -->
+<aside id="historySidebar" class="sidebar">
+  <div class="sidebar-header">
+    <div class="sidebar-header-main">
+      <span class="material-icons header-icon"></span>
+      <span class="header-title" id="historyTitle">History</span>
+    </div>
+    <div class="sidebar-header-actions">
+      <button id="clearHistoryButton" class="btn btn-icon btn-icon-danger clear-history-btn" title="Clear History"
+        aria-label="Clear History">
+        <span class="material-icons"></span>
+      </button>
+      <button id="historySidebarHeaderCloseBtn" class="btn btn-icon header-close-btn"
+        aria-label="Close History Sidebar" title="Close History">
+        <span class="mdi" aria-hidden="true"></span>
+      </button>
+    </div>
+  </div>
+  <div class="sidebar-scrollable-content">
+    <div id="gestureHistory" class="history-list">
+      <!-- History items are rendered here by UIRenderer -->
+    </div>
+  </div>
+</aside>

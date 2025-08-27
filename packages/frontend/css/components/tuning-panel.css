@@ -1,0 +1,138 @@
+/* FILE: packages/frontend/css/components/tuning-panel.css */
+/* Styles for the real-time AI tuning and display adjustment control panels. */
+
+.video-overlay-panel {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  width: auto;
+  box-sizing: border-box;
+  background-color: var(--video-overlay-panel-bg);
+  backdrop-filter: var(--video-overlay-panel-blur);
+  -webkit-backdrop-filter: var(--video-overlay-panel-blur);
+  border: var(--video-overlay-panel-border);
+  border-radius: var(--radius);
+  padding: var(--space-sm);
+  z-index: 3;
+  position: absolute;
+  pointer-events: auto;
+}
+
+#ai-tuning-panel {
+  bottom: var(--space-xs);
+  left: var(--space-xs);
+  flex-direction: column;
+}
+
+#display-adjustments-panel {
+  bottom: var(--space-xs);
+  right: calc(var(--button-icon-size) + var(--space-sm));
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+#ai-tuning-group-selector {
+  justify-content: center;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.tuning-sliders-container {
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: center;
+  gap: var(--space-sm);
+}
+
+/* Base group styles */
+.tuning-slider-group {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--space-xs) / 2);
+  font-size: 0.75rem;
+}
+.tuning-slider-group label,
+.tuning-slider-group output {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--text-on-primary);
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* Vertical Sliders (Shared for AI and Display panels) */
+#ai-tuning-panel .tuning-slider-group,
+#display-adjustments-panel .tuning-slider-group {
+  flex-direction: column;
+}
+#ai-tuning-panel .tuning-slider-group input[type="range"],
+#display-adjustments-panel .tuning-slider-group input[type="range"] {
+  order: 2;
+  writing-mode: vertical-lr;
+  direction: ltr;
+  transform: rotate(180deg);
+  width: 8px;
+  height: 70px;
+  margin: var(--space-xs) 0;
+}
+#ai-tuning-panel .tuning-slider-group label,
+#display-adjustments-panel .tuning-slider-group label { order: 1; }
+#ai-tuning-panel .tuning-slider-group output,
+#display-adjustments-panel .tuning-slider-group output { order: 3; width: 4ch; }
+
+
+/* Reset button specific styles */
+#resetDisplayAdjustmentsBtn {
+    background-color: rgba(var(--overlay-gray-rgb), 0.3);
+    color: var(--text-on-primary);
+    border: none;
+    box-shadow: var(--shadow-subtle);
+    order: 2; /* Place it below the sliders container */
+}
+
+#resetDisplayAdjustmentsBtn:hover {
+    background-color: rgba(var(--overlay-gray-rgb), 0.5);
+}
+
+/* Common input[type=range] base appearance reset */
+.tuning-slider-group input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: rgba(var(--background-rgb, 255, 255, 255), 0.3);
+  border-radius: 4px;
+  outline: none;
+  cursor: pointer;
+  padding: 0;
+}
+.tuning-slider-group input[type="range"]:hover {
+  opacity: 1;
+}
+
+/* Common thumb styles */
+.tuning-slider-group input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  background: var(--primary);
+  border-radius: 50%;
+  border: 2px solid var(--surface);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.5);
+}
+.tuning-slider-group input[type="range"]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  background: var(--primary);
+  border-radius: 50%;
+  border: 2px solid var(--surface);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.5);
+  cursor: pointer;
+}
+
+@media (max-width: 768px) {
+    #ai-tuning-panel .tuning-slider-group input[type="range"],
+    #display-adjustments-panel .tuning-slider-group input[type="range"] {
+        height: 60px; /* Shorter track on mobile */
+    }
+}

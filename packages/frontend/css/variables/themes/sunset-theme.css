@@ -1,0 +1,114 @@
+/* FILE: ./css/variables/themes/sunset-theme.css */
+/* Defines color variables for the Sunset theme (light and dark modes). */
+[data-theme="sunset-light"] {
+  --primary: #e76f51;
+  --primary-hover: #d85d3d;
+  --primary-rgb: 231, 111, 81;
+  --secondary: #f4a261;
+  --secondary-hover: #f6b07a;
+  --secondary-rgb: 244, 162, 97;
+  --accent: #e9c46a;
+  --background: #fff8f0;
+  --surface: #ffebcd;
+  --text-primary: #264653;
+  --text-secondary: #2a9d8f;
+  --text-on-primary: #ffffff;
+  --text-on-primary-disabled-opacity: 0.65;
+  --text-on-primary-disabled: rgba(
+    255,
+    255,
+    255,
+    var(--text-on-primary-disabled-opacity)
+  );
+  --text-on-secondary: #264653;
+  --border: #f4a261;
+  --border-light: #f6b07a;
+  --error: #e63946;
+  --error-hover: #d12735;
+  --error-border: #e63946;
+  --error-hover-border: #c31e2c;
+  --error-rgb: 230, 57, 70;
+  --text-on-error: #ffffff;
+  --success: #52b788;
+  --success-hover: #40a072;
+  --success-border: #52b788;
+  --success-hover-border: #378c64;
+  --text-on-success: #ffffff;
+  --warning: #ffb703;
+  --warning-hover: #e0a000;
+  --warning-border: #ffb703;
+  --warning-hover-border: #c79100;
+  --text-on-warning: #212529;
+  --info: #2a9d8f;
+  --info-hover: #238377;
+  --info-border: #2a9d8f;
+  --info-hover-border: #1f7066;
+  --text-on-info: #ffffff;
+  --overlay-bg: rgba(255, 235, 205, 0.7);
+  --overlay-text: #264653;
+  --overlay-blur: 2px;
+  --overlay-border: rgba(38, 70, 83, 0.1);
+  --overlay-gray-rgb: 42, 157, 143;
+  --overlay-light-alpha: 0.1;
+  --code-inline-bg: rgba(var(--secondary-rgb), 0.2);
+  --code-inline-text: var(--text-secondary);
+  --code-block-bg: #fde6c5;
+  --svg-filter-primary: invert(57%) sepia(34%) saturate(1390%)
+    hue-rotate(320deg) brightness(93%) contrast(91%);
+}
+[data-theme="sunset-dark"] {
+  --primary: #f4a261;
+  --primary-hover: #e9c46a;
+  --primary-rgb: 244, 162, 97;
+  --secondary: #e76f51;
+  --secondary-hover: #ec8a70;
+  --secondary-rgb: 231, 111, 81;
+  --accent: #ffb703;
+  --background: #264653;
+  --surface: #2a9d8f;
+  --text-primary: #fff8f0;
+  --text-secondary: #f4a261;
+  --text-on-primary: #264653;
+  --text-on-primary-disabled-opacity: 0.6;
+  --text-on-primary-disabled: rgba(
+    38,
+    70,
+    83,
+    var(--text-on-primary-disabled-opacity)
+  );
+  --text-on-secondary: #ffffff;
+  --border: #e76f51;
+  --border-light: #ec8a70;
+  --error: #f85149;
+  --error-hover: #f97a74;
+  --error-border: #f85149;
+  --error-hover-border: #f7372f;
+  --error-rgb: 248, 81, 73;
+  --text-on-error: #264653;
+  --success: #52b788;
+  --success-hover: #79c7a3;
+  --success-border: #52b788;
+  --success-hover-border: #40a072;
+  --text-on-success: #264653;
+  --warning: #ffca28;
+  --warning-hover: #ffd740;
+  --warning-border: #ffca28;
+  --warning-hover-border: #ffc107;
+  --text-on-warning: #212529;
+  --info: #48cae4;
+  --info-hover: #90e0ef;
+  --info-border: #48cae4;
+  --info-hover-border: #00b4d8;
+  --text-on-info: #264653;
+  --overlay-bg: rgba(42, 157, 143, 0.7);
+  --overlay-text: #fff8f0;
+  --overlay-blur: 2px;
+  --overlay-border: rgba(244, 162, 97, 0.3);
+  --overlay-gray-rgb: 244, 162, 97;
+  --overlay-light-alpha: 0.15;
+  --code-inline-bg: rgba(var(--secondary-rgb), 0.2);
+  --code-inline-text: var(--text-secondary);
+  --code-block-bg: #23776d;
+  --svg-filter-primary: invert(85%) sepia(22%) saturate(1720%)
+    hue-rotate(326deg) brightness(99%) contrast(93%);
+}

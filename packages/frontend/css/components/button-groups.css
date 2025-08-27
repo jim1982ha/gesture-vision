@@ -1,0 +1,56 @@
+/* FILE: css/components/button-groups.css */
+/* Styles for containers of segmented button toggles. */
+
+.button-toggle-group {
+  display: inline-flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: center;
+  border-radius: var(--button-radius, var(--radius));
+  border: var(--border-width-standard) var(--border-style-standard)
+    var(--border);
+  overflow: hidden; /* Ensures child button borders are clipped correctly */
+  height: var(--button-height-normal);
+  flex-shrink: 0; /* Prevent group from shrinking too much */
+  box-sizing: border-box;
+}
+
+/* Styles for individual buttons within the toggle group */
+.button-toggle-group > button.btn {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  flex-grow: 1 !important;
+  flex-shrink: 1 !important;
+  flex-basis: 0 !important;
+  width: auto !important;
+  min-width: var(--button-height-small);
+  max-width: none !important;
+  height: 100%;
+  box-shadow: none !important; /* No individual shadow for segmented buttons */
+  border: none !important; /* Individual borders are handled by the :not(:first-child) rule below */
+  border-radius: 0 !important; /* No radius for inner buttons */
+  position: relative;
+  padding-left: var(--button-padding-horizontal);
+  padding-right: var(--button-padding-horizontal);
+  white-space: nowrap;
+  margin: 0; /* No margin, spacing handled by border overlap */
+}
+
+/* Create the separator lines between buttons */
+.button-toggle-group > button.btn:not(:first-child) {
+  margin-left: calc(
+    var(--border-width-standard) * -1
+  ); /* MODIFIED: Use variable */
+  border-left: var(--border-width-standard) var(--border-style-standard)
+    var(--border) !important; /* Ensure this border is visible */
+}
+
+/* Z-index for active/hover states to ensure borders render correctly */
+.button-toggle-group > button.btn.active {
+  z-index: 1;
+}
+
+.button-toggle-group > button.btn:not(.active):not(:disabled):hover {
+  z-index: 2; /* Hovered non-active buttons should be above active ones for border visibility */
+}

@@ -1,0 +1,114 @@
+/* FILE: ./css/variables/themes/forest-theme.css */
+/* Defines color variables for the Forest theme (light and dark modes). */
+[data-theme="forest-light"] {
+  --primary: #4caf50;
+  --primary-hover: #388e3c;
+  --primary-rgb: 76, 175, 80;
+  --secondary: #a5d6a7;
+  --secondary-hover: #c8e6c9;
+  --secondary-rgb: 165, 214, 167;
+  --accent: #ff7043;
+  --background: #e8f5e9;
+  --surface: #c8e6c9;
+  --text-primary: #1b5e20;
+  --text-secondary: #4caf50;
+  --text-on-primary: #ffffff;
+  --text-on-primary-disabled-opacity: 0.65;
+  --text-on-primary-disabled: rgba(
+    255,
+    255,
+    255,
+    var(--text-on-primary-disabled-opacity)
+  );
+  --text-on-secondary: #1b5e20;
+  --border: #a5d6a7;
+  --border-light: #b0bec5;
+  --error: #d32f2f;
+  --error-hover: #b71c1c;
+  --error-border: #d32f2f;
+  --error-hover-border: #c62828;
+  --error-rgb: 211, 47, 47;
+  --text-on-error: #ffffff;
+  --success: #4caf50;
+  --success-hover: #388e3c;
+  --success-border: #4caf50;
+  --success-hover-border: #2e7d32;
+  --text-on-success: #ffffff;
+  --warning: #ffb300;
+  --warning-hover: #ffa000;
+  --warning-border: #ffb300;
+  --warning-hover-border: #ff8f00;
+  --text-on-warning: #212529;
+  --info: #81c784;
+  --info-hover: #66bb6a;
+  --info-border: #81c784;
+  --info-hover-border: #4caf50;
+  --text-on-info: #1b5e20;
+  --overlay-bg: rgba(200, 230, 201, 0.7);
+  --overlay-text: #1b5e20;
+  --overlay-blur: 2px;
+  --overlay-border: rgba(27, 94, 32, 0.1);
+  --overlay-gray-rgb: 76, 175, 80;
+  --overlay-light-alpha: 0.1;
+  --code-inline-bg: rgba(var(--secondary-rgb), 0.3);
+  --code-inline-text: var(--text-secondary);
+  --code-block-bg: #a5d6a7;
+  --svg-filter-primary: invert(61%) sepia(52%) saturate(477%) hue-rotate(74deg)
+    brightness(94%) contrast(88%);
+}
+[data-theme="forest-dark"] {
+  --primary: #81c784;
+  --primary-hover: #a5d6a7;
+  --primary-rgb: 129, 199, 132;
+  --secondary: #4caf50;
+  --secondary-hover: #66bb6a;
+  --secondary-rgb: 76, 175, 80;
+  --accent: #ff8a65;
+  --background: #1b5e20;
+  --surface: #2e7d32;
+  --text-primary: #e8f5e9;
+  --text-secondary: #a5d6a7;
+  --text-on-primary: #1b5e20;
+  --text-on-primary-disabled-opacity: 0.6;
+  --text-on-primary-disabled: rgba(
+    27,
+    94,
+    32,
+    var(--text-on-primary-disabled-opacity)
+  );
+  --text-on-secondary: #ffffff;
+  --border: #4caf50;
+  --border-light: #66bb6a;
+  --error: #f85149;
+  --error-hover: #f97a74;
+  --error-border: #f85149;
+  --error-hover-border: #f7372f;
+  --error-rgb: 248, 81, 73;
+  --text-on-error: #1b5e20;
+  --success: #30c551;
+  --success-hover: #59d372;
+  --success-border: #30c551;
+  --success-hover-border: #1fab3a;
+  --text-on-success: #1b5e20;
+  --warning: #ffca28;
+  --warning-hover: #ffd740;
+  --warning-border: #ffca28;
+  --warning-hover-border: #ffc107;
+  --text-on-warning: #212529;
+  --info: #a5d6a7;
+  --info-hover: #c8e6c9;
+  --info-border: #a5d6a7;
+  --info-hover-border: #81c784;
+  --text-on-info: #1b5e20;
+  --overlay-bg: rgba(27, 94, 32, 0.7);
+  --overlay-text: #e8f5e9;
+  --overlay-blur: 2px;
+  --overlay-border: rgba(165, 214, 167, 0.2);
+  --overlay-gray-rgb: 165, 214, 167;
+  --overlay-light-alpha: 0.15;
+  --code-inline-bg: rgba(var(--secondary-rgb), 0.2);
+  --code-inline-text: var(--text-secondary);
+  --code-block-bg: #124116;
+  --svg-filter-primary: invert(85%) sepia(16%) saturate(655%) hue-rotate(72deg)
+    brightness(90%) contrast(86%);
+}

@@ -1,0 +1,89 @@
+/* FILE: packages/frontend/css/components/mobile/mobile-sidebars.css */
+/* Sidebar adjustments for mobile screens (<= 768px), using variables. */
+
+@media (max-width: 768px) {
+  #configSidebar,
+  #historySidebar {
+    width: 100%;
+    max-width: none !important;
+    top: var(--header-height) !important;
+    bottom: var(--bottom-nav-height) !important;
+    height: auto !important;
+    left: 0 !important;
+    right: 0 !important;
+    border-top-left-radius: var(--radius-large);
+    border-top-right-radius: var(--radius-large);
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    box-shadow: 0 calc(-1 * var(--space-unit)) calc(var(--space-unit) * 5)
+      rgba(0, 0, 0, 0.15);
+    transform: translateY(
+      calc(100svh - var(--header-height) - var(--bottom-nav-height))
+    ) !important;
+    border: none !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+    visibility: hidden;
+    transition: transform var(--slide-transition-duration)
+        var(--slide-transition-timing),
+      visibility 0s linear var(--slide-transition-duration);
+    z-index: var(--z-sidebar);
+  }
+
+  body.config-sidebar-active #configSidebar,
+  body.history-sidebar-active #historySidebar {
+    transform: translateY(0) !important;
+    visibility: visible;
+    transition-delay: 0s;
+  }
+
+  .sidebar .sidebar-scrollable-content {
+    padding: var(--space-md);
+  }
+
+  .sidebar .sidebar-header {
+    padding: var(--space-sm);
+    padding-bottom: var(--space-xs);
+    font-size: var(--font-size-large);
+  }
+
+  #configSidebar .config-action-buttons {
+    padding: var(--space-sm);
+    display: flex;
+    justify-content: flex-end; /* Aligns items to the right */
+    align-items: center; /* Vertically align items if they have different heights */
+    gap: var(--space-sm); /* Space between buttons if both are visible */
+    border-top: var(--border-width-standard) var(--border-style-standard)
+      var(--border);
+  }
+
+  /* Adjustments for very narrow screens */
+  @media (max-width: 420px) {
+    /* Consider var(--breakpoint-mobile-small-end) */
+    .sidebar .sidebar-header,
+    .sidebar-scrollable-content,
+    #configSidebar .config-action-buttons {
+      padding: var(--space-sm) var(--space-sm);
+    }
+    #configSidebar .config-action-buttons .btn {
+      padding: var(--button-padding-small-vertical)
+        var(--button-padding-small-horizontal);
+      font-size: var(--font-size-small);
+    }
+  }
+
+  /* Landscape Mobile Optimizations */
+  @media (orientation: landscape) and (max-height: 500px) {
+    /* Consider var(--breakpoint-mobile-landscape-max-height) */
+    .sidebar .sidebar-header,
+    .sidebar-scrollable-content,
+    #configSidebar .config-action-buttons {
+      padding: var(--space-xs) var(--space-sm);
+    }
+    .sidebar .sidebar-header {
+      padding-bottom: calc(var(--space-xs) / 2);
+      font-size: var(--font-size-medium);
+    }
+  }
+}

@@ -1,0 +1,61 @@
+<!-- FILE: ./src/partials/_modal_settings_tab_rtsp.html -->
+<div class="settings-tab-content" data-tab-content="rtsp">
+    <div id="rtspSourceListContainer" style="margin-bottom: var(--space-md);">
+        <p id="rtspListPlaceholder" class="list-placeholder">Loading RTSP sources...</p>
+    </div>
+    <div id="rtspListActionsContainer" class="rtsp-list-actions" style="margin-bottom: var(--space-md);">
+        <button id="rtspAddNewButton" class="btn btn-primary">
+            <span class="material-icons"></span>
+            <span id="rtspAddNewButtonLabel">Add New Source</span>
+        </button>
+    </div>
+    <div id="rtspAddEditFormContainer" class="hidden">
+        <h5 id="rtspFormTitle" style="margin-bottom: var(--space-sm);">Add New RTSP Source</h5>
+        <input type="hidden" id="rtspEditIndex" value="-1" />
+        <div class="form-group">
+            <label for="rtspSourceName" id="rtspNameLabel">Name</label>
+            <input type="text" id="rtspSourceName" class="form-control" placeholder="e.g., Living Room Cam" required />
+        </div>
+        <div class="form-group">
+            <label for="rtspSourceUrl" id="rtspUrlLabel">URL</label>
+            <input type="text" id="rtspSourceUrl" class="form-control" placeholder="rtsp://user:pass@ip:port/path"
+                required />
+            <small id="rtspUrlHelp">Include username/password if needed (ensure proper URL encoding).</small>
+        </div>
+        <div class="form-group form-group-checkbox-inline">
+            <input type="checkbox" id="rtspSourceOnDemand" />
+            <label for="rtspSourceOnDemand" id="rtspSourceOnDemandLabel">Connect On Demand</label>
+        </div>
+        <fieldset class="form-group">
+            <legend id="rtspRoiSettingsLabel" class="form-label">Region of Interest (ROI) Crop (Optional)</legend>
+            <div class="form-row">
+                <div class="form-group"><label for="rtspRoiX" id="rtspRoiXLabel">Left Offset
+                        (%)</label><input type="number" id="rtspRoiX" class="form-control" min="0" max="100" step="1"
+                        placeholder="0" /></div>
+                <div class="form-group"><label for="rtspRoiY" id="rtspRoiYLabel">Top Offset
+                        (%)</label><input type="number" id="rtspRoiY" class="form-control" min="0" max="100" step="1"
+                        placeholder="0" /></div>
+            </div>
+            <div class="form-row">
+                <div class="form-group"><label for="rtspRoiWidth" id="rtspRoiWidthLabel">Width
+                        (%)</label><input type="number" id="rtspRoiWidth" class="form-control" min="1" max="100"
+                        step="1" placeholder="100" /></div>
+                <div class="form-group"><label for="rtspRoiHeight" id="rtspRoiHeightLabel">Height
+                        (%)</label><input type="number" id="rtspRoiHeight" class="form-control" min="1" max="100"
+                        step="1" placeholder="100" /></div>
+            </div>
+            <small id="rtspRoiHelp">Define crop region (X=Left offset, Y=Top offset). Use 0,0,100,100 for
+                full frame.</small>
+        </fieldset>
+        <div class="rtsp-form-actions">
+            <button id="rtspCancelEditButton" class="btn btn-secondary" style="display: none;">
+                <span class="material-icons"></span>
+                <span>Cancel</span>
+            </button>
+            <button id="rtspSaveSourceButton" class="btn btn-primary">
+                <span class="material-icons"></span>
+                <span id="rtspSaveButtonLabel">Add Source</span>
+            </button>
+        </div>
+    </div>
+</div>

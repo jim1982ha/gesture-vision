@@ -1,0 +1,236 @@
+/* FILE: packages/frontend/css/components/video/_overlays.css */
+
+.progress-rings {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: var(--progress-ring-size);
+  height: var(--progress-ring-size);
+  transform: translate(-50%, -50%);
+  z-index: var(--z-progress-rings);
+  pointer-events: none;
+}
+.progress-rings circle {
+  fill: none;
+  stroke-width: var(--progress-ring-stroke-width);
+  stroke-linecap: round;
+  transform-origin: 50% 50%;
+  transform: rotate(-90deg);
+  transition: stroke-dashoffset var(--transition-duration-short) linear,
+    opacity var(--transition-duration-normal) ease-out;
+  opacity: 0;
+}
+.cooldown-progress {
+  stroke: var(--secondary);
+  stroke-dasharray: calc(2 * 3.14159 * ((var(--progress-ring-size) / 2) - (var(--progress-ring-stroke-width) / 2) - (var(--progress-ring-stroke-width) / 2)));
+  stroke-dashoffset: calc(2 * 3.14159 * ((var(--progress-ring-size) / 2) - (var(--progress-ring-stroke-width) / 2) - (var(--progress-ring-stroke-width) / 2)));
+}
+.gesture-progress {
+  stroke: var(--primary);
+  stroke-dasharray: calc(2 * 3.14159 * ((var(--progress-ring-size) / 2) - var(--progress-ring-stroke-width) - (var(--progress-ring-stroke-width) / 2)));
+  stroke-dashoffset: calc(2 * 3.14159 * ((var(--progress-ring-size) / 2) - var(--progress-ring-stroke-width) - (var(--progress-ring-stroke-width) / 2)));
+}
+
+.top-center-status {
+  position: absolute;
+  top: var(--space-sm);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: var(--z-status-overlay);
+  background-color: var(--overlay-bg);
+  color: var(--overlay-text);
+  padding: calc(var(--space-xs) / 2) var(--space-sm);
+  border-radius: var(--radius);
+  backdrop-filter: blur(var(--overlay-blur));
+  -webkit-backdrop-filter: blur(var(--overlay-blur));
+  box-shadow: var(--shadow-standard);
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-family: inherit;
+  font-size: var(--font-size-small);
+  white-space: nowrap;
+  transition: box-shadow var(--transition-duration-normal) linear, background-color var(--transition-duration-normal) linear;
+  border: var(--border-width-active) var(--border-style-standard) transparent;
+}
+
+.status-line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.top-center-status #currentGestureSpan { font-weight: var(--font-weight-semibold); }
+.top-center-status .status-separator { opacity: var(--opacity-disabled); }
+.top-center-status #currentConfidenceSpan { font-weight: var(--font-weight-normal); }
+
+.confidence-bar-container {
+  width: var(--confidence-bar-width);
+  height: var(--confidence-bar-height);
+  background-color: rgba(var(--overlay-gray-rgb), 0.2);
+  border-radius: var(--radius-small);
+  overflow: hidden;
+  display: inline-block;
+  vertical-align: middle;
+  position: relative;
+}
+.confidence-bar {
+  height: 100%;
+  width: 0%;
+  background-color: var(--primary);
+  border-radius: var(--radius-small);
+  transition: width var(--transition-duration-short) linear, background-color var(--transition-duration-normal) linear;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-on-primary);
+  font-size: var(--confidence-bar-font-size, var(--font-size-extra-small));
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--confidence-bar-height);
+  overflow: hidden;
+  white-space: nowrap;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.timer-display {
+  font-family: inherit;
+  font-size: var(--font-size-small);
+  white-space: nowrap;
+  background-color: transparent;
+  box-shadow: none;
+  border: none;
+  padding: 0;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+.timer-display #holdTimeDisplay { font-weight: var(--font-weight-semibold); }
+.timer-display .material-icons { font-size: var(--font-size-small); }
+
+.connecting-overlay {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: var(--z-connecting-overlay);
+  color: var(--text-on-primary);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity var(--transition-duration-normal) ease, visibility 0s linear var(--transition-duration-normal), background-color var(--transition-duration-normal) ease;
+  pointer-events: none; /* Default: overlay is not clickable */
+  border-radius: inherit;
+  background-color: transparent; /* Default: no background */
+}
+
+.connecting-overlay.visible {
+  opacity: 1;
+  visibility: visible;
+  transition-delay: 0s;
+}
+
+/* Sub-containers within the main overlay */
+.connecting-overlay .overlay-text-container,
+.connecting-overlay .overlay-icon-container {
+  display: none; /* Hidden by default, shown by state classes */
+  flex-direction: column; /* For spinner + text */
+  align-items: center;
+  justify-content: center;
+}
+
+/* State: Initial Connection Attempt */
+.connecting-overlay.state-initial-connecting {
+  background-color: rgba(var(--background-rgb, 0, 0, 0), 0.7);
+  pointer-events: auto; /* Full overlay is clickable */
+}
+.connecting-overlay.state-initial-connecting .overlay-text-container {
+  display: flex;
+}
+.connecting-overlay.state-initial-connecting .spinner {
+  border: var(--spinner-border-width) var(--border-style-standard) rgba(var(--text-on-primary-rgb, 255, 255, 255), 0.3);
+  border-radius: var(--radius-round);
+  border-top-color: var(--text-on-primary);
+  width: var(--spinner-size);
+  height: var(--spinner-size);
+  animation: spin 1s linear infinite;
+  margin-bottom: var(--space-sm);
+}
+
+/* State: Offline/Idle - Play Button */
+.connecting-overlay.state-offline-idle .overlay-icon-container {
+  display: flex;
+  width: 64px;
+  height: 64px;
+  background-color: rgba(var(--overlay-gray-rgb), 0.5); /* Semi-transparent background */
+  border-radius: 50%;
+  pointer-events: auto; /* Only icon container is clickable */
+  cursor: pointer;
+  transition: background-color 0.2s ease-out, transform 0.1s ease-out;
+}
+.connecting-overlay.state-offline-idle .overlay-icon-container:hover {
+  background-color: rgba(var(--overlay-gray-rgb), 0.7);
+  transform: scale(1.1);
+}
+.connecting-overlay.state-offline-idle .overlay-icon-container .material-icons {
+  font-size: 36px;
+  color: var(--text-on-primary);
+}
+
+/* State: Stream Active - Stop Button */
+.connecting-overlay.state-stream-active .overlay-icon-container {
+  display: flex;
+  width: 64px;
+  height: 64px;
+  background-color: rgba(var(--overlay-gray-rgb), 0.2); /* More subtle */
+  border-radius: 50%;
+  opacity: 0.6; /* Subtle when not hovered */
+  pointer-events: auto; /* Only icon container is clickable */
+  cursor: pointer;
+  transition: background-color 0.2s ease-out, opacity 0.2s ease-out, transform 0.1s ease-out;
+}
+.connecting-overlay.state-stream-active .overlay-icon-container:hover {
+  background-color: rgba(var(--overlay-gray-rgb), 0.4);
+  opacity: 1;
+  transform: scale(1.1);
+}
+.connecting-overlay.state-stream-active .overlay-icon-container .material-icons {
+  font-size: 36px;
+  color: var(--text-on-primary);
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@media (max-width: 768px) {
+  .top-center-status {
+    flex-direction: column;
+    padding: var(--space-xs) var(--space-sm);
+    font-size: var(--font-size-small);
+    border-width: var(--border-width-standard);
+  }
+  .progress-rings {
+    width: calc(var(--progress-ring-size) * 0.75);
+    height: calc(var(--progress-ring-size) * 0.75);
+  }
+  .confidence-bar-container {
+    width: var(--confidence-bar-width);
+    height: var(--confidence-bar-height);
+  }
+  .connecting-overlay.state-offline-idle .overlay-icon-container {
+      width: 56px; height: 56px;
+  }
+  .connecting-overlay.state-offline-idle .overlay-icon-container .material-icons {
+      font-size: 32px;
+  }
+  .connecting-overlay.state-stream-active .overlay-icon-container {
+      width: 56px; height: 56px;
+  }
+  .connecting-overlay.state-stream-active .overlay-icon-container .material-icons {
+      font-size: 32px;
+  }
+}

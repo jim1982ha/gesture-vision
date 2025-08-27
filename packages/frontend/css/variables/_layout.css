@@ -1,0 +1,43 @@
+/* FILE: packages/frontend/css/variables/_layout.css */
+/* Defines shared CSS custom properties for major layout sections like Header, Nav, Sidebars. */
+/* Also includes dimensions for overlays like progress rings and spinners. */
+/* These apply to all themes and modes. */
+:root,
+[data-theme*="-light"],
+[data-theme*="-dark"] {
+  /* Layout Dimensions */
+  --header-height: 60px;
+  --bottom-nav-height: 56px;
+  --config-sidebar-width: 300px;
+  --history-sidebar-width: var(--config-sidebar-width);
+  --sidebar-edge-toggle-width: 32px;
+  --sidebar-edge-toggle-height: 48px;
+
+  /* Modals General */
+  --modal-max-width-default: 650px;
+  --modal-max-width-settings: 800px;
+  --modal-max-height-viewport: 90vh;
+  --modal-camera-select-max-height-mobile: 70svh;
+  --modal-scrollable-min-height-mobile: 200px;
+  --modal-tabs-padding-x: var(--space-md);
+  --modal-tabs-gap: var(--space-sm);
+  --modal-tab-underline-height: var(--border-width-thick);
+
+  /* Docs Modal Specific */
+  --docs-toc-width: 300px;
+  --docs-toc-width-landscape: 250px;
+  --docs-content-min-width: 300px;
+  --modal-max-width-docs: 95vw;
+  --modal-width-docs: 95vw;
+  --modal-height-docs: 90vh;
+  --modal-max-height-docs: 90vh;
+
+  /* Progress Rings & Overlays (Dimensions) */
+  --progress-ring-size: calc(var(--space-unit) * 20);
+  --progress-ring-stroke-width: 7px;
+  --confidence-bar-width: calc(var(--space-unit) * 20);
+  --confidence-bar-height: calc(var(--space-unit) * 4);
+  --confidence-bar-font-size: 0.8rem;
+  --spinner-size: calc(var(--space-unit) * 10);
+  --spinner-border-width: var(--space-unit);
+}

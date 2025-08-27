@@ -1,0 +1,28 @@
+/* FILE: packages/frontend/css/layout/_global-body-states.css */
+/* Styles for global body classes, e.g., when modals are open. */
+
+body.modal-open .main-content {
+  filter: blur(var(--overlay-blur));
+}
+
+/* Ensure active modals and sidebars are not blurred */
+body.modal-open .modal.visible, /* Target .visible modals */
+  body.modal-open .modal.visible .modal-content, /* And their content */
+  body.config-sidebar-active #configSidebar,
+  body.history-sidebar-active #historySidebar {
+  filter: none !important;
+}
+
+/* Blur main content when a sidebar is open */
+body.config-sidebar-active .main-content,
+body.history-sidebar-active .main-content {
+  filter: blur(var(--overlay-blur));
+}
+
+
+/* Specific for mobile: bottom nav should not blur when a modal is open */
+@media (max-width: 768px) {
+  body.modal-open .bottom-nav {
+    filter: none !important;
+  }
+}

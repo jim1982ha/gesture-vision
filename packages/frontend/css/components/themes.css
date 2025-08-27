@@ -1,0 +1,60 @@
+/* FILE: ./css/components/themes.css */
+/* Styles for Theme Selection and general Button Toggle Groups */
+
+.theme-mode-selector {
+  margin-bottom: var(--space-md);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.button-group-container {
+  margin-bottom: var(--space-md);
+}
+.button-group-container .form-label {
+  display: block;
+  margin-bottom: var(--space-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--text-secondary);
+  text-align: left;
+  font-size: var(--font-size-small);
+}
+.button-group-container > small {
+  display: block;
+  font-size: var(--font-size-extra-small);
+  color: var(--text-secondary);
+  margin-top: calc(var(--space-xs) / 2);
+  line-height: var(--line-height-tight);
+  text-align: left;
+}
+
+#themeToggleGroup .list-placeholder {
+  text-align: center;
+  color: var(--text-secondary);
+  padding: var(--space-md) 0;
+  width: 100%;
+  font-style: italic;
+  font-size: var(--font-size-small);
+  flex-basis: 100%;
+}
+
+.btn .material-icons {
+  font-size: var(--icon-size-button);
+  color: inherit;
+  flex-shrink: 0;
+}
+
+.btn .toggle-button-text {
+  font-size: 0.8em;
+  font-weight: var(--font-weight-bold);
+  padding: 0 var(--space-xs);
+  line-height: 1;
+  display: inline-block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-grow: 1;
+  min-width: 0;
+}

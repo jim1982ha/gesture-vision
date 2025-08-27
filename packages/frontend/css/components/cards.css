@@ -1,0 +1,289 @@
+/* FILE: packages/frontend/css/components/cards.css */
+/* Unified styling for all card-like components in the application. */
+
+.card-item {
+  background-color: var(--surface);
+  border-radius: var(--card-radius);
+  border: var(--border-width-standard) var(--border-style-standard)
+    var(--border);
+  padding: var(--card-padding);
+  display: flex;
+  flex-direction: column;
+  gap: var(--card-gap);
+  transition: background-color var(--transition-duration-normal)
+      var(--transition-timing-function),
+    box-shadow var(--transition-duration-normal)
+      var(--transition-timing-function),
+    border-color var(--transition-duration-normal)
+      var(--transition-timing-function),
+    transform 0.15s ease-out;
+  box-shadow: var(--card-shadow);
+  min-width: 0;
+}
+
+/* Card Animation */
+.config-list.is-rebuilding .card-item {
+    animation: pop-in 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+
+@keyframes pop-in {
+  0% { transform: scale(0.5); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+
+.card-item-clickable {
+  cursor: pointer;
+}
+
+.card-item-clickable:not(.is-editing-highlight):hover,
+.card-item-clickable.hover {
+  background-color: var(--border-light);
+  box-shadow: var(--shadow-strong);
+}
+
+/* Merged styles for all disabled/unavailable states */
+.card-item.config-item-disabled,
+.card-item.config-item-unavailable {
+  opacity: var(--opacity-disabled);
+  background-color: var(--background);
+  border-style: var(--border-style-dashed);
+  border-color: var(--border); /* Use the default muted border color */
+}
+
+.card-item.plugin-missing {
+  opacity: 0.8; /* Slightly less opaque than standard disabled */
+  background-color: rgba(
+    var(--error-rgb),
+    0.05
+  ); /* Very faint error background */
+  border-color: rgba(var(--error-rgb), 0.3); /* Muted error-colored border */
+  border-style: var(--border-style-dashed);
+}
+
+.card-item.config-item-disabled .card-item-actions .btn {
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.card-item-clickable.config-item-disabled {
+  cursor: default;
+}
+
+/* MODIFICATION: Keep management buttons clickable on disabled/unavailable cards. */
+.card-item.config-item-disabled .card-item-actions .delete-btn,
+.card-item.config-item-unavailable .card-item-actions .delete-btn,
+.card-item.plugin-missing .card-item-actions .delete-btn,
+.card-item.config-item-disabled .card-item-actions button[data-action="toggle"],
+.card-item.config-item-disabled .card-item-actions button[data-action="uninstall"] {
+  cursor: pointer !important;
+  pointer-events: auto !important;
+  opacity: 1 !important;
+}
+
+.card-item.is-editing-highlight {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 1px var(--surface), 0 0 0 3px var(--primary), var(--shadow-strong);
+  transform: scale(1.02);
+  z-index: 2;
+  position: relative;
+}
+
+/* Ensure the editing highlight border color overrides the disabled/unavailable color */
+.card-item.is-editing-highlight.config-item-disabled,
+.card-item.is-editing-highlight.config-item-unavailable,
+.card-item.is-editing-highlight.plugin-missing {
+  border-color: var(--primary);
+}
+
+/* --- Card Header Structure (Unified) --- */
+.card-header {
+  display: flex;
+  align-items: flex-start;
+  width: 100%;
+}
+
+.card-header-info {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  min-width: 0;
+}
+
+.card-title-actions-wrapper {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  width: 100%;
+}
+
+.card-icon {
+  font-size: var(--icon-size-button);
+  color: var(--text-secondary);
+  flex-shrink: 0;
+  line-height: var(--line-height-tight);
+  margin-right: calc(var(--space-xs) / 2);
+}
+.card-icon.mdi::before {
+  line-height: 1;
+}
+
+.card-title {
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--card-title-font-size);
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-grow: 1;
+  flex-shrink: 1;
+  min-width: var(--card-title-min-width);
+  line-height: var(--line-height-tight);
+}
+
+.card-header-pills-wrapper {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: calc(var(--space-xs) / 2);
+  flex-shrink: 0;
+  margin-left: var(--space-xs);
+  margin-right: var(--space-xs);
+}
+
+.card-item-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-unit);
+  flex-shrink: 0;
+  margin-left: auto;
+}
+.card-item-clickable .card-item-actions .btn {
+  pointer-events: auto;
+}
+
+/* --- Card Details Structure --- */
+.card-details {
+  font-size: var(--card-details-font-size);
+  color: var(--text-secondary);
+  word-break: break-word;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--space-xs) / 2);
+  flex-grow: 1;
+  justify-content: center; /* MODIFICATION: Vertically center the detail lines. */
+}
+
+.card-detail-line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  line-height: var(--line-height-tight);
+  flex-wrap: nowrap;
+  width: 100%;
+  overflow: hidden; /* Prevent content from overflowing the line */
+}
+
+.gesture-params-line .card-detail-icon {
+  margin-right: calc(var(--space-unit) / 2);
+  flex-shrink: 0;
+}
+.gesture-params-line .card-detail-value {
+  white-space: nowrap;
+  flex-grow: 0;
+  flex-shrink: 0;
+}
+.gesture-params-line .param-separator {
+  color: var(--text-secondary);
+  opacity: 0.7;
+  font-size: 0.9em;
+  flex-shrink: 0;
+}
+
+.card-detail-icon {
+  font-size: var(--icon-size-small);
+  line-height: 1;
+  flex-shrink: 0;
+  color: var(--text-secondary);
+  width: var(--icon-size-small);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.card-detail-icon.mdi::before {
+  line-height: 1;
+}
+
+.card-detail-label {
+  font-weight: var(--font-weight-medium);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.card-detail-value {
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  flex-grow: 1;
+  flex-shrink: 1;
+}
+.card-detail-value.masked {
+  font-family: monospace;
+}
+.card-detail-value.template-display {
+  font-style: italic;
+}
+.card-detail-value.allow-wrap {
+  white-space: normal;
+  word-break: break-all;
+  overflow: visible;
+  text-overflow: clip;
+  flex-grow: 1;
+}
+
+/* --- Card Footer Structure (Unified, if used) --- */
+.card-footer {
+  font-size: var(--font-size-extra-small);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: calc(var(--space-xs) / 2);
+  margin-top: auto;
+  padding-top: var(--space-xs);
+  border-top: var(--border-width-standard) var(--border-style-dashed)
+    var(--border);
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.card-footer-separator {
+  color: var(--border);
+  margin-left: calc(var(--space-xs) / 2);
+  margin-right: calc(var(--space-xs) / 2);
+}
+
+.footer-pills-wrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--space-xs) / 2);
+  flex-wrap: nowrap;
+}
+
+.card-footer .confidence-pill,
+.card-footer .duration-pill,
+.card-footer .presence-pill {
+  padding: calc(var(--pill-padding-y) * 0.5) calc(var(--pill-padding-x) * 0.6);
+  font-size: calc(var(--font-size-extra-small) * 0.9);
+  height: auto;
+  line-height: 1.2;
+}
+
+.footer-status-text {
+  font-style: italic;
+  opacity: 0.9;
+  display: inline-flex;
+  align-items: center;
+}

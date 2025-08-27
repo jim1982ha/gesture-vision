@@ -1,0 +1,117 @@
+/* FILE: ./css/variables/themes/main-theme.css */
+/* Defines color variables for the Main theme (light and dark modes). */
+:root, /* Default is main-light */
+[data-theme="main-light"] {
+  /* This is the "Professional" light theme */
+  --primary: #1850d6;
+  --primary-hover: #133fa8;
+  --primary-rgb: 24, 80, 214;
+  --secondary: #6c757d;
+  --secondary-hover: #5a6268;
+  --secondary-rgb: 108, 117, 125;
+  --accent: #adb5bd;
+  --background: #f0f2f5;
+  --surface: #ffffff;
+  --text-primary: #343a40;
+  --text-secondary: #6c757d;
+  --text-on-primary: #ffffff;
+  --text-on-primary-disabled-opacity: 0.65;
+  --text-on-primary-disabled: rgba(
+    255,
+    255,
+    255,
+    var(--text-on-primary-disabled-opacity)
+  );
+  --text-on-secondary: #ffffff;
+  --border: #ced4da;
+  --border-light: #dee2e6;
+  --error: #dc3545;
+  --error-hover: #c82333;
+  --error-border: #dc3545;
+  --error-hover-border: #bd2130;
+  --error-rgb: 220, 53, 69;
+  --text-on-error: #ffffff;
+  --success: #28a745;
+  --success-hover: #218838;
+  --success-border: #28a745;
+  --success-hover-border: #1e7e34;
+  --text-on-success: #ffffff;
+  --warning: #ffc107;
+  --warning-hover: #e0a800;
+  --warning-border: #ffc107;
+  --warning-hover-border: #d39e00;
+  --text-on-warning: #212529;
+  --info: #17a2b8;
+  --info-hover: #117a8b;
+  --info-border: #17a2b8;
+  --info-hover-border: #10707f;
+  --text-on-info: #ffffff;
+  --overlay-bg: rgba(222, 226, 230, 0.75);
+  --overlay-text: #212529;
+  --overlay-blur: 2px;
+  --overlay-border: rgba(0, 0, 0, 0.05);
+  --overlay-gray-rgb: 128, 128, 128;
+  --overlay-light-alpha: 0.1;
+  --code-inline-bg: rgba(var(--secondary-rgb), 0.1);
+  --code-inline-text: var(--text-secondary);
+  --code-block-bg: var(--surface);
+  --svg-filter-primary: invert(25%) sepia(87%) saturate(4749%)
+    hue-rotate(216deg) brightness(90%) contrast(88%);
+}
+
+[data-theme="main-dark"] {
+  --primary: #4a80e8;
+  --primary-hover: #6c9eff;
+  --primary-rgb: 74, 128, 232;
+  --secondary: #868e96;
+  --secondary-hover: #9ea5ac;
+  --secondary-rgb: 134, 142, 150;
+  --accent: #ced4da;
+  --background: #212529;
+  --surface: #2c3034;
+  --text-primary: #f8f9fa;
+  --text-secondary: #adb5bd;
+  --text-on-primary: #ffffff;
+  --text-on-primary-disabled-opacity: 0.65;
+  --text-on-primary-disabled: rgba(
+    255,
+    255,
+    255,
+    var(--text-on-primary-disabled-opacity)
+  );
+  --text-on-secondary: #212529;
+  --border: #495057;
+  --border-light: #5e676f;
+  --error: #ea4c46;
+  --error-hover: #e0312b;
+  --error-border: #ea4c46;
+  --error-hover-border: #d02c27;
+  --error-rgb: 234, 76, 70;
+  --text-on-error: #ffffff;
+  --success: #40c057;
+  --success-hover: #36a247;
+  --success-border: #40c057;
+  --success-hover-border: #2e8b3d;
+  --text-on-success: #ffffff;
+  --warning: #fab005;
+  --warning-hover: #fcc031;
+  --warning-border: #fab005;
+  --warning-hover-border: #ebb004;
+  --text-on-warning: #212529;
+  --info: #339af0;
+  --info-hover: #55abf3;
+  --info-border: #339af0;
+  --info-hover-border: #228ae6;
+  --text-on-info: #ffffff;
+  --overlay-bg: rgba(33, 37, 41, 0.85);
+  --overlay-text: #f8f9fa;
+  --overlay-blur: 2px;
+  --overlay-border: rgba(255, 255, 255, 0.1);
+  --overlay-gray-rgb: 173, 181, 189;
+  --overlay-light-alpha: 0.15;
+  --code-inline-bg: rgba(var(--secondary-rgb), 0.15);
+  --code-inline-text: var(--text-secondary);
+  --code-block-bg: #1e1e1e;
+  --svg-filter-primary: invert(56%) sepia(63%) saturate(1507%)
+    hue-rotate(191deg) brightness(95%) contrast(89%);
+}

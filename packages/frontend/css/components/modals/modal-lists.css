@@ -1,0 +1,64 @@
+/* FILE: packages/frontend/css/components/modals/modal-lists.css */
+/* Styles for list structures and related action containers within modals. */
+
+/* Section Title preceding lists in modal tabs (e.g., "RTSP Sources") */
+.config-section h2 {
+  font-size: var(--font-size-large);
+  font-weight: var(--font-weight-semibold);
+  margin-bottom: var(--space-md);
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  color: var(--text-primary);
+}
+
+/* Base styles for ul/ol elements directly used as lists in modal content */
+.modal-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+/* Specific styling for list items within #cameraList to ensure spacing AND centering */
+#cameraList > li {
+  margin-bottom: var(--space-sm);
+  display: flex;
+  justify-content: center;
+}
+#cameraList > li:last-child {
+  margin-bottom: 0;
+}
+
+/* Container for action buttons related to a list, like "Add New RTSP Source" */
+.rtsp-list-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--space-md);
+  margin-bottom: var(--space-sm);
+}
+
+/* Apply grid and gap styling to RTSP and Custom Gesture list containers */
+#rtspSourceListContainer,
+#customHandGestureListContainer,
+#customPoseGestureListContainer,
+#pluginsListContainer {
+  display: grid;
+  grid-template-columns: 1fr; /* Ensures items take full width and stack vertically */
+  gap: var(--card-gap); /* Defines the space between each card item */
+}
+
+/* For the Integrations tab, ensure its list container allows cards to take full width */
+/* Note: .integrations-config-list itself is the container, direct children are .card-item */
+.integrations-config-list {
+  /* Assuming this is the direct parent of integration cards */
+  display: grid; /* Or flex with flex-direction: column */
+  grid-template-columns: 1fr;
+  gap: var(--card-gap);
+}
+
+.integrations-config-list > .card-item {
+  /* These properties are fine if the parent is a grid with 1fr column */
+  flex-basis: 100%; /* Less relevant for grid items, but doesn't hurt */
+  width: 100%; /* Ensures card takes full width of the grid cell */
+  box-sizing: border-box;
+}

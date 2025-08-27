@@ -1,0 +1,90 @@
+/* FILE: packages/frontend/css/components/mobile/mobile-layout.css */
+/* Specific layout adjustments for mobile screens (<= 768px), using variables. */
+
+@media (max-width: 768px) {
+  .app-container {
+    padding-top: 0;
+    padding-bottom: var(--bottom-nav-height);
+  }
+
+  .bottom-nav {
+    display: flex !important;
+  }
+
+  .main-content {
+    padding: 0;
+    padding-top: calc( var(--header-height) + var(--space-sm));
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    align-items: stretch;
+    overflow: hidden;
+  }
+
+  .main-content > #liveFeedSection.config-section {
+    padding-bottom: 0;
+  }
+
+  .main-content .video-container {
+    margin: var(--space-sm) auto; /* Center the container */
+    flex-shrink: 0;
+    width: 100%; /* Let it take full width up to its max-width */
+    box-sizing: border-box;
+  }
+
+  /* Styles for #configListContainer when video is VISIBLE on mobile */
+  .main-content > #configListContainer.config-section {
+    flex-grow: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    padding-left: var(--space-sm);
+    padding-right: var(--space-sm);
+    padding-bottom: var(--space-sm);
+    padding-top: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  /* Styles for #configListContainer when video is HIDDEN on mobile */
+  .main-content.video-hidden > #configListContainer.config-section {
+    padding-top: 0; 
+  }
+
+  #configListContainer > .config-section-header {
+    padding: 0 0 var(--space-sm) 0;
+  }
+
+  /* FIX: Ensure direct children (the lists) stack vertically. */
+  #configListContainer > #configList.config-list,
+  #configListContainer > #inactiveConfigList.config-list {
+    flex-grow: 0;
+    flex-shrink: 0; /* Prevent lists from shrinking */
+    min-height: auto; /* Allow lists to take their content's height */
+    padding: 0;
+  }
+
+  .sidebar-backdrop {
+    bottom: var(--bottom-nav-height);
+  }
+  .sidebar-backdrop.visible {
+    display: block;
+    pointer-events: auto;
+  }
+
+  /* 1. Hide the title and its toggle button on mobile */
+  #liveFeedTitle {
+    display: none !important;
+  }
+
+  /* 2. Ensure the video container is always visible on mobile, overriding the 'video-hidden' class */
+  .main-content.video-hidden > .video-container {
+    opacity: 1;
+    max-height: 100vh; /* A large enough value to ensure it's visible */
+    margin-bottom: var(--space-sm);
+    visibility: visible;
+    transition-delay: 0s;
+    overflow: visible;
+  }
+}

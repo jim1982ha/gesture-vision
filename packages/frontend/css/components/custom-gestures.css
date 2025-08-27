@@ -1,0 +1,35 @@
+/* css/components/custom-gestures.css */
+/* Styles for custom gesture lists and upload form. */
+
+#customGestureUploadForm {
+  padding: var(--space-md);
+}
+
+.custom-gesture-file-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-xs);
+}
+
+/* No flex-grow on buttons, they size to content */
+.custom-gesture-file-actions > #uploadCustomGestureBtn,
+.custom-gesture-file-actions > #cancelCustomGestureImportBtn {
+  flex-grow: 0;
+  flex-basis: auto;
+  min-width: auto;
+}
+
+@media (max-width: 768px) {
+  .custom-gesture-file-actions {
+    flex-direction: row;
+    justify-content: flex-end;
+    gap: var(--space-xs);
+  }
+}
+
+/* Ensure the tab button is always displayed by default, if not managed by global .hidden */
+#customGesturesTabButton:not(.hidden) {
+  display: inline-block;
+}

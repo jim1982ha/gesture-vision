@@ -1,0 +1,70 @@
+/* FILE: packages/frontend/css/components/mobile/mobile-forms.css */
+/* Form adjustments for mobile screens (<= 768px), using variables. */
+
+@media (max-width: 768px) {
+  /* Consider var(--breakpoint-mobile-end) */
+  .form-grid {
+    grid-template-columns: 1fr;
+    gap: var(--space-sm);
+  }
+
+  #configSidebar .form-grid,
+  .modal-content .form-grid {
+    gap: var(--space-sm);
+  }
+
+  .form-group label {
+    font-size: var(--font-size-small);
+  }
+
+  .settings-tab-content.active ~ .modal-scrollable-content,
+  .modal-scrollable-content:has(> .settings-tab-content.active),
+  .settings-tab-content > .modal-scrollable-content,
+  .modal-content .modal-scrollable-content {
+    padding-top: var(--space-sm);
+    padding-bottom: var(--space-sm);
+    padding-left: var(--space-sm);
+    padding-right: var(--space-sm);
+  }
+  .docs-modal .modal-scrollable-content {
+    padding: var(--space-sm) !important;
+  }
+
+  .settings-tab-content .form-group,
+  .settings-tab-content .button-group-container {
+    margin-bottom: var(--space-xs);
+  }
+  .settings-tab-content .individual-button-row {
+    margin-top: calc(var(--space-xs) / 2);
+  }
+
+  #mainSettingsModal input[type="url"],
+  #mainSettingsModal input[type="password"] {
+    overflow-wrap: break-word;
+    word-break: break-all;
+    white-space: normal;
+  }
+
+  .radio-group label,
+  .form-group input[type="checkbox"] + label {
+    padding-top: var(--space-xs);
+    padding-bottom: var(--space-xs);
+    min-height: var(--button-height-large);
+    display: flex;
+    align-items: center;
+  }
+
+  .settings-tab-content .individual-button-row > .btn {
+    width: auto;
+    flex-grow: 0;
+    flex-basis: auto;
+  }
+
+  #mainSettingsModal .form-row,
+  #configSidebar form > .form-group,
+  #configSidebar form > .form-row {
+    margin-bottom: var(
+      --space-sm
+    ); /* This was var(--space-xs) in landscape, reverting to general mobile */
+  }
+}

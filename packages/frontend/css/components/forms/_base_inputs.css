@@ -1,0 +1,175 @@
+/* FILE: css/components/forms/_base_inputs.css */
+/* Base styling for form inputs, select, textarea */
+.form-control,
+.form-select,
+.form-group input[type="text"],
+.form-group input[type="url"],
+.form-group input[type="password"],
+.form-group input[type="number"],
+.form-group input[type="file"],
+.form-group textarea,
+.searchable-dropdown-input {
+  width: 100%;
+  padding: var(--input-padding-vertical) var(--input-padding-horizontal);
+  border: var(--border-width-standard) var(--border-style-standard)
+    var(--border);
+  border-radius: var(--input-radius);
+  background-color: var(--surface);
+  color: var(--text-primary);
+  font-size: var(--font-size-normal);
+  line-height: var(--line-height-form-control);
+  transition: border-color var(--transition-duration-short) ease-in-out,
+    box-shadow var(--transition-duration-short) ease-in-out,
+    background-color var(--transition-duration-normal) ease,
+    color var(--transition-duration-normal) ease;
+  min-height: var(--input-min-height);
+  box-sizing: border-box;
+  font-family: inherit;
+}
+
+.form-group input[type="file"].form-control {
+  padding: var(--input-file-padding);
+  line-height: var(--input-file-line-height);
+}
+
+/* Wrapper for custom select styling */
+.form-group .select-wrapper {
+  position: relative;
+  display: inline-block;
+  width: 100%;
+  min-height: var(--input-min-height);
+  border: var(--border-width-standard) var(--border-style-standard)
+    var(--border);
+  border-radius: var(--input-radius);
+  background-color: var(--surface);
+  cursor: pointer;
+  transition: border-color var(--transition-duration-short) ease-in-out,
+    box-shadow var(--transition-duration-short) ease-in-out;
+}
+
+/* Style the actual select element within the wrapper */
+.form-group .select-wrapper > select.form-control {
+  width: 100%;
+  height: 100%;
+  padding: var(--input-padding-vertical) var(--input-padding-horizontal);
+  padding-right: calc(
+    var(--input-padding-horizontal) + var(--input-select-arrow-size) +
+      var(--space-xs) /* More robust spacing for arrow */
+  );
+  border: none !important;
+  background-color: transparent !important;
+  color: var(--text-primary);
+  font-size: var(--font-size-normal);
+  line-height: var(--line-height-form-control);
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  box-shadow: none !important;
+  cursor: pointer;
+  position: relative;
+  z-index: 1;
+  min-height: calc(
+    var(--input-min-height) - (2 * var(--border-width-standard))
+  ); /* Adjust for wrapper border */
+}
+
+/* Arrow for the .select-wrapper */
+.form-group .select-wrapper::after {
+  content: "";
+  display: block;
+  position: absolute;
+  top: 50%;
+  right: var(--input-padding-horizontal); /* Consistent with input padding */
+  width: var(--input-select-arrow-size); /* Use variable for size */
+  height: var(--input-select-arrow-size); /* Use variable for size */
+  border: solid var(--text-secondary);
+  border-width: 0 var(--border-width-active) var(--border-width-active) 0; /* Thicker arrow */
+  transform: translateY(calc(-1 * var(--input-select-arrow-size) * 0.7))
+    rotate(45deg); /* Adjusted Y for better centering with variable size */
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Focus styling for the wrapper - primarily relies on the select inside focusing */
+.form-group .select-wrapper:focus-within {
+  border-color: var(--primary);
+  outline: 0; /* Outline handled by select or JS if needed on wrapper */
+  box-shadow: 0 0 0 var(--focus-ring-width)
+    rgba(var(--primary-rgb), var(--focus-ring-alpha));
+}
+/* If select itself gets focus outline, we might want to hide it if wrapper handles it */
+.form-group .select-wrapper > select.form-control:focus {
+  outline: none;
+}
+
+.form-control:focus,
+.form-group input[type="text"]:focus,
+.form-group input[type="url"]:focus,
+.form-group input[type="password"]:focus,
+.form-group input[type="number"]:focus,
+.form-group input[type="file"]:focus,
+.form-group textarea:focus,
+.searchable-dropdown-input:focus {
+  border-color: var(--primary);
+  outline: 0; /* Prefer box-shadow for :focus unless :focus-visible is different */
+  box-shadow: 0 0 0 var(--focus-ring-width)
+    rgba(var(--primary-rgb), var(--focus-ring-alpha));
+}
+
+.form-control:focus-visible,
+.form-group input[type="text"]:focus-visible,
+.form-group input[type="url"]:focus-visible,
+.form-group input[type="password"]:focus-visible,
+.form-group input[type="number"]:focus-visible,
+.form-group input[type="file"]:focus-visible,
+.form-group textarea:focus-visible,
+.searchable-dropdown-input:focus-visible {
+  border-color: var(--primary);
+  outline: var(--border-width-active) var(--border-style-standard)
+    var(--primary); /* Standard outline for focus-visible */
+  outline-offset: var(--focus-outline-offset-input);
+  box-shadow: none; /* Remove box-shadow if outline is shown */
+}
+
+.form-control[aria-invalid="true"],
+input[aria-invalid="true"],
+.select-wrapper[aria-invalid="true"], /* For the wrapper */
+textarea[aria-invalid="true"],
+.searchable-dropdown-input[aria-invalid="true"] {
+  border-color: var(
+    --error
+  ) !important; /* Ensure error border takes precedence */
+  box-shadow: 0 0 0 var(--focus-ring-width)
+    rgba(var(--error-rgb), var(--focus-ring-alpha)) !important; /* Ensure error shadow takes precedence */
+}
+.select-wrapper[aria-invalid="true"] > select.form-control {
+  color: var(--error);
+}
+/* Arrow color for invalid select wrapper */
+.form-group .select-wrapper[aria-invalid="true"]::after {
+  border-color: var(--error);
+}
+
+.input-button-group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+.input-button-group input[type="password"] {
+  flex-grow: 1;
+  width: auto; /* Allow flex to manage width */
+}
+
+#haUrl:disabled,
+#haToken:disabled {
+  background-color: var(--surface); /* Keep surface for readability */
+  opacity: var(--opacity-disabled);
+  cursor: not-allowed;
+  border-color: var(--border); /* Keep border for visual structure */
+  box-shadow: none; /* No shadow when disabled */
+}
+
+.form-group textarea {
+  min-height: var(--textarea-min-height);
+  resize: vertical;
+}

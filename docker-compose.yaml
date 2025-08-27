@@ -1,0 +1,59 @@
+# FILE: docker-compose.yaml
+# docker-compose.yaml - For Production Deployment (REFACTORED for simplified environment)
+
+services:
+  gesturevision-prod:
+    image: ${PROD_IMAGE_NAME?Variable PROD_IMAGE_NAME is not set}
+    build:
+      context: .
+      target: production
+      labels:
+        - "project=gesturevision"
+      args:
+        # Build-time args for Vite using values from .env.prod
+        - VITE_PROD_WHEP_BASE_URL=${APP_EXTERNAL_URL:-}
+        - VITE_PROD_HA_DEFAULT_URL=${VITE_PROD_HA_DEFAULT_URL:-}
+        - TARGETARCH=amd64
+    container_name: gesturevision
+    ports:
+      # Expose MediaMTX ports directly if needed for external access OUTSIDE NPM.
+      # Single variable now controls both host and container port mapping for simplicity.
+      - "${MTX_WEBRTC_PORT:-8888}:${MTX_WEBRTC_PORT:-8888}" # WHEP/WebRTC
+      - "${MTX_ICE_UDP_PORT:-8189}:${MTX_ICE_UDP_PORT:-8189}/udp" # WebRTC ICE UDP
+      - "${MTX_RTMP_PORT:-1935}:${MTX_RTMP_PORT:-1935}" # Optional: RTMP
+      - "${MTX_RTSP_PORT:-8554}:${MTX_RTSP_PORT:-8554}" # Optional: RTSP
+      # Port 80 (Nginx) is NOT directly exposed; NPM connects to it via the proxy network.
+    networks:
+      npm_proxy_network: {}
+    volumes:
+      - ./config/config.prod.json:/app/config.json:rw
+      - ./extensions:/app/extensions:rw
+    env_file:
+      - ./config/.env.prod
+    environment:
+      # --- Core & Frontend Injection Settings ---
+      - NODE_ENV=production
+      - VITE_PROD_WHEP_BASE_URL=${APP_EXTERNAL_URL:-}
+      - VITE_PROD_HA_DEFAULT_URL=${VITE_PROD_HA_DEFAULT_URL:-}
+      - BACKEND_API_PORT_INTERNAL=${BACKEND_API_PORT_INTERNAL:-9001}
+
+      # --- MediaMTX Runtime Settings ---
+      - MTX_LOGLEVEL=info
+      - MTX_API=yes
+      - MTX_WEBRTC_ALLOW_ORIGIN=${APP_EXTERNAL_URL}
+      - MTX_WEBRTC_ADDITIONAL_HOSTS=${MTX_ICE_HOST}
+
+      # Listeners inside the container (use the simplified port variables)
+      - MTX_APIADDRESS=:${MTX_API_PORT:-9997}
+      - MTX_WEBRTCADDRESS=:${MTX_WEBRTC_PORT:-8888}
+      - MTX_WEBRTCUDPMUXADDRESS=:${MTX_ICE_UDP_PORT:-8189}
+      - MTX_RTSPADDRESS=:${MTX_RTSP_PORT:-8554}
+      - MTX_RTMPADDRESS=:${MTX_RTMP_PORT:-1935}
+      - MTX_HLSADDRESS=${MTX_HLS_ADDRESS:-} # Disabled by default
+
+    restart: unless-stopped
+
+networks:
+  npm_proxy_network:
+    name: ${NPM_NETWORK_NAME?Variable NPM_NETWORK_NAME is not set}
+    external: true

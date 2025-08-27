@@ -1,0 +1,59 @@
+/* css/components/alerts.css */
+
+.alert {
+  padding: var(--space-sm);
+  border-radius: var(--radius);
+  font-size: var(--font-size-small);
+  background-color: var(--overlay-bg);
+  color: var(--overlay-text);
+  backdrop-filter: blur(var(--overlay-blur));
+  box-shadow: var(--shadow-standard);
+  text-align: center;
+  border: var(--border-width-standard) var(--border-style-standard) transparent;
+}
+
+.alert.info {
+  background-color: var(--info);
+  border-color: var(--info-border);
+  color: var(--text-on-info);
+}
+
+.alert.success {
+  background-color: var(--success);
+  border-color: var(--success-border);
+  color: var(--text-on-success);
+}
+
+.alert.warning {
+  background-color: var(--warning);
+  border-color: var(--warning-border);
+  color: var(--text-on-warning);
+}
+
+.alert.error {
+  background-color: var(--error);
+  border-color: var(--error-border);
+  color: var(--text-on-error);
+}
+
+#gestureAlert {
+  position: fixed;
+  bottom: var(--space-md);
+  left: 50%; /* Center horizontally */
+  z-index: var(--z-alert);
+  display: none; /* Initial state */
+  opacity: 0; /* Initial state */
+  transition: opacity var(--transition-duration-normal) ease,
+    transform var(--transition-duration-normal) ease,
+    bottom var(--transition-duration-normal) ease;
+  transform: translateX(-50%) translateY(var(--alert-translate-y));
+  width: auto; /* Allow content to define width up to max-width */
+  max-width: var(--alert-max-width);
+}
+
+#gestureAlert.visible {
+  display: block;
+  opacity: 1;
+  /* Centered X, final Y position */
+  transform: translateX(-50%) translateY(0);
+}

@@ -1,0 +1,35 @@
+/* FILE: ./css/components/mobile/mobile-lists.css */
+/* List adjustments (config, history, camera) for mobile screens (<= 768px), using variables. */
+
+@media (max-width: 768px) {
+  /* Consider var(--breakpoint-mobile-end) */
+
+  /* FIX: The base .config-list style is now mobile-first (column), so no override is needed here. */
+  /* This rule ensures cards always take full width on mobile. */
+  #configListContainer .config-list > .card-item {
+    width: 100% !important;
+    max-width: 100% !important;
+    flex-grow: 0 !important;
+    flex-shrink: 1 !important;
+    flex-basis: auto !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    box-sizing: border-box;
+  }
+
+  .history-item.card-item .card-details {
+    font-size: var(--font-size-small);
+  }
+  .history-item.card-item .card-footer {
+    font-size: var(--font-size-extra-small);
+    padding-top: calc(var(--space-xs) / 2);
+  }
+
+  #cameraSelectModal .modal-list {
+    padding: var(--space-sm);
+  }
+
+  #cameraList li.list-placeholder {
+    padding: var(--space-md) 0;
+  }
+}

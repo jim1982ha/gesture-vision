@@ -1,0 +1,35 @@
+/* FILE: ./css/components/desktop/desktop-header-toggles.css */
+/* Styles for desktop header toggle button groups. */
+
+.header-toggle-groups-container {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-sm); /* Consistent gap between groups */
+    height: var(
+      --button-height-normal
+    ); /* Align with overall header button height */
+    vertical-align: middle;
+    flex-shrink: 0;
+  }
+  
+  /* Buttons are .btn .btn-secondary inside .button-toggle-group */
+  /* Their structural (segmented) style comes from button-groups.css */
+  /* Their visual (color, bg) style comes from themes.css (for .button-toggle-group > .btn) */
+  /* This file ensures specific sizing/padding if header toggles need to be more compact */
+  
+  .header-toggle-groups-container .button-toggle-group > .btn {
+    padding: var(--button-icon-padding); /* Use compact icon button padding */
+    min-width: var(
+      --button-icon-size
+    ); /* Ensure they can be square if icon-only */
+    /* Icons inside will use .button-toggle-group .btn .material-icons rules (font-size, color inherit) from themes.css */
+  }
+  
+  /* Text styling for "1" or "2" in hands detect toggle */
+  .header-hands-and-landmarks-toggles .btn span:not(.material-icons) {
+    font-size: 0.8em; /* Relative to button's font size */
+    font-weight: var(--font-weight-medium);
+    line-height: 1; /* Keep tight */
+    margin-left: calc(var(--space-xs) / 2); /* Small space next to icon if any */
+    color: inherit;
+  }
