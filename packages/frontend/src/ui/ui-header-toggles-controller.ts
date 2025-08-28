@@ -90,24 +90,18 @@ export class HeaderTogglesController {
   #createMobileDropdowns(): void {
     const navControls = document.querySelector('.nav-controls');
     if (!navControls) {
-      console.error(
-        '[HeaderTogglesCtrl] .nav-controls container not found for mobile triggers.'
-      );
+      console.error('[HeaderTogglesCtrl] .nav-controls not found for mobile triggers.');
       return;
     }
-
-    let mobileContainer = document.getElementById(
-      'mobile-controls-container'
-    ) as HTMLElement;
+  
+    let mobileContainer = document.getElementById('mobile-controls-container') as HTMLElement;
     if (!mobileContainer) {
       mobileContainer = document.createElement('div');
       mobileContainer.id = 'mobile-controls-container';
-      mobileContainer.className =
-        'mobile-header-controls-container mobile-only-inline-flex';
-      const referenceNode = navControls.querySelector('#mainSettingsToggle');
-      if (referenceNode)
-        navControls.insertBefore(mobileContainer, referenceNode);
-      else navControls.appendChild(mobileContainer);
+      mobileContainer.className = 'mobile-header-controls-container mobile-only-inline-flex';
+      // Insert before the plugin slot for consistent ordering
+      const pluginSlot = navControls.querySelector('#header-plugin-contribution-slot');
+      navControls.insertBefore(mobileContainer, pluginSlot || navControls.firstChild);
     }
     this.#elements.mobileControlsContainer = mobileContainer;
     mobileContainer.innerHTML = '';
@@ -118,30 +112,9 @@ export class HeaderTogglesController {
         triggerIconKey: 'UI_FEATURES_DROPDOWN_TRIGGER',
         titleKey: 'desktopFeaturesDropdownTitle',
         items: [
-          {
-            id: 'itemToggleBuiltInHand',
-            iconKey: 'BUILT_IN_HAND',
-            labelKey: 'toggleBuiltInHandGesturesTitle',
-            handler: () =>
-              this.#handleFeatureToggleClick('enableBuiltInHandGestures'),
-            configKey: 'enableBuiltInHandGestures',
-          },
-          {
-            id: 'itemToggleCustomHandGestures',
-            iconKey: 'CUSTOM_HAND',
-            labelKey: 'toggleCustomHandGesturesTitle',
-            handler: () =>
-              this.#handleFeatureToggleClick('enableCustomHandGestures'),
-            configKey: 'enableCustomHandGestures',
-          },
-          {
-            id: 'itemTogglePoseProcessing',
-            iconKey: 'CUSTOM_POSE',
-            labelKey: 'togglePoseProcessingTitle',
-            handler: () =>
-              this.#handleFeatureToggleClick('enablePoseProcessing'),
-            configKey: 'enablePoseProcessing',
-          },
+          { id: 'itemToggleBuiltInHand', iconKey: 'BUILT_IN_HAND', labelKey: 'toggleBuiltInHandGesturesTitle', handler: () => this.#handleFeatureToggleClick('enableBuiltInHandGestures'), configKey: 'enableBuiltInHandGestures' },
+          { id: 'itemToggleCustomHandGestures', iconKey: 'CUSTOM_HAND', labelKey: 'toggleCustomHandGesturesTitle', handler: () => this.#handleFeatureToggleClick('enableCustomHandGestures'), configKey: 'enableCustomHandGestures' },
+          { id: 'itemTogglePoseProcessing', iconKey: 'CUSTOM_POSE', labelKey: 'togglePoseProcessingTitle', handler: () => this.#handleFeatureToggleClick('enablePoseProcessing'), configKey: 'enablePoseProcessing' },
         ],
       },
       {
@@ -149,37 +122,23 @@ export class HeaderTogglesController {
         triggerIconKey: 'UI_HANDS_LANDMARKS_DROPDOWN_TRIGGER',
         titleKey: 'desktopHandsDropdownTitle',
         items: [
-          {
-            id: 'itemToggleHandLandmarks',
-            value: '0',
-            iconKey: 'UI_HAND_LANDMARK_HIDE',
-            labelKey: 'toggleHandLandmarksTitle',
-            handler: () => this.#handleHandsAndLandmarksSelection(0),
-          },
-          {
-            id: 'itemToggleNumHands1',
-            value: '1',
-            iconKey: 'UI_HAND_DETECT_ONE',
-            labelKey: 'detect1HandTitle',
-            handler: () => this.#handleHandsAndLandmarksSelection(1),
-          },
-          {
-            id: 'itemToggleNumHands2',
-            value: '2',
-            iconKey: 'UI_HAND_DETECT_TWO',
-            labelKey: 'detect2HandsTitle',
-            handler: () => this.#handleHandsAndLandmarksSelection(2),
-          },
+          { id: 'itemToggleHandLandmarks', value: '0', iconKey: 'UI_HAND_LANDMARK_HIDE', labelKey: 'toggleHandLandmarksTitle', handler: () => this.#handleHandsAndLandmarksSelection(0) },
+          { id: 'itemToggleNumHands1', value: '1', iconKey: 'UI_HAND_DETECT_ONE', labelKey: 'detect1HandTitle', handler: () => this.#handleHandsAndLandmarksSelection(1) },
+          { id: 'itemToggleNumHands2', value: '2', iconKey: 'UI_HAND_DETECT_TWO', labelKey: 'detect2HandsTitle', handler: () => this.#handleHandsAndLandmarksSelection(2) },
         ],
       },
     ];
 
-    dropdownConfigs.forEach(
-      ({ type, triggerIconKey, titleKey: _titleKey, items }) => {
+    dropdownConfigs.forEach(({ type, triggerIconKey, items }) => {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'dropdown-container';
+
         const trigger = document.createElement('button');
         trigger.className = 'btn btn-secondary header-dropdown-trigger';
         trigger.id = `mobile${type}DropdownTrigger`;
-        setIcon(trigger, triggerIconKey);
+        const triggerIconSpan = document.createElement('span');
+        trigger.appendChild(triggerIconSpan);
+        setIcon(triggerIconSpan, triggerIconKey);
 
         const panel = document.createElement('div');
         panel.id = `mobile${type}DropdownPanel`;
@@ -193,15 +152,10 @@ export class HeaderTogglesController {
           button.id = item.id;
           if (item.value) button.dataset.value = item.value;
           if (item.configKey) button.dataset.configKey = item.configKey;
-          button.addEventListener('click', () => {
-            item.handler();
-            this.#closeActiveDropdown();
-          });
+          button.addEventListener('click', () => { item.handler(); this.#closeActiveDropdown(); });
 
-          // FIX: Create a dedicated span for the icon
           const iconSpan = document.createElement('span');
           setIcon(iconSpan, item.iconKey);
-
           const textSpan = document.createElement('span');
           textSpan.textContent = translate(item.labelKey);
 
@@ -210,12 +164,13 @@ export class HeaderTogglesController {
           panel.appendChild(button);
           this.#elements[item.id] = button;
         });
-
-        trigger.addEventListener('click', () =>
-          this.#toggleDropdown(type, trigger, panel)
-        );
-        mobileContainer.appendChild(trigger);
-        navControls.appendChild(panel);
+        
+        trigger.addEventListener('click', () => this.#toggleDropdown(type, trigger, panel));
+        
+        wrapper.appendChild(trigger);
+        // CRITICAL FIX: Append the panel to the wrapper so it's positioned relative to it.
+        wrapper.appendChild(panel); 
+        mobileContainer.appendChild(wrapper);
       }
     );
 
@@ -225,9 +180,7 @@ export class HeaderTogglesController {
     directPoseButton.className = 'btn btn-secondary header-dropdown-trigger';
     directPoseButton.dataset.landmarkType = 'pose';
     directPoseButton.innerHTML = `<span class="material-icons"></span>`;
-    directPoseButton.addEventListener('click', () =>
-      this.#handleLandmarkToggleClick('pose')
-    );
+    directPoseButton.addEventListener('click', () => this.#handleLandmarkToggleClick('pose'));
     mobileContainer.appendChild(directPoseButton);
     this.#elements.mobileTogglePoseLandmarksDirect = directPoseButton;
   }
@@ -306,20 +259,6 @@ export class HeaderTogglesController {
       !this.#activeDropdown || this.#activeDropdown.type !== type;
     this.#closeActiveDropdown();
     if (isOpening) {
-      const topAnchor = button
-        .closest('.top-nav')!
-        .getBoundingClientRect().bottom;
-      panel.style.top = `${topAnchor + 4}px`;
-      panel.style.left = '50%';
-      panel.style.right = 'auto';
-      panel.style.setProperty(
-        '--dropdown-initial-transform',
-        'translateX(-50%) translateY(-10px) scale(0.95)'
-      );
-      panel.style.setProperty(
-        '--dropdown-visible-transform',
-        'translateX(-50%) translateY(0) scale(1)'
-      );
       panel.classList.remove('hidden');
       panel.classList.add('visible');
       button.setAttribute('aria-expanded', 'true');
@@ -338,8 +277,7 @@ export class HeaderTogglesController {
   #handleClickOutside = (event: MouseEvent): void => {
     if (
       this.#activeDropdown &&
-      !this.#activeDropdown.button.contains(event.target as Node) &&
-      !this.#activeDropdown.panel.contains(event.target as Node)
+      !this.#activeDropdown.button.closest('.dropdown-container')?.contains(event.target as Node)
     )
       this.#closeActiveDropdown();
   };
@@ -356,6 +294,9 @@ export class HeaderTogglesController {
       itemToggleBuiltInHand,
       itemToggleCustomHandGestures,
       itemTogglePoseProcessing,
+      itemToggleHandLandmarks,
+      itemToggleNumHands1,
+      itemToggleNumHands2,
     } = this.#elements;
     const builtInOn = state.enableBuiltInHandGestures,
       customHandOn = state.enableCustomHandGestures,
@@ -406,12 +347,9 @@ export class HeaderTogglesController {
       poseOn
     );
 
-    const mobileHandsValue = showHandLm ? String(numHands) : '0';
-    updateButtonGroupActiveState(
-      document.getElementById('mobilehandsAndLandmarksDropdownPanel'),
-      mobileHandsValue,
-      !anyHandOn
-    );
+    updateButtonToggleActiveState(itemToggleHandLandmarks as HTMLButtonElement, !showHandLm, !anyHandOn);
+    updateButtonToggleActiveState(itemToggleNumHands1 as HTMLButtonElement, showHandLm && numHands === 1, !anyHandOn);
+    updateButtonToggleActiveState(itemToggleNumHands2 as HTMLButtonElement, showHandLm && numHands === 2, !anyHandOn);
 
     const mobileHandsAndLandmarksTrigger = document.getElementById(
       'mobilehandsAndLandmarksDropdownTrigger'

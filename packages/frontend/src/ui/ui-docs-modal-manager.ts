@@ -12,7 +12,7 @@ import {
   updateTranslationsForComponent,
   type TranslationConfigItem,
 } from "./ui-translation-updater.js";
-import { setIcon } from "./helpers/icon-helpers.js";
+import { setIcon } from "./helpers/index.js";
 
 import type { UIController } from "./ui-controller-core.js";
 
@@ -190,7 +190,8 @@ export class DocsModalManager {
       contentArticle.innerHTML = await this.#contentLoader.fetchAndProcess(targetDocPath, currentLang);
       requestAnimationFrame(() => {
         this.#tocManager.generate(contentArticle);
-        this.#tocManager.manageLanguageSelector();
+        // FIX: Pass the current docKey to the manageLanguageSelector method.
+        this.#tocManager.manageLanguageSelector(this.#currentDocKey);
       });
       scrollContainer.scrollTop = 0;
     } catch (error) {

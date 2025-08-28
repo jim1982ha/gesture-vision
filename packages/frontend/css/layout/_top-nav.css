@@ -10,7 +10,7 @@
   background-color: var(--surface);
   border-bottom: var(--border-width-standard) var(--border-style-standard)
     var(--border);
-  position: fixed; /* This is the key fix: ensures it's always at the top */
+  position: fixed;
   top: 0;
   left: 0;
   right: 0;
@@ -20,34 +20,73 @@
   overflow: visible;
 }
 
-/* Initially hide desktop-specific elements, show mobile-specific */
-.top-nav .nav-brand#appBrand,
-.top-nav .nav-controls > #cameraSelectButton {
+.top-nav .nav-brand#appBrand {
   display: none;
 }
-.desktop-header-dropdown-triggers {
-  /* This one shows by default for mobile */
-  display: flex !important;
+
+.header-toggle-groups-container {
+  display: flex; /* Always flex */
   align-items: center;
-  gap: var(--space-xs);
-  height: 100%;
+  gap: var(--space-md); /* margin between groups in the container groups */
+  height: var(--button-height-normal);
+  overflow-x: auto;
+  flex-shrink: 1;
+  flex-grow: 0;
+  min-width: 0;
+  justify-content: center; /* Center the groups within the container */
+
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.header-toggle-groups-container::-webkit-scrollbar {
+  display: none;
+  height: 0;
+  width: 0;
+}
+
+/* On mobile, we must allow vertical overflow for dropdowns. */
+@media (max-width: 768px) {
+  .header-toggle-groups-container {
+    overflow: visible;
+  }
+}
+
+
+.header-toggle-groups-container .toggle-group {
   flex-shrink: 0;
 }
-.header-toggle-groups-container {
-  /* Hidden by default, shown on desktop */
-  display: none !important;
+
+.nav-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs); 
+  height: 100%;
+  flex-grow: 0;
+  min-width: 0;
+  justify-content: flex-end;
+  position: relative; /* This is the anchor for child dropdown panels */
+}
+
+.nav-controls > #mainSettingsToggle {
+  flex-shrink: 0;
 }
 
 /* Desktop Overrides for Top Nav */
 @media screen and (min-width: 769px) and (any-pointer: fine) {
-  .top-nav .nav-brand#appBrand,
-  .top-nav .nav-controls > #cameraSelectButton {
+  .top-nav .nav-brand#appBrand {
     display: flex !important; /* Show on desktop */
   }
-  .desktop-header-dropdown-triggers {
-    display: none !important; /* Hide on desktop */
-  }
+
+  /* MODIFICATION: Absolute positioning is now correctly scoped to desktop */
   .header-toggle-groups-container {
-    display: flex !important; /* Show on desktop */
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      overflow-y: hidden; /* Re-hide overflow on desktop */
+  }
+
+  .nav-controls {
+    gap: var(--space-md);
   }
 }

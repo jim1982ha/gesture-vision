@@ -5,7 +5,7 @@ import { createCardElement } from '#frontend/ui/utils/card-utils.js';
 import { setIcon } from '#frontend/ui/helpers/index.js';
 import { BaseSettingsTab, type TabElements } from '../base-settings-tab.js';
 
-import { UI_EVENTS, PLUGIN_CONFIG_UPDATED_EVENT_PREFIX } from '#shared/constants/index.js';
+import { UI_EVENTS } from '#shared/constants/index.js';
 import { pubsub } from '#shared/core/pubsub.js';
 import { translate } from '#shared/services/translations.js';
 

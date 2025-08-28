@@ -17,8 +17,9 @@ export interface GeneralSettingsTabElements extends TabElements {
   globalCooldownLabel?: HTMLElement | null;
   resolutionPrefLabel?: HTMLElement | null;
   targetFpsLabel?: HTMLElement | null;
-  targetFpsHelpIcon?: HTMLElement | null;
   telemetryEnabledLabel?: HTMLElement | null;
+  targetFpsHelp?: HTMLElement | null;
+  telemetryEnabledHelp?: HTMLElement | null;
 }
 
 const RESOLUTION_OPTIONS: Readonly<ButtonGroupOption[]> = [
@@ -168,13 +169,11 @@ export class GeneralSettingsTab extends BaseSettingsTab<GeneralSettingsTabElemen
       },
       { element: this._elements.targetFpsLabel, config: { key: 'targetFpsLabel' } },
       {
-        element: this._elements.targetFpsHelpIcon,
-        config: { key: 'targetFpsHelp', attribute: 'title' },
-      },
-      {
         element: this._elements.telemetryEnabledLabel,
         config: { key: 'telemetryEnabledLabel' },
       },
+      { element: this._elements.targetFpsHelp, config: 'targetFpsHelp' },
+      { element: this._elements.telemetryEnabledHelp, config: 'telemetryEnabledHelp' },
     ]);
     this.#renderAllButtonGroups();
     this.loadSettings();

@@ -28,6 +28,7 @@
   border-right: var(--border-width-standard) var(--border-style-standard)
     var(--border);
   padding-right: var(--space-sm); 
+  gap: var(--space-sm);
 }
 
 .docs-toc-modal h2 {
@@ -60,15 +61,6 @@
 /* Desktop-specific ordering for TOC controls */
 @media (min-width: 901px) { /* Ensures these rules apply on desktop */
   .docs-toc-modal .docs-modal-controls { /* PROD, DEV, etc. buttons */
-    order: 1; 
-    margin-bottom: var(--space-sm); 
-  }
-  .docs-toc-modal ul#modalTocList {
-    order: 2; 
-  }
-  /* MODIFIED: Target the cloned language selector by its ID and class */
-  .docs-toc-modal #toc-lang-selector-clone.individual-button-row {
-    order: 3; /* Ensure language selector is last in the flex order on desktop */
-    /* margin-top is already set by its own style in JS or modal-docs-toc.css */
+    margin-bottom: 0; 
   }
 }

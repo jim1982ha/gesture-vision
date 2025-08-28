@@ -2,7 +2,7 @@
 .app-container {
   height: 100svh;
   box-sizing: border-box;
-  position: relative;
+  /* MODIFICATION: Removed 'position: relative;' to fix stacking context issue */
   display: flex;
   flex-direction: column;
   padding-top: var(--header-height); /* Create space for the fixed header */
@@ -16,14 +16,13 @@
   min-height: 0;
   background-color: var(--background);
   position: relative;
+  z-index: var(--z-main-content);
   left: 0;
   right: 0;
   width: 100%;
   max-width: 100%;
   margin-left: 0;
   margin-right: 0;
-  /* padding: 0 0 var(--space-md) 0 ;  */
-  /* padding: 0 var(--config-sidebar-width) var(--space-md) var(--config-sidebar-width) ;  */
   box-sizing: border-box;
   overflow-x: hidden;
   overflow-y: auto;

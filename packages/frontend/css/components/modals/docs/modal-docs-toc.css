@@ -37,9 +37,8 @@
 
 /* TOC Controls (PROD, DEV, GUIDES, ABOUT buttons) */
 .docs-modal-controls {
-  padding-top: var(--space-xs);
   padding-bottom: var(--space-xs);
-  border-top: var(--border-width-standard) var(--border-style-dashed)
+  border-bottom: var(--border-width-standard) var(--border-style-dashed)
     var(--border);
   display: flex;
   flex-wrap: nowrap; /* These buttons should not wrap by default */
@@ -74,8 +73,7 @@
 }
 
 #toc-lang-selector-clone.individual-button-row {
-  margin-top: var(--space-sm); 
-  margin-bottom: var(--space-xs); 
+  margin: 0; 
 }
 
 #toc-lang-selector-clone .btn span.toggle-button-text {

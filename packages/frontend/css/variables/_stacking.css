@@ -5,6 +5,7 @@
 [data-theme*="-light"],
 [data-theme*="-dark"] {
   /* Z-Indexes (Consolidated) */
+  --z-main-content: 0; /* Base stacking context for the main content area */
   --z-video-overlay: 1;
   --z-progress-rings: 2;
   --z-status-overlay: 3;

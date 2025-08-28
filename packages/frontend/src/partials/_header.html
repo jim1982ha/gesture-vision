@@ -10,49 +10,46 @@
   </div>
 
   <div class="header-toggle-groups-container">
-    <div class="button-toggle-group header-feature-toggles">
-      <button type="button" class="btn btn-secondary" id="headerToggleBuiltInHand"
-        data-config-key="enableBuiltInHandGestures">
-        <span class="material-icons"></span> <!-- JS sets icon & title -->
-      </button>
-      <button type="button" class="btn btn-secondary" id="headerToggleCustomHandGestures"
-        data-config-key="enableCustomHandGestures">
-        <span class="material-icons"></span> <!-- JS sets icon & title -->
-      </button>
-      <button type="button" class="btn btn-secondary" id="headerTogglePoseDetection"
-        data-config-key="enablePoseProcessing">
-        <span class="material-icons"></span> <!-- JS sets icon & title -->
-      </button>
+    <div class="desktop-only-flex" style="gap: var(--space-md); align-items: center;">
+      <div class="button-toggle-group header-feature-toggles">
+        <button type="button" class="btn btn-secondary" id="headerToggleBuiltInHand"
+          data-config-key="enableBuiltInHandGestures">
+          <span class="material-icons"></span> <!-- JS sets icon & title -->
+        </button>
+        <button type="button" class="btn btn-secondary" id="headerToggleCustomHandGestures"
+          data-config-key="enableCustomHandGestures">
+          <span class="material-icons"></span> <!-- JS sets icon & title -->
+        </button>
+        <button type="button" class="btn btn-secondary" id="headerTogglePoseDetection"
+          data-config-key="enablePoseProcessing">
+          <span class="material-icons"></span> <!-- JS sets icon & title -->
+        </button>
+      </div>
+      <div class="button-toggle-group header-hands-and-landmarks-toggles">
+        <button type="button" class="btn btn-secondary" id="headerToggleHandLandmarks" data-value="0">
+          <span class="material-icons"></span> <!-- JS sets icon & title -->
+        </button>
+        <button type="button" class="btn btn-secondary" id="headerToggleNumHands1" data-value="1">
+          <span class="material-icons"></span> <!-- JS sets icon & title -->
+        </button>
+        <button type="button" class="btn btn-secondary" id="headerToggleNumHands2" data-value="2">
+          <span class="material-icons"></span> <!-- JS sets icon & title -->
+        </button>
+      </div>
+      <div class="toggle-group header-pose-landmark-toggle">
+        <button type="button" class="btn btn-secondary" id="headerTogglePoseLandmarks" data-landmark-type="pose">
+          <span class="material-icons"></span> <!-- JS sets icon & title -->
+        </button>
+      </div>
+      <!-- <div id="header-plugin-contribution-slot" class="header-plugin-controls"></div> -->
     </div>
-
-    <div class="button-toggle-group header-hands-and-landmarks-toggles">
-      <button type="button" class="btn btn-secondary" id="headerToggleHandLandmarks" data-value="0">
-        <span class="material-icons"></span> <!-- JS sets icon & title -->
-      </button>
-      <button type="button" class="btn btn-secondary" id="headerToggleNumHands1" data-value="1">
-        <span class="material-icons"></span> <!-- JS sets icon & title -->
-      </button>
-      <button type="button" class="btn btn-secondary" id="headerToggleNumHands2" data-value="2">
-        <span class="material-icons"></span> <!-- JS sets icon & title -->
-      </button>
-    </div>
-
-    <div class="toggle-group header-pose-landmark-toggle">
-      <button type="button" class="btn btn-secondary" id="headerTogglePoseLandmarks" data-landmark-type="pose">
-        <span class="material-icons"></span> <!-- JS sets icon & title -->
-      </button>
-    </div>
+    <!-- The mobile controls container will be injected here by ui-header-toggles-controller.ts -->
   </div>
 
   <div class="nav-controls">
-    <!-- Desktop-only language selector -->
+    <div id="header-plugin-contribution-slot" class="header-plugin-controls"></div>
     <div id="languageSelectGroupHeader" class="button-toggle-group desktop-only-inline-flex">
     </div>
-
-    <!-- Plugin contribution slot - now visible on mobile & desktop -->
-    <div id="header-plugin-contribution-slot" class="header-plugin-controls"></div>
-
-    <!-- Global settings button -->
     <button id="mainSettingsToggle" class="btn btn-secondary btn-icon" title="Settings" aria-label="Settings">
       <span class="material-icons"></span>
     </button>

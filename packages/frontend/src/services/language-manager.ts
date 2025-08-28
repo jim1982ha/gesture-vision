@@ -83,15 +83,13 @@ export class LanguageManager {
   #renderMobileTriggerAndPanel(): void {
     const settingsButton = this.#elements.mainSettingsToggle;
     const navControls = settingsButton?.closest('.nav-controls');
-
-    if (!navControls) return;
-
+    if (!navControls || !settingsButton) return;
+  
     if (document.getElementById('mobileLanguageDropdownTrigger')) return;
-
+  
     this.#elements.mobileLanguageContainer = document.createElement('div');
-    this.#elements.mobileLanguageContainer.className =
-      'mobile-language-selector-container mobile-only-inline-flex';
-
+    this.#elements.mobileLanguageContainer.className = 'mobile-language-selector-container mobile-only-inline-flex';
+  
     const trigger = document.createElement('button');
     trigger.id = 'mobileLanguageDropdownTrigger';
     trigger.className = 'btn header-dropdown-trigger btn-secondary';
@@ -99,20 +97,19 @@ export class LanguageManager {
     trigger.setAttribute('aria-expanded', 'false');
     trigger.innerHTML = `<span class="lang-icon"></span>`;
     this.#elements.mobileLanguageDropdownTrigger = trigger;
-
+  
     const panel = document.createElement('div');
     panel.id = 'mobileLanguageDropdownPanel';
     panel.className = 'header-dropdown-panel hidden';
     panel.setAttribute('role', 'menu');
     panel.setAttribute('aria-labelledby', 'mobileLanguageDropdownTrigger');
     this.#elements.mobileLanguageDropdownPanel = panel;
-
+  
     this.#elements.mobileLanguageContainer.appendChild(trigger);
     this.#elements.mobileLanguageContainer.appendChild(panel);
-    navControls.insertBefore(
-      this.#elements.mobileLanguageContainer,
-      settingsButton
-    );
+  
+    // Always insert directly before the main settings toggle button.
+    navControls.insertBefore(this.#elements.mobileLanguageContainer, settingsButton);
   }
 
   #renderMobileLanguageMenu(): void {
@@ -287,68 +284,5 @@ export class LanguageManager {
       (this.#appStore.getState().languagePreference as LanguageCode | undefined) ||
       defaultLang
     );
-  }
-}
-// --- packages/frontend/src/services/preference.service.ts --- (complete version) ---
-
-/* FILE: packages/frontend/src/services/preference.service.ts */
-import {
-  LOCAL_STORAGE_KEYS_CORE_PREFS,
-  DEFAULT_LANGUAGE,
-  DEFAULT_THEME_PREFERENCE,
-  DEFAULT_PROCESSING_WIDTH,
-  DEFAULT_NUM_HANDS_PREFERENCE,
-  DEFAULT_SHOW_HAND_LANDMARKS,
-  DEFAULT_SHOW_POSE_LANDMARKS,
-} from '#frontend/constants/app-defaults.js';
-
-import { secureStorage } from '#shared/services/security-utils.js';
-
-import type { ThemePreference } from '#frontend/types/index.js';
-
-export type PreferenceKey = keyof typeof LOCAL_STORAGE_KEYS_CORE_PREFS;
-export type PreferenceValue<K extends PreferenceKey> = K extends 'themePreference'
-  ? ThemePreference
-  : K extends 'languagePreference'
-  ? string
-  : K extends 'showHandLandmarks' | 'showPoseLandmarks'
-  ? boolean
-  : number;
-
-const DEFAULTS: { [K in PreferenceKey]: PreferenceValue<K> } = {
-  numHandsPreference: DEFAULT_NUM_HANDS_PREFERENCE,
-  processingResolutionWidthPreference: DEFAULT_PROCESSING_WIDTH,
-  languagePreference: DEFAULT_LANGUAGE,
-  themePreference: DEFAULT_THEME_PREFERENCE,
-  showHandLandmarks: DEFAULT_SHOW_HAND_LANDMARKS,
-  showPoseLandmarks: DEFAULT_SHOW_POSE_LANDMARKS,
-};
-
-export class PreferenceService {
-  get<K extends PreferenceKey>(key: K): PreferenceValue<K> {
-    try {
-      const storedValue = secureStorage.get(LOCAL_STORAGE_KEYS_CORE_PREFS[key]);
-      if (storedValue === null || storedValue === undefined) {
-        return DEFAULTS[key];
-      }
-      return storedValue as PreferenceValue<K>;
-    } catch (error) {
-      console.error(
-        `[PreferenceService] Error getting preference for key "${key}":`,
-        error
-      );
-      return DEFAULTS[key];
-    }
-  }
-
-  set<K extends PreferenceKey>(key: K, value: PreferenceValue<K>): void {
-    try {
-      secureStorage.set(LOCAL_STORAGE_KEYS_CORE_PREFS[key], value);
-    } catch (error) {
-      console.error(
-        `[PreferenceService] Error setting preference for key "${key}":`,
-        error
-      );
-    }
   }
 }

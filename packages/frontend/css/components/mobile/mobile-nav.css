@@ -8,12 +8,27 @@
   /* Show the mobile-specific dropdown trigger button */
   .mobile-language-selector-container {
     display: flex !important;
-    position: relative;
     align-items: center;
   }
 
   /* Reduce the gap between all header controls on mobile for a tighter layout. */
   .nav-controls {
-    gap: calc(var(--space-unit) / 2); /* Reduces gap to a minimal 2px */
+    gap: calc(var(--space-unit) / 2);
+  }
+
+  /* Make the dropdown container relative for correct panel positioning */
+  .dropdown-container {
+    position: relative;
+  }
+
+  .header-dropdown-panel {
+    top: calc(100% + 4px); /* Position below the trigger button */
+    left: 50%;
+    transform: translateX(-50%) scale(0.95);
+    transform-origin: top center;
+  }
+
+  .header-dropdown-panel.visible {
+    transform: translateX(-50%) scale(1);
   }
 }

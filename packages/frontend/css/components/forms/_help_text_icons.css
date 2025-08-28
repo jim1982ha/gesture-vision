@@ -1,7 +1,7 @@
-/* FILE: packages/frontend/css/components/forms/_help_text_icons.css */
+/* FILE: css/components/forms/_help_text_icons.css */
 /* Help text (small print below inputs) */
 .form-group > small,
-.settings-section > small {
+.form-section > small {
   display: block;
   font-size: var(--font-size-extra-small);
   color: var(--text-secondary);

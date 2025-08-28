@@ -1,4 +1,5 @@
 /* FILE: css/components/desktop/desktop-header-dropdowns.css */
+/* Styles for desktop-only dropdown triggers and positioning overrides for the dropdown panel. */
 
 /* Container for the new desktop dropdown trigger buttons */
 .desktop-header-dropdown-triggers {
@@ -26,73 +27,11 @@
   margin: 0;
 }
 
-/* Dropdown Menus */
-.header-dropdown-panel {
-  position: absolute;
-  top: calc(var(--header-height) + 4px);
-  /* min-width: 220px; */
-  max-width: 280px;
-  background-color: var(--surface);
-  border: var(--border-width-standard) var(--border-style-standard)
-    var(--border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-strong);
-  z-index: var(--z-dropdown);
-  padding: var(--space-xs);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-xs);
-  visibility: hidden;
-  opacity: 0;
-  transform-origin: top right;
-  transform: var(--dropdown-initial-transform, translateY(-10px) scale(0.95));
-  transition: opacity var(--transition-duration-short) ease-out,
-    transform var(--transition-duration-short) ease-out,
-    visibility 0s linear var(--transition-duration-short);
-}
-
-.header-dropdown-panel.mobile-dropdown-position {
-  left: 50% !important;
-  right: auto !important;
-  transform-origin: top center !important;
-}
-
-.header-dropdown-panel.desktop-dropdown-position {
-  right: var(--space-sm);
-  left: auto !important;
-  transform-origin: top right !important;
-}
-
-.header-dropdown-panel.visible {
-  visibility: visible;
-  opacity: 1;
-  transform: var(--dropdown-visible-transform, translateY(0) scale(1));
-  transition-delay: 0s;
-}
-
-/* Styling for items (buttons) within the dropdown menu */
-.header-dropdown-panel .btn {
-  justify-content: flex-start; /* Align icon and text to the left */
-  width: 100%; /* Make button take full width of panel */
-  margin-bottom: 0; /* Parent gap handles spacing, so no margin needed */
-  /* Base styles like padding, font, colors will come from .btn and .btn-secondary */
-}
-
-/* Icon within dropdown buttons */
-.header-dropdown-panel .btn .material-icons {
-  font-size: calc(
-    var(--icon-size-normal) - calc(var(--space-unit) / 2)
-  ); /* Existing size */
-  margin-right: var(
-    --space-xs
-  ); /* Spacing between icon and text if .btn gap isn't sufficient or for override */
-}
-
-/* Text span within dropdown buttons */
-.header-dropdown-panel .btn > span:last-of-type:not(.material-icons) {
-  flex-grow: 1; /* Allow text to take available space */
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  text-align: left; /* Ensure text itself is left-aligned within its span */
+/* Desktop-specific positioning for the dropdown panel */
+@media screen and (min-width: 769px) {
+  .header-dropdown-panel {
+    right: var(--space-sm);
+    left: auto !important;
+    transform-origin: top right !important;
+  }
 }

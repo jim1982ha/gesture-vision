@@ -1,7 +1,6 @@
 /* FILE: packages/frontend/src/ui/docs/docs-toc-manager.ts */
-import { updateButtonGroupActiveState } from '#frontend/ui/helpers/index.js';
+import { updateButtonGroupActiveState, setElementVisibility } from '#frontend/ui/helpers/index.js';
 import type { UIController } from '#frontend/ui/ui-controller-core.js';
-
 import { translate } from '#shared/services/translations.js';
 
 import { type LanguageCode } from '#shared/services/translations.js';
@@ -84,14 +83,14 @@ export class DocsTocManager {
           .replace(/^-+|-+$/g, '')
       : '';
 
-  public manageLanguageSelector(): void {
+  public manageLanguageSelector(docKey: string): void {
     const tocSidebar = this.#elements.modalTocSidebar;
     const originalLangGroup = this.#uiControllerRef._elements
       .languageSelectGroupHeader as HTMLElement | null;
-
+  
     this.#removeLanguageSelector();
-
-    if (tocSidebar && originalLangGroup) {
+  
+    if (tocSidebar && originalLangGroup && this.#elements.modalTocList) {
       const clonedLangGroup = originalLangGroup.cloneNode(true) as HTMLElement;
       clonedLangGroup.id = TOC_LANG_SELECTOR_ID;
       clonedLangGroup.addEventListener('click', (event: MouseEvent) => {
@@ -107,8 +106,13 @@ export class DocsTocManager {
             );
         }
       });
-      tocSidebar.appendChild(clonedLangGroup);
+      
+      tocSidebar.insertBefore(clonedLangGroup, this.#elements.modalTocList);
+      
       this.updateClonedLangSelectorUI();
+  
+      const isAboutDoc = docKey.toUpperCase() === 'ABOUT';
+      setElementVisibility(clonedLangGroup, isAboutDoc, 'flex');
     }
   }
 

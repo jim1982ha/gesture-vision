@@ -113,8 +113,9 @@ export function getElementGroupingGetters(allElements: Partial<AllDOMElements>):
           globalCooldownLabel: allElements.globalCooldownLabel as HTMLElement | null,
           resolutionPrefLabel: allElements.resolutionPrefLabel as HTMLElement | null,
           targetFpsLabel: allElements.targetFpsLabel as HTMLElement | null,
-          targetFpsHelpIcon: allElements.targetFpsHelpIcon as HTMLElement | null,
           telemetryEnabledLabel: allElements.telemetryEnabledLabel as HTMLElement | null,
+          targetFpsHelp: allElements.targetFpsHelp as HTMLElement | null,
+          telemetryEnabledHelp: allElements.telemetryEnabledHelp as HTMLElement | null,
         },
         pluginsTab: {
             pluginsListContainer: allElements.pluginsListContainer as HTMLElement | null,
