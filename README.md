@@ -63,7 +63,7 @@ This method is for running the application as a stable service. It uses Docker a
 
 1.  **Clone the Repository:**
     ```bash
-    git clone https://github.com/your-username/gesture-vision-app.git
+    git clone https://github.com/jim1982ha/gesture-vision.git
     cd gesture-vision-app
     ```
 2.  **Run the Interactive Setup Script:**
@@ -80,7 +80,7 @@ For contributors or those who want to modify the code.
 
 1.  **Clone and Install:**
     ```bash
-    git clone https://github.com/your-username/gesture-vision-app.git
+    git clone https://github.com/jim1982ha/gesture-vision.git
     cd gesture-vision-app
     npm install
     ```
