@@ -64,13 +64,13 @@ This method is for running the application as a stable service. It uses Docker a
 1.  **Clone the Repository:**
     ```bash
     git clone https://github.com/jim1982ha/gesture-vision.git
-    cd gesture-vision-app
+    cd gesture-vision
     ```
 2.  **Run the Interactive Setup Script:**
     This script will guide you through creating the necessary environment files (`.env.prod`) and building/running the Docker container.
     ```bash
-    chmod +x update_prod.sh
-    ./update_prod.sh
+    chmod +x ./tools/update_prod.sh
+    ./tools/update_prod.sh
     ```
 3.  **Configure Your Reverse Proxy:** For detailed steps on setting up your reverse proxy and firewall, please see the complete [**Production Deployment Guide**](./packages/frontend/public/docs/PRODUCTION.md).
 
@@ -81,14 +81,14 @@ For contributors or those who want to modify the code.
 1.  **Clone and Install:**
     ```bash
     git clone https://github.com/jim1982ha/gesture-vision.git
-    cd gesture-vision-app
+    cd gesture-vision
     npm install
     ```
 2.  **Run the Development Setup Script:**
     This script handles all the necessary setup, including Docker containers for the backend, MediaMTX, and the Vite development server with Hot Module Replacement.
     ```bash
-    chmod +x update_dev.sh
-    ./update_dev.sh
+    chmod +x ../tools/update_dev.sh
+    ./tools/update_dev.sh
     ```
 3.  **Access the Application:** Open your browser to the URL provided by the script (usually `https://localhost:8001`).
 
