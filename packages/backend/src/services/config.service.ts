@@ -1,21 +1,20 @@
 /* FILE: packages/backend/src/services/config.service.ts */
 import { watchFile, unwatchFile, type StatsListener, type StatWatcher } from 'fs';
 
-import { BACKEND_INTERNAL_EVENTS } from '#shared/constants/index.js';
-import { pubsub } from '#shared/core/pubsub.js';
-import { normalizeNameForMtx } from '#shared/utils/index.js';
+import {
+  BACKEND_INTERNAL_EVENTS,
+  pubsub,
+  normalizeNameForMtx,
+  type FullConfiguration,
+  type GestureConfig,
+  type PoseConfig,
+  type StreamStatusPayload,
+  type ValidationErrorDetail,
+  type RtspSourceConfig,
+} from '#shared/index.js';
 
 import { ConfigRepository } from './config/config-repository.js';
 import { ConfigValidator } from './config/config-validator.js';
-
-import type {
-  FullConfiguration,
-  GestureConfig,
-  PoseConfig,
-  StreamStatusPayload,
-  ValidationErrorDetail,
-  RtspSourceConfig,
-} from '#shared/types/index.js';
 import type { MtxMonitorService } from './mtx-monitor.service.js';
 
 const FILE_WATCH_INTERVAL_MS = 1000;
@@ -43,7 +42,7 @@ const DEFAULT_CONFIG: FullConfiguration = {
 export class ConfigService {
   public currentConfig: FullConfiguration = structuredClone(DEFAULT_CONFIG);
   public isInitialized = false;
-  public initializationPromise: Promise<void> | null = null;
+  public initializationPromise: Promise<void>;
   public writeLock = false;
   private fileWatcher: StatWatcher | null = null;
   private fileWatchTimeout: NodeJS.Timeout | null = null;
@@ -55,8 +54,8 @@ export class ConfigService {
   private repository: ConfigRepository;
   private validator: ConfigValidator;
 
-  constructor() {
-    this.repository = new ConfigRepository();
+  constructor(repository: ConfigRepository) {
+    this.repository = repository;
     this.validator = new ConfigValidator();
     this.initializationPromise = this.loadInitialConfig();
   }
@@ -78,8 +77,7 @@ export class ConfigService {
   }
 
   public async getFullConfig(): Promise<FullConfiguration> {
-    if (!this.isInitialized && this.initializationPromise)
-      await this.initializationPromise;
+    await this.initializationPromise;
     return structuredClone(this.currentConfig);
   }
 
@@ -88,7 +86,7 @@ export class ConfigService {
   ): GestureConfig | PoseConfig | null => {
     if (!name) return null;
     const normName = normalizeNameForMtx(name).toUpperCase();
-    const config = (this.currentConfig.gestureConfigs || []).find((c) => {
+    const config = (this.currentConfig.gestureConfigs || []).find((c: GestureConfig | PoseConfig) => {
       const cfgName = 'gesture' in c ? c.gesture : c.pose;
       return normalizeNameForMtx(cfgName)?.toUpperCase() === normName;
     });

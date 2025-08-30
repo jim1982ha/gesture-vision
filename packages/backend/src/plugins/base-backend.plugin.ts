@@ -1,7 +1,6 @@
 /* FILE: packages/backend/src/plugins/base-backend.plugin.ts */
 import { type ZodType } from 'zod';
-
-import type { PluginManifest } from '#shared/types/index.js';
+import type { PluginManifest } from '#shared/index.js';
 import type {
   BackendPlugin,
   ActionHandler,

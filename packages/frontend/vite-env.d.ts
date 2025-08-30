@@ -26,3 +26,12 @@ readonly hot?: {
   dispose: (callback: (data: Record<string, unknown>) => void) => void;
 };
 }
+
+// Add ImageBitmap to the global scope as it is used by the worker
+// and not exported by MediaPipe's types.
+declare global {
+  type ImageBitmap = unknown;
+  interface Window {
+    ImageBitmap: typeof ImageBitmap;
+  }
+}

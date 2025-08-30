@@ -4,14 +4,14 @@ import { DEFAULT_GESTURE_SELECT_VALUE } from '#frontend/constants/app-defaults.j
 import {
   BUILT_IN_HAND_GESTURES,
   type GestureCategoryIconType,
-} from '#shared/constants/index.js';
+} from '#shared/index.js';
 import { translate } from '#shared/services/translations.js';
 import {
   formatGestureNameForDisplay,
   getGestureCategoryIconDetails,
 } from '#frontend/ui/helpers/index.js';
 
-import type { GestureConfig, PoseConfig } from '#shared/types/index.js';
+import type { GestureConfig, PoseConfig } from '#shared/index.js';
 
 interface OptionData {
   name: string;

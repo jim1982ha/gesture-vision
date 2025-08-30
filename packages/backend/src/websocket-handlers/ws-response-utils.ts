@@ -1,7 +1,7 @@
 /* FILE: packages/backend/src/websocket-handlers/ws-response-utils.ts */
 import WebSocket from 'ws';
 
-import type { WebSocketMessage, ErrorMessage } from '#shared/types/index.js';
+import type { WebSocketMessage, ErrorMessage } from '#shared/index.js';
 
 export async function sendMessageToClient(
   ws: WebSocket,

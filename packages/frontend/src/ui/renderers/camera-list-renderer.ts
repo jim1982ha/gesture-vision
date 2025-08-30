@@ -1,7 +1,7 @@
 /* FILE: packages/frontend/src/ui/renderers/camera-list-renderer.ts */
 import { translate } from "#shared/services/translations.js"; 
 import { normalizeNameForMtx } from "#shared/utils/index.js";
-import { type GestureCategoryIconType } from "#shared/constants/index.js";
+import { type GestureCategoryIconType } from "#shared/index.js";
 import { createFromTemplate } from "../utils/template-renderer.js";
 import { setIcon } from "#frontend/ui/helpers/icon-helpers.js";
 import type { UIController } from "#frontend/ui/ui-controller-core.js";

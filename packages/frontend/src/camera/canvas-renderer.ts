@@ -12,6 +12,11 @@ interface LandmarkVisibilityOverride {
   pose: boolean;
   numHands?: number;
 }
+interface FrameRenderData {
+    handLandmarks?: Landmark[][];
+    poseLandmarks?: Landmark[][];
+    roiConfig?: ROICoordinates | null;
+}
 
 export class CanvasRenderer {
   #canvasElement: HTMLCanvasElement;
@@ -52,6 +57,10 @@ export class CanvasRenderer {
     this.#roiInteractionHandler = new RoiInteractionHandler(this.#canvasElement, this.#videoElement, updateRoiConfigCallback, () => this.drawOutput(), this.#appStore);
   }
 
+  public getCanvasElement(): HTMLCanvasElement {
+    return this.#canvasElement;
+  }
+
   public setFocusPointsForDrawing(focusPoints: number[] | null): void {
     this.#focusPointsForDrawing = focusPoints ? new Set(focusPoints) : null;
   }
@@ -75,17 +84,22 @@ export class CanvasRenderer {
     this.#currentAuthoritativeRoiConfig = authoritativeRoiConfig;
     this.#roiInteractionHandler.updateSourceInfo(sourceId, authoritativeRoiConfig);
   }
+  
+  public updateLandmarkData(data: FrameRenderData | undefined): void {
+    if (!data) return;
+    this.#lastHandLandmarksData = data.handLandmarks || [];
+    this.#lastPoseLandmarksData = data.poseLandmarks || [];
+    if (data.roiConfig !== undefined) {
+        this.#currentAuthoritativeRoiConfig = data.roiConfig;
+    }
+  }
 
   public handleResize(): void {
     this.#roiInteractionHandler.handleResize();
     this.drawOutput();
   }
 
-  public drawOutput(handLandmarksData?: Landmark[][], poseLandmarksData?: Landmark[][], roiConfigForLandmarks?: ROICoordinates | null): void {
-    if (handLandmarksData) this.#lastHandLandmarksData = handLandmarksData;
-    if (poseLandmarksData) this.#lastPoseLandmarksData = poseLandmarksData;
-    if (roiConfigForLandmarks !== undefined) this.#currentAuthoritativeRoiConfig = roiConfigForLandmarks;
-
+  public drawOutput(): void {
     const { videoWidth, videoHeight, readyState } = this.#videoElement;
     if (!this.#isSourceActive || !videoWidth || !videoHeight || readyState < 2) {
       this.clearCanvas(); return;
@@ -98,24 +112,26 @@ export class CanvasRenderer {
       } else return;
     }
 
+    // --- Draw Video (with mirroring) ---
     this.#canvasCtx.save();
     this.#canvasCtx.clearRect(0, 0, displayWidth, displayHeight);
-    if (this.#isMirrored) { this.#canvasCtx.scale(-1, 1); this.#canvasCtx.translate(-displayWidth, 0); }
+    if (this.#isMirrored) {
+      this.#canvasCtx.translate(displayWidth, 0);
+      this.#canvasCtx.scale(-1, 1);
+    }
     
-    // Draw video feed with correct aspect ratio
     const videoAspect = videoWidth / videoHeight, canvasAspect = displayWidth / displayHeight;
     let sWidth = videoWidth, sHeight = videoHeight, sx = 0, sy = 0;
     if (videoAspect > canvasAspect) { sWidth = videoHeight * canvasAspect; sx = (videoWidth - sWidth) / 2; } 
     else { sHeight = videoWidth / canvasAspect; sy = (videoHeight - sHeight) / 2; }
     this.#canvasCtx.drawImage(this.#videoElement, sx, sy, sWidth, sHeight, 0, 0, displayWidth, displayHeight);
-
-    // Draw ROI overlay if applicable
-    this.#drawRoiOverlay(videoWidth, videoHeight, sx, sy, sWidth, sHeight, displayWidth, displayHeight);
-    
-    // Draw landmarks
-    this.#drawAllLandmarks(displayWidth, displayHeight, videoWidth, videoHeight);
     
     this.#canvasCtx.restore();
+
+    // --- Draw Overlays and Landmarks (on non-mirrored context) ---
+    this.#drawRoiOverlay(videoWidth, videoHeight, sx, sy, sWidth, sHeight, displayWidth, displayHeight);
+    
+    this.#drawAllLandmarks(displayWidth, displayHeight, videoWidth, videoHeight);
   }
 
   #drawRoiOverlay(videoWidth: number, videoHeight: number, sx: number, sy: number, sWidth: number, sHeight: number, displayWidth: number, displayHeight: number): void {
@@ -147,8 +163,8 @@ export class CanvasRenderer {
     const state = this.#appStore.getState();
     const ov = this.#landmarkVisibilityOverride;
     
-    const showHand = ov ? ov.hand : (state.showHandLandmarks && (state.enableBuiltInHandGestures || state.enableCustomHandGestures));
-    const showPose = ov ? ov.pose : (state.showPoseLandmarks && state.enablePoseProcessing);
+    const showHand = ov ? ov.hand : state.showHandLandmarks;
+    const showPose = ov ? ov.pose : state.showPoseLandmarks;
 
     if (!showHand && !showPose) return;
     
@@ -159,15 +175,17 @@ export class CanvasRenderer {
     const targetRect = { x: 0, y: 0, width: displayWidth, height: displayHeight };
 
     if (showHand && this.#lastHandLandmarksData?.length > 0) {
-      this.#landmarkDrawer.draw(this.#canvasCtx, this.#lastHandLandmarksData, targetRect.x, targetRect.y, targetRect.width, targetRect.height, { color: primaryColor, lineWidth: 2, radius: 4, connections: LandmarkDrawer.getHandConnections() }, videoWidth, videoHeight, this.#currentAuthoritativeRoiConfig, this.#focusPointsForDrawing, focusColor);
+      this.#landmarkDrawer.draw(this.#canvasCtx, this.#lastHandLandmarksData, targetRect.x, targetRect.y, targetRect.width, targetRect.height, { color: primaryColor, lineWidth: 2, radius: 4, connections: LandmarkDrawer.getHandConnections() }, videoWidth, videoHeight, this.#currentAuthoritativeRoiConfig, this.#isMirrored, this.#focusPointsForDrawing, focusColor);
     }
     if (showPose && this.#lastPoseLandmarksData?.length > 0) {
-      this.#landmarkDrawer.draw(this.#canvasCtx, this.#lastPoseLandmarksData, targetRect.x, targetRect.y, targetRect.width, targetRect.height, { color: secondaryColor, lineWidth: 3, radius: 5, connections: LandmarkDrawer.getPoseConnections() }, videoWidth, videoHeight, this.#currentAuthoritativeRoiConfig, this.#focusPointsForDrawing, focusColor);
+      this.#landmarkDrawer.draw(this.#canvasCtx, this.#lastPoseLandmarksData, targetRect.x, targetRect.y, targetRect.width, targetRect.height, { color: secondaryColor, lineWidth: 3, radius: 5, connections: LandmarkDrawer.getPoseConnections() }, videoWidth, videoHeight, this.#currentAuthoritativeRoiConfig, this.#isMirrored, this.#focusPointsForDrawing, focusColor);
     }
   }
 
   public clearVideoSource(): void {
     this.#isSourceActive = false;
+    this.#lastHandLandmarksData = [];
+    this.#lastPoseLandmarksData = [];
     this.clearCanvas();
   }
 

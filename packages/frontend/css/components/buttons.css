@@ -173,6 +173,8 @@
   background-color: rgba(var(--overlay-gray-rgb), var(--overlay-light-alpha));
 }
 
+/* REMOVED: The hardcoded ::before rule for header-close-btn was here */
+
 /* Edit Button Icon Color */
 .btn-icon.edit-btn .material-icons,
 .btn-icon.edit-btn .mdi {

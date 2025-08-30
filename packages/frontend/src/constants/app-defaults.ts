@@ -1,7 +1,7 @@
 /* FILE: packages/frontend/src/constants/app-defaults.ts */
 // Centralized default values and constants for the frontend application.
 
-import type { RoiConfig, FullConfiguration } from '#shared/types/index.js';
+import type { RoiConfig, FullConfiguration } from '#shared/index.js';
 import type { ThemePreference } from '#frontend/types/index.js';
 import type { LanguageCode } from '#shared/services/translations.js';
 

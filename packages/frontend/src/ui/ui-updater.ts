@@ -1,6 +1,5 @@
 /* FILE: packages/frontend/src/ui/ui-updater.ts */
-import { type GestureCategoryIconType } from '#shared/constants/index.js';
-import { translate } from '#shared/services/translations.js';
+import { type GestureCategoryIconType, translate } from '#shared/index.js';
 import { setIcon } from '#frontend/ui/helpers/index.js';
 import {
   updateTranslationsForComponent,
@@ -11,12 +10,14 @@ import type { UIController } from '#frontend/ui/ui-controller-core.js';
 
 export function updateWsStatusIndicator(
   this: UIController,
-  isConnected: boolean,
   isInitial = false,
   isConnecting = false
 ): void {
   const t = this._elements.wsStatusIndicator as HTMLElement | null;
   if (!t) return;
+
+  const isConnected = this.appStore.getState().isWsConnected;
+
   t.innerHTML = '';
   t.classList.remove('connected', 'disconnected', 'connecting');
   t.classList.toggle('clickable', !isConnected || isConnecting);
@@ -171,9 +172,6 @@ export function applyUITranslations(controllerInstance: UIController): void {
     elements.cameraModalHeader?.querySelector('.header-icon'),
     'UI_WEBCAM'
   );
-  setIcon(elements.mainSettingsCloseButton, 'UI_CLOSE');
-  setIcon(elements.docsCloseButton, 'UI_CLOSE');
-  setIcon(elements.cameraSelectCloseButton, 'UI_CLOSE');
 
   const videoSizeToggleButton =
     elements.videoSizeToggleButton as HTMLButtonElement | null;

@@ -8,10 +8,18 @@ import {
   WEBCAM_EVENTS,
   WEBSOCKET_EVENTS,
   UI_EVENTS,
-} from '#shared/constants/index.js';
-import { pubsub } from '#shared/core/pubsub.js';
-import { translate } from '#shared/services/translations.js';
-import { normalizeNameForMtx } from '#shared/utils/index.js';
+  BUILT_IN_HAND_GESTURES,
+  pubsub,
+  translate,
+  normalizeNameForMtx,
+  type GestureConfig,
+  type PoseConfig,
+  type CustomGestureMetadata,
+  type ActionResultPayload,
+  type ActionConfig,
+  type RoiConfig,
+} from '#shared/index.js';
+
 import {
   formatGestureNameForDisplay,
   getGestureDisplayInfo,
@@ -19,14 +27,6 @@ import {
 
 import { GestureTimerManager } from './logic/gesture-timer-manager.js';
 import { webSocketService } from '../services/websocket-service.js';
-
-import type {
-  GestureConfig,
-  PoseConfig,
-  CustomGestureMetadata,
-  ActionResultPayload,
-  ActionConfig,
-} from '#shared/types/index.js';
 
 interface ActionableRecognition {
   name: string;
@@ -57,17 +57,6 @@ interface DisplayedGestureInfo {
   requiredHoldMs: number;
 }
 
-export const BUILT_IN_HAND_GESTURES = [
-  'OPEN_PALM',
-  'CLOSED_FIST',
-  'POINTING_UP',
-  'THUMB_UP',
-  'THUMB_DOWN',
-  'VICTORY',
-  'ILOVEYOU',
-  'NONE',
-] as const;
-
 export class GestureStateLogic {
   #timerManager: GestureTimerManager;
   #publishedConfidencePulse = new Set<string>();
@@ -78,12 +67,16 @@ export class GestureStateLogic {
   #isInitialized = false;
   #unsubscribeStore: () => void;
   #isActionDispatchSuppressed = false;
+  #activeStreamRoi: RoiConfig | null = null;
 
   // --- Bound event handlers for pubsub ---
   #boundHandleActionResult: (data?: unknown) => void;
   #boundHandleStreamStop: () => void;
   #boundHandleTimersReset: (data?: unknown) => void;
   #boundHandlePluginActionTrigger: () => void;
+  #boundHandleSuppressActions: () => void;
+  #boundHandleResumeActions: () => void;
+
 
   constructor(appStore: AppStore) {
     this.#appStore = appStore;
@@ -95,21 +88,12 @@ export class GestureStateLogic {
     this.#isInitialized = true;
 
     // Bind event handlers to this instance
-    this.#boundHandleActionResult = (data?: unknown) =>
-      this.#handleActionResult(data as ActionResultPayload | undefined);
-    this.#boundHandleStreamStop = () => {
-      this.#currentlyDisplayedGesture = null;
-      this.#timerManager.resetAllTimersAndStates();
-    };
-    this.#boundHandleTimersReset = (_data?: unknown) => {
-      this.#publishProgress({
-        holdPercent: 0,
-        cooldownPercent: this.#timerManager.getGlobalCooldownPercent(),
-      });
-    };
-    this.#boundHandlePluginActionTrigger = () => {
-        this.#timerManager.startGlobalCooldown();
-    };
+    this.#boundHandleActionResult = (data?: unknown) => this.#handleActionResult(data as ActionResultPayload | undefined);
+    this.#boundHandleStreamStop = () => { this.#currentlyDisplayedGesture = null; this.#timerManager.resetAllTimersAndStates(); };
+    this.#boundHandleTimersReset = (_data?: unknown) => { this.#publishProgress({ holdPercent: 0, cooldownPercent: this.#timerManager.getGlobalCooldownPercent(), }); };
+    this.#boundHandlePluginActionTrigger = () => { this.#timerManager.startGlobalCooldown(); };
+    this.#boundHandleSuppressActions = () => { this.#isActionDispatchSuppressed = true; };
+    this.#boundHandleResumeActions = () => { this.#isActionDispatchSuppressed = false; };
 
     this.#unsubscribeStore = this.#appStore.subscribe((state, prevState) => {
       if (state.gestureConfigs !== prevState.gestureConfigs) {
@@ -138,23 +122,21 @@ export class GestureStateLogic {
 
   destroy() {
     this.#unsubscribeStore();
-    pubsub.unsubscribe(
-      WEBSOCKET_EVENTS.BACKEND_ACTION_RESULT,
-      this.#boundHandleActionResult
-    );
+    pubsub.unsubscribe( WEBSOCKET_EVENTS.BACKEND_ACTION_RESULT, this.#boundHandleActionResult );
     pubsub.unsubscribe(WEBCAM_EVENTS.STREAM_STOP, this.#boundHandleStreamStop);
     pubsub.unsubscribe(GESTURE_EVENTS.TIMERS_RESET, this.#boundHandleTimersReset);
-    pubsub.unsubscribe(GESTURE_EVENTS.ACTION_TRIGGERED_BY_PLUGIN, this.#boundHandlePluginActionTrigger);
+    pubsub.unsubscribe( GESTURE_EVENTS.ACTION_TRIGGERED_BY_PLUGIN, this.#boundHandlePluginActionTrigger );
+    pubsub.unsubscribe(GESTURE_EVENTS.SUPPRESS_ACTIONS, this.#boundHandleSuppressActions);
+    pubsub.unsubscribe(GESTURE_EVENTS.RESUME_ACTIONS, this.#boundHandleResumeActions);
   }
 
   #subscribeToEvents(): void {
-    pubsub.subscribe(
-      WEBSOCKET_EVENTS.BACKEND_ACTION_RESULT,
-      this.#boundHandleActionResult
-    );
+    pubsub.subscribe( WEBSOCKET_EVENTS.BACKEND_ACTION_RESULT, this.#boundHandleActionResult );
     pubsub.subscribe(WEBCAM_EVENTS.STREAM_STOP, this.#boundHandleStreamStop);
     pubsub.subscribe(GESTURE_EVENTS.TIMERS_RESET, this.#boundHandleTimersReset);
-    pubsub.subscribe(GESTURE_EVENTS.ACTION_TRIGGERED_BY_PLUGIN, this.#boundHandlePluginActionTrigger);
+    pubsub.subscribe( GESTURE_EVENTS.ACTION_TRIGGERED_BY_PLUGIN, this.#boundHandlePluginActionTrigger );
+    pubsub.subscribe(GESTURE_EVENTS.SUPPRESS_ACTIONS, this.#boundHandleSuppressActions);
+    pubsub.subscribe(GESTURE_EVENTS.RESUME_ACTIONS, this.#boundHandleResumeActions);
   }
 
   updateCustomMetadataCache(metadataList?: CustomGestureMetadata[]): void {
@@ -246,11 +228,9 @@ export class GestureStateLogic {
   }
 
   checkConditions(
-    currentDetections: ActionableRecognition[],
-    isSuppressed: boolean
+    currentDetections: ActionableRecognition[]
   ): void {
     if (!this.#isInitialized) return;
-    this.#isActionDispatchSuppressed = isSuppressed;
     const now = Date.now();
     const isCooldownActive = this.#timerManager.isCooldownActive(now);
     this.#publishedConfidencePulse.clear();
@@ -287,12 +267,10 @@ export class GestureStateLogic {
         }
 
         const confidenceMet = detection.confidence >= configuredThreshold;
-        const minPresenceMs = 0;
-
+        
         this.#timerManager.updateHoldState(
           configName,
           confidenceMet,
-          minPresenceMs,
           now
         );
 
@@ -514,6 +492,10 @@ export class GestureStateLogic {
   #publishProgress(progressData: ProgressData): void {
     pubsub.publish(GESTURE_EVENTS.UPDATE_PROGRESS, progressData);
   }
+  public setActiveStreamRoi = (roi: RoiConfig | null): void => {
+    this.#activeStreamRoi = roi;
+  };
+  public getActiveStreamRoi = (): RoiConfig | null => this.#activeStreamRoi;
   resetHoldTimers(): void {
     this.#timerManager.resetAllGestureHoldStates();
     this.#currentlyDisplayedGesture = null;

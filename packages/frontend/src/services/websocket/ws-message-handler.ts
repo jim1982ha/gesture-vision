@@ -1,13 +1,13 @@
 /* FILE: packages/frontend/src/services/websocket/ws-message-handler.ts */
 // Handles parsing and dispatching incoming WebSocket messages.
-import { UI_EVENTS, WEBSOCKET_EVENTS } from "#shared/constants/index.js";
+import { UI_EVENTS, WEBSOCKET_EVENTS } from "#shared/index.js";
 import { handlePongLogic } from "./ws-lifecycle.js";
 import { appStore } from "#frontend/core/state/app-store.js";
 
 import type { 
     WebSocketMessage, ErrorPayload, ActionResultPayload, StreamStatusPayload, 
     InitialStatePayload, CustomGestureMetadata, FullConfiguration, PluginManifest
-} from "#shared/types/index.js";
+} from "#shared/index.js";
 import type { WebSocketService } from "../websocket-service.js";
 
 export function handleWsMessageLogic(this: WebSocketService, rawData: string | ArrayBuffer | Blob): void {

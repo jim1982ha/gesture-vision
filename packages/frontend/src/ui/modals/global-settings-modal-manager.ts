@@ -1,11 +1,9 @@
 /* FILE: packages/frontend/src/ui/modals/global-settings-modal-manager.ts */
-import type { AppStore } from "#frontend/core/state/app-store.js";
-import { initializeTabs } from "#frontend/ui/components/tab-manager.js";
-import type { UIController } from "#frontend/ui/ui-controller-core.js";
-import { UI_EVENTS } from "#shared/constants/index.js";
-import { pubsub } from "#shared/core/pubsub.js";
-import { translate } from "#shared/services/translations.js";
-import { setIcon } from "#frontend/ui/helpers/icon-helpers.js";
+import type { AppStore } from '#frontend/core/state/app-store.js';
+import { initializeTabs } from '#frontend/ui/components/tab-manager.js';
+import type { UIController } from '#frontend/ui/ui-controller-core.js';
+import { UI_EVENTS, pubsub, translate } from '#shared/index.js';
+import { setIcon } from '#frontend/ui/helpers/index.js';
 
 import { type TabElements, BaseSettingsTab } from "../base-settings-tab.js"; 
 import { CustomGesturesTab, type CustomGesturesTabElements } from "../tabs/custom-gestures-tab.js";
@@ -14,7 +12,7 @@ import { RtspSettingsTab, type RtspSettingsTabElements } from "../tabs/rtsp-sett
 import { ThemeSettingsTab, type ThemeSettingsTabElements } from "../tabs/theme-settings-tab.js";
 import { PluginsTab, type PluginsTabElements } from "../tabs/plugins-tab.js"; 
 
-import type { FullConfiguration } from "#shared/types/index.js";
+import type { FullConfiguration } from '#shared/index.js';
 import type { ModalManager } from "#frontend/ui/managers/modal-manager.js"; 
 
 type HTMLElementOrNull = HTMLElement | null;
@@ -52,6 +50,7 @@ export class GlobalSettingsModalManager {
     #contentContainer: HTMLElement | null = null;
     #originalContentCache: Node[] = [];
     #unsubscribeStore: () => void;
+    #unsubscribeLang: () => void;
 
     constructor(elementGroups: GlobalSettingsFormElementGroups, uiControllerRef: UIController, modalManagerRef: ModalManager) {
         this._elements = elementGroups.core;
@@ -77,12 +76,19 @@ export class GlobalSettingsModalManager {
             }
         });
 
+        this.#unsubscribeLang = this._appStore.subscribe((state, prevState) => {
+            if (state.languagePreference !== prevState.languagePreference) {
+                this.applyTranslations();
+            }
+        });
+
         this._initializeEventListeners();
         this._initializeTabManager();
     }
     
     destroy(): void {
         this.#unsubscribeStore();
+        this.#unsubscribeLang();
     }
 
     _initializeEventListeners() {
@@ -186,6 +192,10 @@ export class GlobalSettingsModalManager {
             setIcon(this._elements.settingsModalIcon, 'UI_SETTINGS');
             const closeBtn = this._elements.mainSettingsCloseButton;
             if (closeBtn) { const closeLabel = translate("close"); closeBtn.title = closeLabel; closeBtn.setAttribute("aria-label", `${closeLabel} ${translate("configurationTitle")}`); }
+            
+            if (this._elements.appVersionDisplaySettings) {
+                this._elements.appVersionDisplaySettings.title = translate('viewDocsTooltip');
+            }
             
             this._elements.settingsTabs?.querySelectorAll<HTMLButtonElement>('.modal-tab-button[data-tab]').forEach((tab: HTMLButtonElement) => {
                 const key = tab.dataset.tab; let transKey = '';

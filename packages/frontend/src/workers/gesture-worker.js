@@ -164,13 +164,18 @@ async function manageModels(
   isInitializing = false;
 }
 
-function runCustomGestureChecks(landmarks, definitions) {
+function runCustomGestureChecks(landmarks, definitions, tolerance = 0.0) {
   const detected = [];
-  if (!landmarks?.length || !definitions?.size) return detected;
+  // Guard clause: Ensure landmarks are valid before checking
+  if (!landmarks || landmarks.length === 0 || !definitions || definitions.size === 0) {
+    return detected;
+  }
 
   definitions.forEach((def, name) => {
     try {
-      const result = self.GestureUtils.checkGesture(landmarks, def.rules);
+      const checkFn = def.type === 'pose' ? def.checkPose : def.checkGesture;
+      const resultWithTolerance = checkFn(landmarks, null, tolerance);
+      const result = self.GestureUtils.checkGesture(landmarks, resultWithTolerance.rules);
       if (result?.detected)
         detected.push({ categoryName: name, score: result.confidence || 1.0 });
     } catch (e) {
@@ -188,13 +193,11 @@ function runCustomGestureChecks(landmarks, definitions) {
 }
 
 async function processImageSource(imageData, timestamp, staticRoiConfig, testRules, testTolerance, requestSnapshot) {
-  if (isInitializing || timestamp <= lastProcessedTimestamp) {
+  if (isInitializing || timestamp <= lastProcessedTimestamp || !imageData) {
     if (imageData instanceof ImageBitmap) imageData.close();
     return;
   }
   lastProcessedTimestamp = timestamp;
-
-  let snapshotWasTaken = false;
 
   try {
     const startTime = performance.now();
@@ -207,30 +210,33 @@ async function processImageSource(imageData, timestamp, staticRoiConfig, testRul
     if (enableHandProcessing && handModelLoaded && handRecognizer) {
         handResults = handRecognizer.recognizeForVideo(imageData, timestamp);
     }
-
-    if (testRules) {
-        const landmarksForTest = testRules.type === 'hand' 
-            ? (handResults?.landmarks?.[0] || null)
-            : (poseResults?.landmarks?.[0] || null);
-        
-        if (landmarksForTest) {
-            testResult = self.GestureUtils.checkGesture(landmarksForTest, { ...testRules, tolerance: testTolerance });
-        }
-    }
     
     if (requestSnapshot) {
-      snapshotData = {
-          landmarks: (handResults?.landmarks[0] || poseResults?.landmarks[0] || null),
-          imageData: imageData, // Pass the ImageBitmap directly
-      };
-      snapshotWasTaken = true; // Mark it as taken so we don't close it in the finally block
+        const offscreenCanvas = new OffscreenCanvas(imageData.width, imageData.height);
+        const ctx = offscreenCanvas.getContext('2d');
+        ctx.drawImage(imageData, 0, 0);
+        snapshotData = {
+            landmarks: (handResults?.landmarks[0] || poseResults?.landmarks[0] || null),
+            imageData: ctx.getImageData(0, 0, imageData.width, imageData.height),
+        };
     }
 
     const customActionable = [];
     if (enableHandProcessing && customHandGestureExecutionEnabled && handResults?.landmarks)
-      handResults.landmarks.forEach((lms) => customActionable.push(...runCustomGestureChecks(lms, customHandDefinitions)));
+      handResults.landmarks.forEach((lms) => {
+        customActionable.push(...runCustomGestureChecks(lms, customHandDefinitions));
+      });
     if (enablePoseProcessing && poseResults?.landmarks)
-      poseResults.landmarks.forEach((lms) => customActionable.push(...runCustomGestureChecks(lms, customPoseDefinitions)));
+      poseResults.landmarks.forEach((lms) => {
+        customActionable.push(...runCustomGestureChecks(lms, customPoseDefinitions));
+      });
+
+    // SIMPLIFIED AND CORRECTED: The worker just passes data to the core utility.
+    // The core utility (checkGesture) is responsible for handling empty/invalid landmarks.
+    if (testRules) {
+        const landmarks = testRules.type === 'hand' ? handResults?.landmarks?.[0] : poseResults?.landmarks?.[0];
+        testResult = self.GestureUtils.checkGesture(landmarks, testRules);
+    }
 
     const finalHandGestures = enableHandProcessing && builtInHandGesturesExecutionEnabled && handResults ? handResults.gestures : [];
     
@@ -246,8 +252,7 @@ async function processImageSource(imageData, timestamp, staticRoiConfig, testRul
         processingTime: performance.now() - startTime,
     };
     
-    const transferables = snapshotWasTaken ? [snapshotData.imageData] : [];
-    self.postMessage(messagePayload, transferables);
+    self.postMessage(messagePayload);
 
   } catch (_e) {
     self.postMessage({
@@ -255,12 +260,14 @@ async function processImageSource(imageData, timestamp, staticRoiConfig, testRul
       error: { code: "WORKER_RECOGNITION_ERROR", message: `Recognition failed: ${_e instanceof Error ? _e.message : String(_e)}` },
     });
   } finally {
-    if (imageData instanceof ImageBitmap && !snapshotWasTaken) imageData.close();
+      if (imageData instanceof ImageBitmap) {
+          imageData.close();
+      }
   }
 }
 
 self.onmessage = async (event) => {
-  const { type, payload, imageBitmap } = event.data;
+  const { type, payload } = event.data;
   switch (type) {
     case "initialize": {
       const newHandConfig = {
@@ -285,8 +292,8 @@ self.onmessage = async (event) => {
       poseConfig = newPoseConfig;
       enableHandProcessing = !!payload.enableHandProcessing;
       enablePoseProcessing = !!payload.enablePoseProcessing;
-      builtInHandGesturesExecutionEnabled = !!payload.enableBuiltInHandGestures;
-      customHandGestureExecutionEnabled = !!payload.enableCustomHandGestures;
+      builtInHandGesturesExecutionEnabled = payload.enableBuiltInHandGestures !== false;
+      customHandGestureExecutionEnabled = payload.enableCustomHandGestures !== false;
       debouncedManageModels(
         enableHandProcessing,
         enablePoseProcessing,
@@ -314,20 +321,14 @@ self.onmessage = async (event) => {
           if (typeof mod[functionName] !== "function")
             throw new Error(`${functionName} is not a function`);
 
-          const runtimeResult = mod[functionName]([], null);
-          if (!runtimeResult || typeof runtimeResult.rules !== "object") {
-            throw new Error(
-              `Gesture function for '${mod.metadata.name}' did not return a valid rules object.`
-            );
-          }
-
           const definitionsMap =
             mod.metadata.type === "pose"
               ? customPoseDefinitions
               : customHandDefinitions;
           definitionsMap.set(mod.metadata.name, {
             ...mod.metadata,
-            rules: runtimeResult.rules,
+            checkGesture: mod.checkGesture,
+            checkPose: mod.checkPose
           });
         } catch (e) {
           self.postMessage({
@@ -342,15 +343,38 @@ self.onmessage = async (event) => {
         }
       });
       break;
-    case "process_frame":
+    case "process_frame": {
+        let finalTestRules = null;
+        if (event.data.testRules && event.data.testTolerance !== undefined) {
+             const baseRules = event.data.testRules;
+             const tolerance = event.data.testTolerance;
+             
+             const applyToleranceToRule = (rule, isAngle) => {
+                 const { min: minObserved, max: maxObserved } = rule;
+                 const observedRange = maxObserved - minObserved;
+                 const maxAbsoluteToleranceRange = isAngle ? (45.0 * 2) : (0.1 * 2);
+                 const easedTolerance = Math.pow(tolerance, 1.5);
+                 const interpolatedRange = observedRange + (maxAbsoluteToleranceRange - observedRange) * easedTolerance;
+                 const toleranceAmount = interpolatedRange / 2;
+                 const center = (minObserved + maxObserved) / 2;
+                 return { ...rule, min: Math.max(0, center - toleranceAmount), max: center + toleranceAmount };
+             };
+ 
+             finalTestRules = {
+                 ...baseRules,
+                 relativeDistances: baseRules.relativeDistances.map(r => applyToleranceToRule(r, false)),
+                 jointAngles: baseRules.jointAngles.map(r => applyToleranceToRule(r, true)),
+             };
+        }
       await processImageSource(
-        imageBitmap,
+        event.data.imageBitmap,
         event.data.timestamp,
         event.data.roiConfig,
-        event.data.testRules,
+        finalTestRules,
         event.data.testTolerance,
         event.data.requestSnapshot
       );
       break;
+    }
   }
 };

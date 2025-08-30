@@ -44,6 +44,10 @@ export function createFromTemplate(template: string, data: Record<string, unknow
       if (attr.value.includes('{')) {
         attr.value = substitute(attr.value, context);
       }
+      // FIX: Handle empty attributes after substitution by removing them.
+      if (attr.value === '') {
+        node.removeAttribute(attr.name);
+      }
       // Handle boolean attributes
       if (attr.name.startsWith('?')) {
           const actualAttrName = attr.name.substring(1);

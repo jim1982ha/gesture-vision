@@ -1,13 +1,7 @@
 /* FILE: packages/frontend/src/ui/ui-header-toggles-controller.ts */
-import { type GestureCategoryIconType } from '#shared/constants/index.js';
-import { translate } from '#shared/services/translations.js';
-import {
-  updateButtonGroupActiveState,
-  updateButtonToggleActiveState,
-  setIcon,
-} from './helpers/index.js';
+import { type GestureCategoryIconType, translate, type FullConfiguration } from '#shared/index.js';
+import { updateButtonGroupActiveState, updateButtonToggleActiveState, setIcon } from './helpers/index.js';
 
-import type { FullConfiguration } from '#shared/types/index.js';
 import type { UIController } from '#frontend/ui/ui-controller-core.js';
 import type { AppStore } from '../core/state/app-store.js';
 
@@ -88,23 +82,25 @@ export class HeaderTogglesController {
   }
 
   #createMobileDropdowns(): void {
+    // FIX: Add idempotency check. If controls are already built, do nothing.
+    // This prevents wiping out UI contributions from plugins like the Dashboard.
+    if (document.getElementById('mobile-controls-container')) {
+      return;
+    }
+
     const navControls = document.querySelector('.nav-controls');
     if (!navControls) {
       console.error('[HeaderTogglesCtrl] .nav-controls not found for mobile triggers.');
       return;
     }
   
-    let mobileContainer = document.getElementById('mobile-controls-container') as HTMLElement;
-    if (!mobileContainer) {
-      mobileContainer = document.createElement('div');
-      mobileContainer.id = 'mobile-controls-container';
-      mobileContainer.className = 'mobile-header-controls-container mobile-only-inline-flex';
-      // Insert before the plugin slot for consistent ordering
-      const pluginSlot = navControls.querySelector('#header-plugin-contribution-slot');
-      navControls.insertBefore(mobileContainer, pluginSlot || navControls.firstChild);
-    }
+    const mobileContainer = document.createElement('div');
+    mobileContainer.id = 'mobile-controls-container';
+    mobileContainer.className = 'mobile-header-controls-container mobile-only-inline-flex';
+    const pluginSlot = navControls.querySelector('#header-plugin-contribution-slot');
+    navControls.insertBefore(mobileContainer, pluginSlot || navControls.firstChild);
+    
     this.#elements.mobileControlsContainer = mobileContainer;
-    mobileContainer.innerHTML = '';
 
     const dropdownConfigs: MobileDropdownConfig[] = [
       {
@@ -125,6 +121,7 @@ export class HeaderTogglesController {
           { id: 'itemToggleHandLandmarks', value: '0', iconKey: 'UI_HAND_LANDMARK_HIDE', labelKey: 'toggleHandLandmarksTitle', handler: () => this.#handleHandsAndLandmarksSelection(0) },
           { id: 'itemToggleNumHands1', value: '1', iconKey: 'UI_HAND_DETECT_ONE', labelKey: 'detect1HandTitle', handler: () => this.#handleHandsAndLandmarksSelection(1) },
           { id: 'itemToggleNumHands2', value: '2', iconKey: 'UI_HAND_DETECT_TWO', labelKey: 'detect2HandsTitle', handler: () => this.#handleHandsAndLandmarksSelection(2) },
+          { id: 'itemTogglePoseLandmarks', iconKey: 'UI_POSE_LANDMARK_TOGGLE', labelKey: 'togglePoseLandmarksTitle', handler: () => this.#handleLandmarkToggleClick('pose') },
         ],
       },
     ];
@@ -168,21 +165,16 @@ export class HeaderTogglesController {
         trigger.addEventListener('click', () => this.#toggleDropdown(type, trigger, panel));
         
         wrapper.appendChild(trigger);
-        // CRITICAL FIX: Append the panel to the wrapper so it's positioned relative to it.
         wrapper.appendChild(panel); 
         mobileContainer.appendChild(wrapper);
       }
     );
 
-    const directPoseButton = document.createElement('button');
-    directPoseButton.type = 'button';
-    directPoseButton.id = 'mobileTogglePoseLandmarksDirect';
-    directPoseButton.className = 'btn btn-secondary header-dropdown-trigger';
-    directPoseButton.dataset.landmarkType = 'pose';
-    directPoseButton.innerHTML = `<span class="material-icons"></span>`;
-    directPoseButton.addEventListener('click', () => this.#handleLandmarkToggleClick('pose'));
-    mobileContainer.appendChild(directPoseButton);
-    this.#elements.mobileTogglePoseLandmarksDirect = directPoseButton;
+    // FIX: Create and append the mobile plugin slot *after* other controls for right-side placement.
+    const mobilePluginSlot = document.createElement('div');
+    mobilePluginSlot.id = 'header-plugin-contribution-slot-mobile';
+    mobilePluginSlot.className = 'header-plugin-controls';
+    mobileContainer.appendChild(mobilePluginSlot);
   }
 
   #attachDOMEventListeners(): void {
@@ -290,13 +282,13 @@ export class HeaderTogglesController {
       poseProcessingBtnDesktop,
       handLandmarksBtnDesktop,
       poseLandmarksBtnDesktop,
-      mobileTogglePoseLandmarksDirect,
       itemToggleBuiltInHand,
       itemToggleCustomHandGestures,
       itemTogglePoseProcessing,
       itemToggleHandLandmarks,
       itemToggleNumHands1,
       itemToggleNumHands2,
+      itemTogglePoseLandmarks,
     } = this.#elements;
     const builtInOn = state.enableBuiltInHandGestures,
       customHandOn = state.enableCustomHandGestures,
@@ -328,12 +320,8 @@ export class HeaderTogglesController {
       showPoseLm,
       !poseOn
     );
-
-    updateButtonToggleActiveState(
-      mobileTogglePoseLandmarksDirect as HTMLButtonElementOrNull,
-      showPoseLm,
-      !poseOn
-    );
+    
+    // Update mobile dropdown items
     updateButtonToggleActiveState(
       itemToggleBuiltInHand as HTMLButtonElementOrNull,
       builtInOn
@@ -346,18 +334,22 @@ export class HeaderTogglesController {
       itemTogglePoseProcessing as HTMLButtonElementOrNull,
       poseOn
     );
-
     updateButtonToggleActiveState(itemToggleHandLandmarks as HTMLButtonElement, !showHandLm, !anyHandOn);
     updateButtonToggleActiveState(itemToggleNumHands1 as HTMLButtonElement, showHandLm && numHands === 1, !anyHandOn);
     updateButtonToggleActiveState(itemToggleNumHands2 as HTMLButtonElement, showHandLm && numHands === 2, !anyHandOn);
+    updateButtonToggleActiveState(
+      itemTogglePoseLandmarks as HTMLButtonElementOrNull,
+      showPoseLm,
+      !poseOn
+    );
 
     const mobileHandsAndLandmarksTrigger = document.getElementById(
       'mobilehandsAndLandmarksDropdownTrigger'
     );
     if (mobileHandsAndLandmarksTrigger)
-      mobileHandsAndLandmarksTrigger.toggleAttribute('disabled', !anyHandOn);
+      mobileHandsAndLandmarksTrigger.toggleAttribute('disabled', !anyHandOn && !poseOn);
 
-    if (this.#activeDropdown?.type === 'handsAndLandmarks' && !anyHandOn)
+    if (this.#activeDropdown?.type === 'handsAndLandmarks' && !anyHandOn && !poseOn)
       this.#closeActiveDropdown();
   };
 
@@ -395,10 +387,6 @@ export class HeaderTogglesController {
       document.getElementById('mobilefeaturesDropdownTrigger'),
       'desktopFeaturesDropdownTitle'
     );
-    setTooltip(
-      this.#elements.mobileTogglePoseLandmarksDirect,
-      'togglePoseLandmarksTitle'
-    );
 
     setIcon(this.#elements.builtInHandBtnDesktop, 'BUILT_IN_HAND');
     setIcon(this.#elements.customHandGesturesBtnDesktop, 'CUSTOM_HAND');
@@ -407,10 +395,6 @@ export class HeaderTogglesController {
     setIcon(this.#elements.numHands1BtnDesktop, 'UI_HAND_DETECT_ONE');
     setIcon(this.#elements.numHands2BtnDesktop, 'UI_HAND_DETECT_TWO');
     setIcon(this.#elements.poseLandmarksBtnDesktop, 'UI_POSE_LANDMARK_TOGGLE');
-    setIcon(
-      this.#elements.mobileTogglePoseLandmarksDirect,
-      'UI_POSE_LANDMARK_TOGGLE'
-    );
 
     this.updateAllButtonStates();
   };

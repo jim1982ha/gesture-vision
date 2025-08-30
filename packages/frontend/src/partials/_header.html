@@ -35,19 +35,18 @@
         <button type="button" class="btn btn-secondary" id="headerToggleNumHands2" data-value="2">
           <span class="material-icons"></span> <!-- JS sets icon & title -->
         </button>
-      </div>
-      <div class="toggle-group header-pose-landmark-toggle">
         <button type="button" class="btn btn-secondary" id="headerTogglePoseLandmarks" data-landmark-type="pose">
-          <span class="material-icons"></span> <!-- JS sets icon & title -->
+            <span class="material-icons"></span> <!-- JS sets icon & title -->
         </button>
       </div>
-      <!-- <div id="header-plugin-contribution-slot" class="header-plugin-controls"></div> -->
+      <!-- MODIFICATION: Desktop plugin slot moved here -->
+      <div id="header-plugin-contribution-slot-desktop" class="header-plugin-controls"></div>
     </div>
     <!-- The mobile controls container will be injected here by ui-header-toggles-controller.ts -->
   </div>
 
   <div class="nav-controls">
-    <div id="header-plugin-contribution-slot" class="header-plugin-controls"></div>
+    <!-- MODIFICATION: Original plugin slot removed from here -->
     <div id="languageSelectGroupHeader" class="button-toggle-group desktop-only-inline-flex">
     </div>
     <button id="mainSettingsToggle" class="btn btn-secondary btn-icon" title="Settings" aria-label="Settings">

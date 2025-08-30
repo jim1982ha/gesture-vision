@@ -1,5 +1,5 @@
 /* FILE: packages/backend/src/websocket-handlers/config-message-handler.ts */
-import { WEBSOCKET_EVENTS } from '#shared/constants/index.js';
+import { WEBSOCKET_EVENTS } from '#shared/constants/events.js';
 import type WebSocket from 'ws';
 
 import { sendMessageToClient, sendErrorMessageToClient } from './ws-response-utils.js';
@@ -8,7 +8,7 @@ import { type HandlerDependencies } from './handler-dependencies.type.js';
 import type {
   WebSocketMessage,
   ConfigPatchAckPayload,
-} from '#shared/types/index.js';
+} from '#shared/index.js';
 
 export async function patchConfigHandler(
   ws: WebSocket,

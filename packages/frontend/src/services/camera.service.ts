@@ -1,34 +1,30 @@
 /* FILE: packages/frontend/src/services/camera.service.ts */
-import { CAMERA_SERVICE_EVENTS, WEBCAM_EVENTS } from '#shared/constants/index.js';
-import { pubsub } from '#shared/core/pubsub.js';
-import type { WebcamManager } from '#frontend/camera/manager.js';
+import {
+  CAMERA_SERVICE_EVENTS,
+  WEBCAM_EVENTS,
+  pubsub,
+  type RtspSourceConfig,
+} from '#shared/index.js';
+import type { CameraManager } from '#frontend/camera/camera-manager.js';
 import type { Landmark } from '@mediapipe/tasks-vision';
-import type { AppStore } from '#frontend/core/state/app-store.js';
-import { normalizeNameForMtx } from '#shared/utils/index.js';
-import type { RtspSourceConfig } from '#shared/types/index.js';
 
 export interface StartStreamOptions {
-  gestureType: 'hand' | 'pose';
   cameraId: string;
+  rtspSourceConfig?: RtspSourceConfig | null;
 }
 
 /**
  * Provides a formal, decoupled interface for plugins to interact with the application's camera system.
- * This service acts as a safe wrapper around the core WebcamManager.
+ * This service acts as a safe wrapper around the core CameraManager.
  */
 export class CameraService {
-  #webcamManager: WebcamManager;
-  #appStore: AppStore;
+  #cameraManager: CameraManager;
 
-  constructor(webcamManager: WebcamManager, appStore: AppStore) {
-    if (!webcamManager) {
-      throw new Error("CameraService requires a valid WebcamManager instance.");
+  constructor(cameraManager: CameraManager) {
+    if (!cameraManager) {
+      throw new Error('CameraService requires a valid CameraManager instance.');
     }
-    if (!appStore) {
-      throw new Error("CameraService requires a valid AppStore instance.");
-    }
-    this.#webcamManager = webcamManager;
-    this.#appStore = appStore;
+    this.#cameraManager = cameraManager;
     this.#subscribeToWebcamEvents();
   }
 
@@ -43,48 +39,45 @@ export class CameraService {
 
   public async startStream(options: StartStreamOptions): Promise<void> {
     if (!options.cameraId) {
-      console.warn("[CameraService] startStream called without a cameraId.");
+      console.warn('[CameraService] startStream called without a cameraId.');
       return;
-    }
-    
-    const targetDeviceId = options.cameraId;
-    let rtspConfig: RtspSourceConfig | null = null;
-    
-    if (targetDeviceId.startsWith("rtsp:")) {
-      const normalizedName = normalizeNameForMtx(targetDeviceId.substring(5));
-      const rtspSources = this.#appStore.getState().rtspSources;
-      rtspConfig = rtspSources.find(s => normalizeNameForMtx(s.name) === normalizedName) || null;
-      if (!rtspConfig) {
-        throw new Error(`[CameraService] Configuration for RTSP source '${normalizedName}' not found.`);
-      }
     }
 
     if (this.isStreamActive()) {
       await this.stopStream();
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
     }
-    
-    await this.#webcamManager.start(targetDeviceId, rtspConfig);
+
+    await this.#cameraManager.start(
+      options.cameraId,
+      options.rtspSourceConfig || null
+    );
   }
 
   public async stopStream(): Promise<void> {
-    if (this.#webcamManager.isStreaming()) {
-      await this.#webcamManager.stop();
+    if (this.#cameraManager.isStreaming()) {
+      await this.#cameraManager.stop();
     }
   }
 
   public isStreamActive(): boolean {
-    return this.#webcamManager.isStreaming();
+    return this.#cameraManager.isStreaming();
   }
 
-  public getLandmarkSnapshot(): Promise<{ landmarks: Landmark[] | null; imageData: ImageBitmap | null }> {
-    if (!this.#webcamManager._gestureProcessorRef) {
-      return Promise.reject(new Error("GestureProcessor not available to capture snapshot."));
+  public getLandmarkSnapshot(): Promise<{
+    landmarks: Landmark[] | null;
+    imageData: ImageData | null;
+  }> {
+    const gestureProcessor = this.#cameraManager.getGestureProcessor();
+    if (!gestureProcessor) {
+      return Promise.reject(
+        new Error('GestureProcessor not available to capture snapshot.')
+      );
     }
-    return this.#webcamManager._gestureProcessorRef.getLandmarkSnapshot();
+    return gestureProcessor.getLandmarkSnapshot();
   }
 
-  public getWebcamManager(): WebcamManager {
-    return this.#webcamManager;
+  public getCameraManager(): CameraManager {
+    return this.#cameraManager;
   }
 }

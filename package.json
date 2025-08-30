@@ -1,7 +1,7 @@
 {
   "name": "gesture-vision-app",
   "private": true,
-  "version": "3.6.0",
+  "version": "3.6.2",
   "type": "module",
   "scripts": {
     "copy:wasm": "mkdir -p packages/frontend/public/wasm && cp -r node_modules/@mediapipe/tasks-vision/wasm/* packages/frontend/public/wasm/",

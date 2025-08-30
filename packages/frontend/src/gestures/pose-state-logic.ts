@@ -1,8 +1,7 @@
 /* FILE: packages/frontend/src/gestures/pose-state-logic.ts */
-import { WEBCAM_EVENTS } from "#shared/constants/index.js";
-import { pubsub } from "#shared/core/pubsub.js";
+import { WEBCAM_EVENTS, pubsub } from '#shared/index.js';
 
-import type { PoseConfig } from "#shared/types/index.js";
+import type { PoseConfig } from '#shared/index.js';
 import type { AppStore } from "#frontend/core/state/app-store.js";
 
 export class PoseStateLogic {

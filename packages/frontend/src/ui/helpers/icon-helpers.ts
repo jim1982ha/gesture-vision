@@ -1,5 +1,5 @@
 /* FILE: packages/frontend/src/ui/helpers/icon-helpers.ts */
-import { GESTURE_CATEGORY_ICONS, type GestureCategoryIconType } from '#shared/constants/index.js';
+import { GESTURE_CATEGORY_ICONS, type GestureCategoryIconType } from '#shared/index.js';
 import { getGestureCategoryIconDetails } from '#frontend/ui/helpers/display-helpers.js';
 
 /**
@@ -15,8 +15,6 @@ export function setIcon(
 ): void {
   if (!element) return;
 
-  // FIX: Try to find a dedicated icon element within the passed element.
-  // If not found, assume the passed element itself is the icon.
   const iconTargetElement =
     element.querySelector<HTMLElement>('.material-icons, .mdi') ||
     (element as HTMLElement);

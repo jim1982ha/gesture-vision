@@ -1,7 +1,7 @@
 /* FILE: packages/frontend/src/services/websocket-service.ts */
 // Main service for WebSocket communication with the backend.
 import { pubsub } from '#shared/core/pubsub.js';
-import { WEBSOCKET_EVENTS } from '#shared/constants/index.js';
+import { WEBSOCKET_EVENTS } from '#shared/index.js';
 import {
   connectLogic,
   disconnectLogic,
@@ -15,7 +15,7 @@ import type {
   GestureConfig,
   PoseConfig,
   ActionDetails,
-} from '#shared/types/index.js';
+} from '#shared/index.js';
 
 // --- State & Pending Request Types ---
 interface PendingRequest<T = unknown> {

@@ -1,6 +1,5 @@
 /* FILE: packages/frontend/src/ui/managers/modal-manager.ts */
-import { UI_EVENTS } from '#shared/constants/index.js';
-import { pubsub } from '#shared/core/pubsub.js';
+import { UI_EVENTS, pubsub } from '#shared/index.js';
 import { toggleElementClass } from '#frontend/ui/helpers/index.js';
 import type { UIController } from '#frontend/ui/ui-controller-core.js';
 
@@ -57,6 +56,12 @@ export class ModalManager {
       this.#uiControllerRef.modalManager?.closeAllModals();
       if (id === 'main-settings')
         this.#uiControllerRef._globalSettingsForm?.prepareToShowDefaultTab();
+      if (id === 'camera') {
+        this.#uiControllerRef.cameraManager
+          ?.getCameraSourceManager()
+          .refreshDeviceList();
+        pubsub.publish(UI_EVENTS.MODAL_OPENED_CAMERA_SELECT);
+      }
       this.#activeModalId = id;
     } else if (this.#activeModalId === id) {
       this.#activeModalId = null;

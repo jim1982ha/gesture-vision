@@ -3,7 +3,7 @@ import { translate } from '#shared/services/translations.js';
 import type {
   ActionSettingFieldDescriptor,
   ActionSettingFieldOption,
-} from '#shared/types/index.js';
+} from '#shared/index.js';
 import type {
   IPluginActionSettingsComponent,
   PluginUIContext,
@@ -249,7 +249,7 @@ export class GenericPluginActionSettingsComponent
           ''
         )
       : [];
-    const selectedOption = options.find((opt) => opt.value === value);
+    const selectedOption = options.find((opt: ActionSettingFieldOption) => opt.value === value);
     if (selectedOption) searchInput.value = selectedOption.label;
     dropdown.refresh();
   }

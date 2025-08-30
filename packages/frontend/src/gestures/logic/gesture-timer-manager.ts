@@ -4,7 +4,7 @@ import type { AppStore } from "#frontend/core/state/app-store.js";
 import {
   WEBCAM_EVENTS,
   GESTURE_EVENTS,
-} from "#shared/constants/index.js";
+} from "#shared/index.js";
 import { pubsub } from "#shared/core/pubsub.js";
 
 interface HoldState {
@@ -65,7 +65,6 @@ export class GestureTimerManager {
   updateHoldState = (
     gestureKey: string,
     detectionMetThreshold: boolean,
-    _minPresenceMs: number, // Parameter still here to match call signature, but unused
     now: number = Date.now()
   ): void => {
     if (detectionMetThreshold) {

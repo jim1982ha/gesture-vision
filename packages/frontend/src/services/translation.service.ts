@@ -1,7 +1,7 @@
 /* FILE: packages/frontend/src/services/translation.service.ts */
 // Provides translation functionality using JSON locale files.
 import { translations, type LanguageCode } from '#shared/services/translations.js';
-import type { PluginManifest } from '#shared/types/index.js';
+import type { PluginManifest } from '#shared/index.js';
 
 export class TranslationService {
     #isInitialized = false;

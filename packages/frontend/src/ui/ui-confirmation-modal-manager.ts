@@ -1,7 +1,5 @@
 /* FILE: packages/frontend/src/ui/ui-confirmation-modal-manager.ts */
-import { UI_EVENTS } from '#shared/constants/index.js';
-import { pubsub } from '#shared/core/pubsub.js';
-import { translate } from '#shared/services/translations.js';
+import { UI_EVENTS, pubsub, translate } from '#shared/index.js';
 import { setIcon } from './helpers/index.js';
 
 import type { UIController } from './ui-controller-core.js';

@@ -5,7 +5,7 @@ import type { ConfirmationModalManager } from '#frontend/ui/ui-confirmation-moda
 import type { UIController } from '#frontend/ui/ui-controller-core.js';
 import { type TranslationConfigItem, type MultiTranslationConfigItem } from '#frontend/ui/ui-translation-updater.js';
 import { setElementVisibility, setIcon } from '#frontend/ui/helpers/index.js';
-import { createCardElement } from '#frontend/ui/utils/card-utils.js';
+import { createCardElement, createCardActionButton } from '#frontend/ui/utils/card-utils.js';
 import { BaseSettingsTab, type TabElements } from '../base-settings-tab.js';
 import { EditableCard } from '#frontend/ui/components/editable-card.js';
 
@@ -13,8 +13,9 @@ import { pubsub } from '#shared/core/pubsub.js';
 import { translate } from '#shared/services/translations.js';
 import { getGestureCategoryIconDetails } from '#frontend/ui/helpers/index.js';
 
-import type { CustomGestureMetadata, UploadCustomGestureAckPayload, DeleteCustomGestureAckPayload, UpdateCustomGestureAckPayload, FullConfiguration, UploadCustomGesturePayload, UpdateCustomGesturePayload } from '#shared/types/index.js';
-import { UI_EVENTS, WEBSOCKET_EVENTS, DOCS_MODAL_EVENTS } from '#shared/constants/index.js';
+import type { CustomGestureMetadata, UploadCustomGestureAckPayload, DeleteCustomGestureAckPayload, UpdateCustomGestureAckPayload, FullConfiguration, UploadCustomGesturePayload, UpdateCustomGesturePayload } from '#shared/index.js';
+import { UI_EVENTS, WEBSOCKET_EVENTS } from '#shared/index.js';
+import type { DocsModalManager } from '../ui-docs-modal-manager.js';
 
 
 export interface CustomGesturesTabElements extends TabElements {
@@ -56,6 +57,12 @@ export class CustomGesturesTab extends BaseSettingsTab<CustomGesturesTabElements
     constructor(elements: CustomGesturesTabElements, appStore: AppStore, uiControllerRef: UIController) {
         super(elements, appStore);
         this._uiControllerRef = uiControllerRef;
+        
+        // Non-state subscriptions specific to this tab are initialized here.
+        pubsub.subscribe(WEBSOCKET_EVENTS.BACKEND_UPLOAD_CUSTOM_GESTURE_ACK, (p: unknown) => this.#handleUploadAck(p as UploadCustomGestureAckPayload));
+        pubsub.subscribe(WEBSOCKET_EVENTS.BACKEND_UPDATE_CUSTOM_GESTURE_ACK, (p: unknown) => this.#handleUpdateAck(p as UpdateCustomGestureAckPayload));
+        pubsub.subscribe(WEBSOCKET_EVENTS.BACKEND_DELETE_CUSTOM_GESTURE_ACK, (p: unknown) => this.#handleDeleteAck(p as DeleteCustomGestureAckPayload));
+        pubsub.subscribe(UI_EVENTS.RECEIVE_UI_CONTRIBUTION, this.#renderContributions);
     }
     
     public async finishInitialization(): Promise<void> {
@@ -104,16 +111,7 @@ export class CustomGesturesTab extends BaseSettingsTab<CustomGesturesTabElements
         this._addEventListenerHelper("openPluginDevDocsBtn", "click", this.#handleOpenDocsClick);
     }
 
-    protected _attachCommonEventListeners(): void {
-        super._attachCommonEventListeners();
-        pubsub.subscribe(WEBSOCKET_EVENTS.BACKEND_UPLOAD_CUSTOM_GESTURE_ACK, (p: unknown) => this.#handleUploadAck(p as UploadCustomGestureAckPayload));
-        pubsub.subscribe(WEBSOCKET_EVENTS.BACKEND_UPDATE_CUSTOM_GESTURE_ACK, (p: unknown) => this.#handleUpdateAck(p as UpdateCustomGestureAckPayload));
-        pubsub.subscribe(WEBSOCKET_EVENTS.BACKEND_DELETE_CUSTOM_GESTURE_ACK, (p: unknown) => this.#handleDeleteAck(p as DeleteCustomGestureAckPayload));
-        this._appStore.subscribe(state => this.#renderCustomGestureList(state.customGestureMetadataList ?? []));
-        pubsub.subscribe(UI_EVENTS.RECEIVE_UI_CONTRIBUTION, this.#renderContributions);
-    }
-
-    protected _doesConfigUpdateAffectThisTab(_updatedConfig: Partial<FullConfiguration>): boolean {
+    protected _doesConfigUpdateAffectThisTab(): boolean {
         return false;
     }
 
@@ -258,7 +256,9 @@ export class CustomGesturesTab extends BaseSettingsTab<CustomGesturesTabElements
     }
     
     #handleOpenDocsClick = (): void => {
-        pubsub.publish(DOCS_MODAL_EVENTS.REQUEST_OPEN, "PLUGIN_DEV");
+        this._uiControllerRef.getDocsModalManager()
+            .then((manager: DocsModalManager | undefined) => manager?.openModal("PLUGIN_DEV"))
+            .catch((error: Error) => console.error("[PluginsTab] Failed to open docs modal:", error));
     };
 
     #renderCustomGestureList = (definitions: CustomGestureMetadata[] = []): void => {
@@ -284,19 +284,26 @@ export class CustomGesturesTab extends BaseSettingsTab<CustomGesturesTabElements
         
         const detailsHtml = `
             <div class="card-details-view">
-                ${def.description ? `<div class="card-detail-line"><span class="material-icons" title="Description">notes</span><span class="card-detail-value custom-gesture-description-value allow-wrap">${def.description}</span></div>` : ''}
+                ${def.description ? `<div class="card-detail-line"><span class="material-icons" title="Description"></span><span class="card-detail-value custom-gesture-description-value allow-wrap">${def.description}</span></div>` : ''}
             </div>
             <form class="custom-gesture-edit-form hidden" onsubmit="return false;">
                 <div class="form-group"><label for="${cardId}-name">${translate('nameLabel')}</label><input type="text" id="${cardId}-name" class="form-control" value="${def.name}"></div>
                 <div class="form-group"><label for="${cardId}-desc">${translate('descriptionOptionalLabel')}</label><textarea id="${cardId}-desc" class="form-control" rows="2">${def.description || ''}</textarea></div>
-                <div class="form-actions-group justify-end"><button type="button" class="btn btn-secondary cancel-btn"><span class="material-icons"></span><span>${translate('cancel')}</span></button><button type="button" class="btn btn-primary save-btn"><span class="material-icons"></span><span>${translate('update')}</span></button></div>
+                <div class="form-actions-group justify-end"><button type="button" class="btn btn-secondary cancel-btn"><span class="btn-icon-span"></span><span class="btn-text-span">${translate('cancel')}</span></button><button type="button" class="btn btn-primary save-btn"><span class="btn-icon-span"></span><span class="btn-text-span">${translate('update')}</span></button></div>
             </form>
         `;
+        
+        const deleteButton = createCardActionButton({
+            action: 'delete',
+            titleKey: 'deleteTooltip',
+            iconKey: 'UI_DELETE',
+            extraClasses: ['btn-icon-danger', 'delete-btn'],
+        });
 
         const card = createCardElement({
             ...getGestureCategoryIconDetails(def.type === 'pose' ? 'CUSTOM_POSE' : 'CUSTOM_HAND'),
             title: def.name,
-            actionButtonsHtml: `<button type="button" class="btn btn-icon btn-icon-danger delete-btn" title="${translate('deleteTooltip',{item:def.name})}" aria-label="${translate('deleteTooltip',{item:def.name})}"><span class="material-icons">delete</span></button>`,
+            actionButtonsHtml: deleteButton.outerHTML,
             detailsHtml,
             itemClasses: "custom-gesture-list-item card-item-clickable", 
             datasetAttributes: { gestureId: def.id, gestureName: def.name },
@@ -304,10 +311,12 @@ export class CustomGesturesTab extends BaseSettingsTab<CustomGesturesTabElements
         });
         card.id = cardId;
 
+        setIcon(card.querySelector('.card-detail-line > .material-icons'), 'UI_NOTES');
+
         const saveBtn = card.querySelector('.save-btn') as HTMLButtonElement;
         const cancelBtn = card.querySelector('.cancel-btn') as HTMLButtonElement;
-        setIcon(saveBtn, 'UI_SAVE');
-        setIcon(cancelBtn, 'UI_CANCEL');
+        setIcon(saveBtn.querySelector('.btn-icon-span'), 'UI_SAVE');
+        setIcon(cancelBtn.querySelector('.btn-icon-span'), 'UI_CANCEL');
         
         const editableCard = new EditableCard({
             cardElement: card,

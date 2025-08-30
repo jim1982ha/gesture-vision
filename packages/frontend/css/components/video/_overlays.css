@@ -126,12 +126,6 @@
   background-color: transparent; /* Default: no background */
 }
 
-.connecting-overlay.visible {
-  opacity: 1;
-  visibility: visible;
-  transition-delay: 0s;
-}
-
 /* Sub-containers within the main overlay */
 .connecting-overlay .overlay-text-container,
 .connecting-overlay .overlay-icon-container {
@@ -145,6 +139,9 @@
 .connecting-overlay.state-initial-connecting {
   background-color: rgba(var(--background-rgb, 0, 0, 0), 0.7);
   pointer-events: auto; /* Full overlay is clickable */
+  opacity: 1;
+  visibility: visible;
+  transition-delay: 0s;
 }
 .connecting-overlay.state-initial-connecting .overlay-text-container {
   display: flex;
@@ -160,6 +157,11 @@
 }
 
 /* State: Offline/Idle - Play Button */
+.connecting-overlay.state-offline-idle {
+  opacity: 1;
+  visibility: visible;
+  transition-delay: 0s;
+}
 .connecting-overlay.state-offline-idle .overlay-icon-container {
   display: flex;
   width: 64px;
@@ -180,6 +182,11 @@
 }
 
 /* State: Stream Active - Stop Button */
+.connecting-overlay.state-stream-active {
+  opacity: 1;
+  visibility: visible;
+  transition-delay: 0s;
+}
 .connecting-overlay.state-stream-active .overlay-icon-container {
   display: flex;
   width: 64px;

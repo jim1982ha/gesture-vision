@@ -11,13 +11,12 @@ import {
   WEBCAM_EVENTS,
   CAMERA_SOURCE_EVENTS,
   UI_EVENTS,
-} from '#shared/constants/index.js';
-import { pubsub } from '#shared/core/pubsub.js';
-import { normalizeNameForMtx } from '#shared/utils/index.js';
-import type { RoiConfig, RtspSourceConfig } from '#shared/types/index.js';
+  pubsub,
+  normalizeNameForMtx,
+} from '#shared/index.js';
+import type { RoiConfig, RtspSourceConfig } from '#shared/index.js';
 import type { HistoryEntry } from '#frontend/types/index.js';
 import type { UIController } from './ui-controller-core.js';
-import type { Landmark } from '@mediapipe/tasks-vision';
 
 export interface RendererElements {
   outputCanvas: HTMLCanvasElement | null;
@@ -48,11 +47,6 @@ export interface RendererElements {
   inactiveConfigListDiv: HTMLElement | null;
 }
 
-interface FrameRenderData {
-  handLandmarks?: Landmark[][];
-  poseLandmarks?: Landmark[][];
-  roiConfig?: RoiConfig | null;
-}
 interface GestureStatusData {
   gesture: string;
   confidence: string;
@@ -89,9 +83,6 @@ export class UIRenderer {
   _lastProgressUpdateTime = 0;
   readonly _STATUS_UPDATE_INTERVAL_MS = 100;
   readonly _PROGRESS_UPDATE_INTERVAL_MS = 50;
-  _lastHandLandmarks: Landmark[][] = [];
-  _lastPoseLandmarks: Landmark[][] = [];
-  _lastRoiConfig: RoiConfig | null = null;
 
   constructor(uiControllerRef: UIController) {
     this._uiControllerRef = uiControllerRef;
@@ -115,15 +106,6 @@ export class UIRenderer {
         }
       };
 
-    pubsub.subscribe(
-      GESTURE_EVENTS.RENDER_OUTPUT,
-      createReadyHandler<FrameRenderData>((d) => {
-          this._lastHandLandmarks = d?.handLandmarks || [];
-          this._lastPoseLandmarks = d?.poseLandmarks || [];
-          this._lastRoiConfig = d?.roiConfig || null;
-          this._canvasRenderer?.drawOutput(this._lastHandLandmarks, this._lastPoseLandmarks, this._lastRoiConfig);
-      })
-    );
     pubsub.subscribe(
       GESTURE_EVENTS.UPDATE_STATUS,
       createReadyHandler<GestureStatusData>((status) => {
@@ -177,11 +159,9 @@ export class UIRenderer {
     ) => {
       this.#updateCanvasRendererSourceInfo(sourceId);
       if (sourceId) this._uiControllerRef.updateButtonState();
-      this._canvasRenderer?.drawOutput(
-        this._lastHandLandmarks,
-        this._lastPoseLandmarks,
-        this._lastRoiConfig
-      );
+      
+      this._canvasRenderer?.drawOutput();
+
       if (
         sourceId === null ||
         eventType === WEBCAM_EVENTS.STREAM_STOP ||
@@ -285,7 +265,7 @@ export class UIRenderer {
         const mapToUse =
           deviceMap instanceof Map
             ? deviceMap
-            : this._uiControllerRef?._cameraSourceManager?.getCombinedDeviceMap() ||
+            : this._uiControllerRef?.cameraService?.getCameraManager()?.getCameraSourceManager()?.getCombinedDeviceMap() ||
               new Map<string, string>();
         updateCameraListUI(
           {
@@ -322,7 +302,6 @@ export class UIRenderer {
         roi = config.roi;
       }
     }
-    this._lastRoiConfig = roi;
     this._canvasRenderer?.updateSourceInfo(sourceId, roi);
   };
 }

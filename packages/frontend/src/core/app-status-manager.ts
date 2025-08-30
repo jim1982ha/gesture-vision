@@ -1,19 +1,16 @@
 /* FILE: packages/frontend/src/core/app-status-manager.ts */
-import { WEBCAM_EVENTS, GESTURE_EVENTS, CAMERA_SOURCE_EVENTS, APP_STATUS_EVENTS, UI_EVENTS } from "#shared/constants/index.js";
+import { WEBCAM_EVENTS, GESTURE_EVENTS, CAMERA_SOURCE_EVENTS, APP_STATUS_EVENTS, UI_EVENTS } from "#shared/index.js";
 import { pubsub } from "#shared/core/pubsub.js";
  
 import type { App } from "./app.js"; 
 
 export class AppStatusManager {
-  #webcamRunning = false;
-  #modelLoaded = false; 
   #isStreamConnecting = false;
   #appRef: App | null = null; 
 
   public setAppRef(appRef: App): void {
     this.#appRef = appRef;
     this.#subscribeToEvents(); 
-    console.log("[AppStatusManager] App reference set and events subscribed.");
   }
 
   #subscribeToEvents(): void {
@@ -35,9 +32,14 @@ export class AppStatusManager {
     pubsub.subscribe(WEBCAM_EVENTS.ERROR, stopProcessingHandler); 
     pubsub.subscribe(WEBCAM_EVENTS.STREAM_CONNECTION_CANCELLED, stopProcessingHandler);
 
-    pubsub.subscribe(GESTURE_EVENTS.MODEL_LOADED, () => {  
-      const currentCombinedModelStatus = this.#appRef?.gesture?.isModelLoaded() ?? false;
-      this.#setModelLoaded(currentCombinedModelStatus);
+    pubsub.subscribe(GESTURE_EVENTS.MODEL_LOADED, (status?: unknown) => {
+      if (status && typeof status === 'object') {
+          this.#appRef?.appStore.getState().actions.setModelLoadingStatus(status as { hand?: boolean; pose?: boolean });
+          
+          const isFullyLoaded = this.#appRef?.gesture?.isModelLoaded() ?? false;
+          pubsub.publish(APP_STATUS_EVENTS.MODEL_STATE_CHANGED, isFullyLoaded);
+          pubsub.publish(UI_EVENTS.REQUEST_BUTTON_STATE_UPDATE);
+      }
     });
 
     pubsub.subscribe(CAMERA_SOURCE_EVENTS.CHANGED, () => { 
@@ -52,22 +54,9 @@ export class AppStatusManager {
 
   #setWebcamRunning(running: boolean): void {
     const newState = !!running;
-    const changed = this.#webcamRunning !== newState;
-    this.#webcamRunning = newState;
-    if (changed) {
-      pubsub.publish(APP_STATUS_EVENTS.WEBCAM_STATE_CHANGED, newState); 
-      pubsub.publish(UI_EVENTS.REQUEST_BUTTON_STATE_UPDATE); 
-    }
-  }
-
-  #setModelLoaded(loaded: boolean): void {
-    const newState = !!loaded;
-    const changed = this.#modelLoaded !== newState;
-    this.#modelLoaded = newState;
-    if (changed) {
-      console.log("[AppStatusManager] Combined model loaded status changed to", newState); 
-      pubsub.publish(APP_STATUS_EVENTS.MODEL_STATE_CHANGED, newState); 
-      pubsub.publish(UI_EVENTS.REQUEST_BUTTON_STATE_UPDATE); 
+    const currentIsRunning = this.#appRef?.appStore.getState().isWebcamRunning ?? false;
+    if (currentIsRunning !== newState) {
+        this.#appRef?.appStore.getState().actions.setWebcamRunningStatus(newState);
     }
   }
 
@@ -82,12 +71,12 @@ export class AppStatusManager {
   }
 
   isWebcamRunning(): boolean {
-    return this.#webcamRunning;
+    return this.#appRef?.appStore.getState().isWebcamRunning ?? false;
   }
 
   isModelLoaded(): boolean {
     if (!this.#appRef || !this.#appRef.gesture) {
-        return this.#modelLoaded; 
+        return false;
     }
     return this.#appRef.gesture.isModelLoaded();
   }

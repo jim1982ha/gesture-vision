@@ -93,12 +93,10 @@
   flex-shrink: 0;
 }
 
-/* NEW: Styles for the plugin contribution slot container */
+/* FIX: Changed height to match neighboring button groups for consistent alignment. */
 .header-plugin-controls {
   display: inline-flex;
-  align-items: center;
-  gap: var(--space-xs);
-  height: 100%;
+  height: var(--button-height-normal);
 }
 
 .nav-controls

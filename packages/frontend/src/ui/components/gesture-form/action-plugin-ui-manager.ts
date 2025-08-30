@@ -3,7 +3,7 @@ import type { UIController } from '#frontend/ui/ui-controller-core.js';
 import { setElementVisibility } from '#frontend/ui/helpers/index.js';
 import { DEFAULT_ACTION_PLUGIN_ID_NONE } from '#frontend/constants/app-defaults.js';
 import { translate } from '#shared/services/translations.js';
-import type { PluginManifest } from '#shared/types/index.js';
+import type { PluginManifest } from '#shared/index.js';
 import type { IPluginActionSettingsComponent } from '#frontend/types/index.js';
 
 export class ActionPluginUIManager {

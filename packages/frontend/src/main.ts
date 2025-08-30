@@ -18,12 +18,13 @@ declare global {
 async function initializeApplication() {
   let appInstance: App | null = null;
   try {
+    console.info("[Init] Starting application initialization...");
     registerSW({ immediate: true });
 
     const translationService = new TranslationService();
 
     const elements: Partial<AllDOMElements> = getAllDOMElements();
-    console.log("[Main] DOM elements fetched.");
+    console.info("[Init] DOM elements fetched.");
 
     appInstance = new App(elements, appStore, translationService);
 
@@ -32,9 +33,9 @@ async function initializeApplication() {
     const metaEnv = import.meta.env;
     if (metaEnv?.MODE === "development") {
       window.app = appInstance;
-      console.debug("[Main] App initialized (Dev Mode).");
+      console.info("[Init] App initialized successfully (Dev Mode).");
     } else {
-      console.debug("[Main] App initialized (Production Mode).");
+      console.info("[Init] App initialized successfully (Production Mode).");
     }
   } catch (error: unknown) {
     const typedError = error as Error;
@@ -56,11 +57,6 @@ async function main() {
   if (document.readyState === "loading") {
     await new Promise((resolve) =>
       document.addEventListener("DOMContentLoaded", resolve)
-    );
-    console.log("[Main] DOMContentLoaded event fired.");
-  } else {
-    console.log(
-      "[Main] DOMContentLoaded has already fired or document is interactive/complete."
     );
   }
   await initializeApplication();

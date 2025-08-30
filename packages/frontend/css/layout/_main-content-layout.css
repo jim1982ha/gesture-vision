@@ -36,7 +36,7 @@
     visibility 0s linear 0.3s;
   opacity: 1;
   visibility: visible;
-  flex-grow: 1;
+  /* flex-grow: 1; /* REMOVED: This was causing the video container to have 0 height on desktop */
   flex-shrink: 1;
   min-height: 0;
 }

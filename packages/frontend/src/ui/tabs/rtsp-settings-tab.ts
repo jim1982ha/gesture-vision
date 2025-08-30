@@ -1,18 +1,16 @@
 /* FILE: packages/frontend/src/ui/tabs/rtsp-settings-tab.ts */
 // Manages the UI and logic for configuring RTSP camera sources.
-import type { AppStore, FrontendFullState } from "#frontend/core/state/app-store.js";
-import type { UIController } from "#frontend/ui/ui-controller-core.js";
-import { type TranslationConfigItem, type MultiTranslationConfigItem } from "#frontend/ui/ui-translation-updater.js";
-import { createCardElement } from "#frontend/ui/utils/card-utils.js";
-import { setIcon } from "#frontend/ui/helpers/icon-helpers.js";
+import type { AppStore, FrontendFullState } from '#frontend/core/state/app-store.js';
+import type { UIController } from '#frontend/ui/ui-controller-core.js';
+import { type TranslationConfigItem, type MultiTranslationConfigItem } from '#frontend/ui/ui-translation-updater.js';
+import { createCardElement, createCardActionButton } from '#frontend/ui/utils/card-utils.js';
+import { setIcon } from '#frontend/ui/helpers/index.js';
 import { BaseSettingsTab, type TabElements } from "#frontend/ui/base-settings-tab.js";
 
-import { UI_EVENTS } from "#shared/constants/index.js";
-import { pubsub } from "#shared/core/pubsub.js";
-import { translate } from "#shared/services/translations.js";
+import { UI_EVENTS, pubsub, translate } from "#shared/index.js";
 import { normalizeNameForMtx } from "#shared/utils/index.js";
 
-import type { RtspSourceConfig, RoiConfig, FullConfiguration } from "#shared/types/index.js";
+import type { RtspSourceConfig, RoiConfig, FullConfiguration } from "#shared/index.js";
 
 type HTMLElementOrNull = HTMLElement | null;
 export interface RtspSettingsTabElements extends TabElements {
@@ -215,20 +213,31 @@ export class RtspSettingsTab extends BaseSettingsTab<RtspSettingsTabElements> {
     const onDemandText = source.sourceOnDemand ? ` (${translate("rtspOnDemandIndicator")})` : "";
     const roi = source.roi;
     const hasCustomRoi = roi && (roi.x !== 0 || roi.y !== 0 || roi.width !== 100 || roi.height !== 100);
-    const roiText = hasCustomRoi ? `<div class="card-detail-line"><span class="material-icons">crop</span><span class="card-detail-value">ROI: X:${roi.x}, Y:${roi.y}, W:${roi.width}, H:${roi.height}</span></div>` : "";
-    let itemClasses = "rtsp-source-item card-item-clickable";
-    if (editingIndex === index) {
-      itemClasses += " is-editing-highlight";
+    
+    const urlIcon = document.createElement('span'); setIcon(urlIcon, 'UI_LINK');
+    let detailsHtml = `<div class="card-detail-line">${urlIcon.outerHTML}<span class="card-detail-value rtsp-url-display">${this.#maskRtspUrlPassword(source.url)}</span></div>`;
+    if (hasCustomRoi) {
+        const cropIcon = document.createElement('span'); setIcon(cropIcon, 'UI_CROP');
+        detailsHtml += `<div class="card-detail-line">${cropIcon.outerHTML}<span class="card-detail-value">ROI: X:${roi.x}, Y:${roi.y}, W:${roi.width}, H:${roi.height}</span></div>`;
     }
+    
+    let itemClasses = "rtsp-source-item card-item-clickable";
+    if (editingIndex === index) itemClasses += " is-editing-highlight";
+
+    const deleteButton = createCardActionButton({
+        action: 'delete',
+        titleKey: 'deleteTooltip',
+        iconKey: 'UI_DELETE',
+        extraClasses: ['btn-icon-danger', 'delete-rtsp-btn']
+    });
+    deleteButton.dataset.index = String(index);
 
     const card = createCardElement({
         iconName: 'router', title: `${source.name}${onDemandText}`,
-        actionButtonsHtml: `<button type="button" class="btn btn-icon btn-icon-danger delete-rtsp-btn" title="${translate('deleteTooltip',{item:source.name})}" data-index="${index}"><span class="material-icons"></span></button>`,
-        detailsHtml: `<div class="card-detail-line"><span class="material-icons">link</span><span class="card-detail-value rtsp-url-display">${this.#maskRtspUrlPassword(source.url)}</span></div>${roiText}`,
+        actionButtonsHtml: deleteButton.outerHTML, detailsHtml,
         itemClasses: itemClasses, datasetAttributes: { index: String(index) }
     });
 
-    setIcon(card.querySelector('.delete-rtsp-btn'), 'UI_DELETE');
     return card;
   }
 

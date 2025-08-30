@@ -5,8 +5,8 @@ import {
   GESTURE_CATEGORY_ICONS,
   BUILT_IN_HAND_GESTURES,
   type GestureCategoryIconType,
-} from '#shared/constants/index.js';
-import type { CustomGestureMetadata } from '#shared/types/index.js';
+} from '#shared/index.js';
+import type { CustomGestureMetadata } from '#shared/index.js';
 
 /**
  * Formats an internal gesture name (e.g., 'POINTING_UP') into a user-friendly
@@ -48,7 +48,7 @@ export function getActionIconDetails(manifest?: {
   if (manifest?.icon) {
     return { iconName: manifest.icon.name, iconType: manifest.icon.type };
   }
-  return { iconName: 'send', iconType: 'material-icons' };
+  return { iconName: GESTURE_CATEGORY_ICONS.UI_ACTION.iconName, iconType: 'material-icons' };
 }
 
 interface GestureDisplayInfo {

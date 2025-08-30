@@ -52,7 +52,7 @@ Below the video, this section displays all your configured gesture-to-action map
 2.  Click **"Create..."** to launch the Gesture Studio.
 3.  Provide a name and select the gesture type (Hand or Pose).
 4.  Follow the on-screen instructions to start your camera and record several samples of yourself performing the gesture.
-5.  Once you have enough samples, click **"Analyze & Generate"**.
+5.  Once you have enough samples, click **"Generate"**.
 6.  You can then test the new gesture in real-time and adjust its **Tolerance**. When satisfied, click **"Save Gesture"**.
 7.  Your new gesture is now available to be used in the main **Gesture Settings** panel.
 

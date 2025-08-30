@@ -1,11 +1,11 @@
 /* FILE: packages/frontend/src/services/telemetry-service.ts */
 import type { AppStore } from "#frontend/core/state/app-store.js";
  
-import { GESTURE_EVENTS, WEBSOCKET_EVENTS } from "#shared/constants/index.js";
+import { GESTURE_EVENTS, WEBSOCKET_EVENTS } from "#shared/index.js";
 import { pubsub } from "#shared/core/pubsub.js";
 
  
-import type { ActionResultPayload } from "#shared/types/index.js"; 
+import type { ActionResultPayload } from "#shared/index.js"; 
 
 declare global {
   const __APP_VERSION__: string | undefined;

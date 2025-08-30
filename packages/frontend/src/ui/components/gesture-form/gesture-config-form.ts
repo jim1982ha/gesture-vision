@@ -4,18 +4,10 @@ import {
   DEFAULT_GESTURE_CONFIDENCE,
   DEFAULT_GESTURE_DURATION_S,
 } from '#frontend/constants/app-defaults.js';
-import { UI_EVENTS } from '#shared/constants/index.js';
-import { pubsub } from '#shared/core/pubsub.js';
-import { translate } from '#shared/services/translations.js';
+import { UI_EVENTS, pubsub, translate, type GestureConfig, type PoseConfig, type ActionConfig } from '#shared/index.js';
 import { setIcon, setElementVisibility } from '#frontend/ui/helpers/index.js';
 import { GestureSelectManager } from './gesture-select-manager.js';
 import { ActionPluginUIManager } from './action-plugin-ui-manager.js';
-
-import type {
-  GestureConfig,
-  PoseConfig,
-  ActionConfig,
-} from '#shared/types/index.js';
 
 export interface FormElements {
   gestureSelect: HTMLSelectElement | null;
@@ -67,10 +59,12 @@ export class GestureConfigForm {
           this.#updateConfigButtonsUI(false, this.#isDirtyForNew);
         }
         if (
-          state.pluginManifests !== prevState.pluginManifests ||
-          state.languagePreference !== prevState.languagePreference
+          state.pluginManifests !== prevState.pluginManifests
         ) {
           this.populateAllDropdowns();
+        }
+        if (state.languagePreference !== prevState.languagePreference) {
+          this.applyTranslations();
         }
       }
     );
@@ -90,30 +84,14 @@ export class GestureConfigForm {
 
   #queryFormElements = (): FormElements => ({
     gestureSelect: document.getElementById('gestureSelect') as HTMLSelectElement,
-    configConfidenceInput: document.getElementById(
-      'configConfidenceInput'
-    ) as HTMLInputElement,
-    configDurationInput: document.getElementById(
-      'configDurationInput'
-    ) as HTMLInputElement,
-    actionTypeSelect: document.getElementById(
-      'actionTypeSelect'
-    ) as HTMLSelectElement,
-    actionFieldsContainer: document.getElementById(
-      'actionFieldsContainer'
-    ) as HTMLElement,
-    addGestureConfig: document.getElementById(
-      'addGestureConfig'
-    ) as HTMLButtonElement,
-    cancelEditButton: document.getElementById(
-      'cancelEditButton'
-    ) as HTMLButtonElement,
-    cancelEditButtonLabel: document.getElementById(
-      'cancelEditButtonLabel'
-    ) as HTMLElement,
-    addConfigButtonLabel: document.getElementById(
-      'addConfigButtonLabel'
-    ) as HTMLElement,
+    configConfidenceInput: document.getElementById('configConfidenceInput') as HTMLInputElement,
+    configDurationInput: document.getElementById('configDurationInput') as HTMLInputElement,
+    actionTypeSelect: document.getElementById('actionTypeSelect') as HTMLSelectElement,
+    actionFieldsContainer: document.getElementById('actionFieldsContainer') as HTMLElement,
+    addGestureConfig: document.getElementById('addGestureConfig') as HTMLButtonElement,
+    cancelEditButton: document.getElementById('cancelEditButton') as HTMLButtonElement,
+    cancelEditButtonLabel: document.getElementById('cancelEditButtonLabel') as HTMLElement,
+    addConfigButtonLabel: document.getElementById('addConfigButtonLabel') as HTMLElement,
     gestureLabel: document.getElementById('gestureLabel') as HTMLElement,
     confidenceLabel: document.getElementById('confidenceLabel') as HTMLElement,
     durationLabel: document.getElementById('durationLabel') as HTMLElement,
@@ -269,7 +247,7 @@ export class GestureConfigForm {
     const currentConfigs = this._uiControllerRef.getGestureConfigsSnapshot();
     const updatedConfigs =
       editingIndex !== null
-        ? currentConfigs.map((c, i) => (i === editingIndex ? configData : c))
+        ? currentConfigs.map((c: GestureConfig | PoseConfig, i: number) => (i === editingIndex ? configData : c))
         : [...currentConfigs, configData];
 
     await this._uiControllerRef.updateGestureConfigs(updatedConfigs);
@@ -319,8 +297,7 @@ export class GestureConfigForm {
 
     if (errors.length > 0) {
       pubsub.publish(UI_EVENTS.SHOW_ERROR, {
-        messageKey: 'correctErrors',
-        substitutions: { errors: '\n- ' + errors.join('\n- ') },
+        message: `${translate('correctErrors')}\n- ${errors.join('\n- ')}`,
       });
       return { isValid: false, configData: null, errors };
     }

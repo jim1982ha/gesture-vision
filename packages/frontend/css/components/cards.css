@@ -118,14 +118,16 @@
 }
 
 .card-icon {
-  font-size: var(--icon-size-button);
   color: var(--text-secondary);
   flex-shrink: 0;
   line-height: var(--line-height-tight);
   margin-right: calc(var(--space-xs) / 2);
 }
+
+/* NEW: Unified rule for both icon types to ensure consistent sizing. */
+.card-icon.material-icons,
 .card-icon.mdi::before {
-  line-height: 1;
+    font-size: var(--icon-size-header);
 }
 
 .card-title {
@@ -157,10 +159,18 @@
   gap: var(--space-unit);
   flex-shrink: 0;
   margin-left: auto;
+  position: relative;
+  z-index: 2;
 }
 .card-item-clickable .card-item-actions .btn {
   pointer-events: auto;
 }
+
+/*
+  REMOVED: The redundant sizing rules for .card-item-actions .btn.btn-icon were here.
+  All .btn-icon styles are now consistently handled by css/components/buttons.css,
+  ensuring all icon buttons on cards look the same.
+*/
 
 /* --- Card Details Structure --- */
 .card-details {

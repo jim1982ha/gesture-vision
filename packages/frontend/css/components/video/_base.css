@@ -1,7 +1,7 @@
 /* FILE: packages/frontend/css/components/video/_base.css */
 
 .video-container {
-  width: 100%; /* MODIFICATION: Restored this critical property */
+  width: 100%;
   max-width: var(--video-max-width); 
   margin: var(--space-sm) auto;
   aspect-ratio: 16 / 9;
@@ -35,19 +35,13 @@ canvas#output_canvas {
 
 video#webcam {
   z-index: 1;
-  display: none !important;
+  /* FIX: Ensure the video is visually hidden but part of the layout so it can play. */
+  opacity: 0;
+  pointer-events: none;
+  display: block; /* Explicitly ensure it's rendered */
 }
 
 canvas#output_canvas {
   z-index: 2; 
   pointer-events: auto;
-}
-
-video#webcam.video-placeholder-active {
-  display: none !important;
-  visibility: hidden !important;
-  width: 0 !important;
-  height: 0 !important;
-  opacity: 0 !important;
-  pointer-events: none !important;
 }

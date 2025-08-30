@@ -1,6 +1,6 @@
 /* FILE: packages/backend/src/websocket-handlers/custom-gesture-message-handler.ts */
 import { pubsub } from '#shared/core/pubsub.js';
-import { WEBSOCKET_EVENTS, BACKEND_INTERNAL_EVENTS } from '#shared/constants/index.js';
+import { WEBSOCKET_EVENTS, BACKEND_INTERNAL_EVENTS } from '#shared/constants/events.js';
 import {
   scanCustomGesturesDir,
   saveCustomGestureFile,
@@ -22,7 +22,7 @@ import type {
   UploadCustomGestureAckMessage,
   UpdateCustomGestureAckMessage,
   DeleteCustomGestureAckMessage,
-} from '#shared/types/index.js';
+} from '#shared/index.js';
 
 export async function getCustomGesturesMetadataHandler(
   ws: WebSocket,

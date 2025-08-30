@@ -39,7 +39,6 @@ export default [
       "*.tsbuildinfo",
       "coverage/",
       "packages/*/coverage/",
-      "extensions/plugins/**/frontend/index.js",
       "extensions/plugins/**/backend.plugin.js",
     ],
   },

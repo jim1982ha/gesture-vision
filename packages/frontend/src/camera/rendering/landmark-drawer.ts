@@ -24,6 +24,7 @@ export class LandmarkDrawer {
         fullVideoWidth: number, 
         fullVideoHeight: number,
         activeRoiPercent: ROICoordinates | null,
+        isMirrored: boolean,
         focusPoints: Set<number> | null,
         focusColor: string
     ): void {
@@ -60,6 +61,10 @@ export class LandmarkDrawer {
                     finalNormY = (activeRoiPercent.y / 100.0) + (lm.y * (activeRoiPercent.height / 100.0));
                 }
                 
+                if (isMirrored) {
+                    finalNormX = 1.0 - finalNormX;
+                }
+                
                 if (focusPoints && focusPoints.has(index)) {
                     pointColor = focusColor;
                 }
@@ -70,12 +75,15 @@ export class LandmarkDrawer {
                 const sourceAspect = fullVideoWidth / fullVideoHeight;
                 let scale: number, videoRenderX = 0, videoRenderY = 0;
 
-                if (sourceAspect > canvasAspect) { 
+                // This logic calculates the 'letterboxing' or 'pillarboxing' offset and scale
+                // to correctly map normalized landmark coordinates (0.0-1.0) from the full video
+                // frame to the scaled and centered video image being drawn on the canvas.
+                if (sourceAspect > canvasAspect) { // Video is wider than canvas (pillarbox)
                     scale = canvasHeight / fullVideoHeight;
                     videoRenderX = (canvasWidth - fullVideoWidth * scale) / 2;
-                } else { 
+                } else { // Video is taller than canvas (letterbox)
                     scale = canvasWidth / fullVideoWidth;
-                    videoRenderY = (canvasHeight - fullVideoHeight * scale) / 2;
+                    videoRenderY = (targetRectHeightOnCanvas - fullVideoHeight * scale) / 2;
                 }
                 
                 const scaledX = targetRectXOnCanvas + videoRenderX + (finalNormX * fullVideoWidth * scale);

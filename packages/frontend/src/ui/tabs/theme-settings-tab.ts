@@ -8,7 +8,7 @@ import { renderThemeSelectionTab as renderThemeList } from '#frontend/ui/rendere
 import type { UIController } from '#frontend/ui/ui-controller-core.js';
 import type { TranslationConfigItem } from '#frontend/ui/ui-translation-updater.js';
 
-import type { FullConfiguration } from '#shared/types/index.js';
+import type { FullConfiguration } from '#shared/index.js';
 import type { ThemePreference } from '#frontend/types/index.js';
 import type { FrontendFullState } from '#frontend/core/state/app-store.js';
 

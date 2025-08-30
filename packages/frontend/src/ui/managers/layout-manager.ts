@@ -2,7 +2,7 @@
 import { setElementVisibility } from '#frontend/ui/helpers/index.js';
 import { secureStorage } from '#shared/services/security-utils.js';
 import { pubsub } from '#shared/core/pubsub.js';
-import { UI_EVENTS } from '#shared/constants/index.js';
+import { UI_EVENTS } from '#shared/index.js';
 import { translate } from '#shared/services/translations.js';
 import { setIcon } from '#frontend/ui/helpers/index.js';
 import type { UIController } from '#frontend/ui/ui-controller-core.js';
@@ -59,14 +59,12 @@ export class LayoutManager {
   };
 
   #loadVisibilityPreferences(): void {
-    this._isVideoVisible =
-      (secureStorage.get(VIDEO_VISIBILITY_KEY) as boolean | null) ?? true;
-    this._isConfigListVisible =
-      (secureStorage.get(CONFIG_LIST_VISIBILITY_KEY) as boolean | null) ?? true;
-    const storedValue = secureStorage.get(
-      VIDEO_SIZE_CONSTRAINED_KEY
-    ) as boolean | null;
-    this.isVideoSizeConstrained = storedValue ?? true;
+    this._isVideoVisible = (secureStorage.get(VIDEO_VISIBILITY_KEY) as boolean | null) ?? true;
+    this._isConfigListVisible = (secureStorage.get(CONFIG_LIST_VISIBILITY_KEY) as boolean | null) ?? true;
+    
+    // Enforce default state on every load for desktop.
+    this.isVideoSizeConstrained = true;
+    secureStorage.set(VIDEO_SIZE_CONSTRAINED_KEY, this.isVideoSizeConstrained);
   }
 
   public applyAllVisibilities(save = true): void {
@@ -137,13 +135,17 @@ export class LayoutManager {
     setIcon(t, iconKey);
   }
 
+  public setVideoSizeConstrained(isConstrained: boolean): void {
+    this.isVideoSizeConstrained = isConstrained;
+    secureStorage.set(VIDEO_SIZE_CONSTRAINED_KEY, this.isVideoSizeConstrained);
+    this.applyVideoSizePreference();
+  }
+
   public toggleVideoSize(): void {
     if (this.#uiControllerRef.sidebarManager?.isMobile) {
       this.toggleVideoFullscreen();
     } else {
-      this.isVideoSizeConstrained = !this.isVideoSizeConstrained;
-      secureStorage.set(VIDEO_SIZE_CONSTRAINED_KEY, this.isVideoSizeConstrained);
-      this.applyVideoSizePreference();
+      this.setVideoSizeConstrained(!this.isVideoSizeConstrained);
     }
   }
 

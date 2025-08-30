@@ -1,7 +1,7 @@
 /* FILE: packages/backend/src/utils/action-helpers.ts */
 // Utility functions for backend action handlers.
 
-import type { ActionResult } from '#shared/types/index.js';
+import type { ActionResult } from '#shared/index.js';
 
 export const createErrorResult = (
   message: string,

@@ -5,7 +5,7 @@ import type { PluginUIService } from '#frontend/services/plugin-ui.service.js';
 import type { UIController } from '#frontend/ui/ui-controller-core.js';
 import type { RendererElements } from '#frontend/ui/ui-renderer-core.js';
 import { setElementVisibility } from '#frontend/ui/helpers/index.js';
-import { createCardElement } from '#frontend/ui/utils/card-utils.js';
+import { createCardElement, createCardActionButton } from '#frontend/ui/utils/card-utils.js';
 
 import { translate } from '#shared/services/translations.js';
 import {
@@ -14,8 +14,8 @@ import {
   getGestureDisplayInfo,
 } from '#frontend/ui/helpers/index.js';
 
-import type { ActionDisplayDetail, GestureConfig, PoseConfig, CustomGestureMetadata } from '#shared/types/index.js';
-import type { GestureCategoryIconType } from '#shared/constants/index.js';
+import type { ActionDisplayDetail, GestureConfig, PoseConfig, CustomGestureMetadata } from '#shared/index.js';
+import type { GestureCategoryIconType } from '#shared/index.js';
 
 type CardStatus = { isActive: true; reason: null } | { isActive: false; reason: 'feature_disabled' | 'plugin_missing' | 'plugin_disabled' };
 
@@ -176,7 +176,6 @@ export async function renderConfigList(
         if (manifest?.nameKey) actionTypeDisplay = translate(manifest.nameKey, { defaultValue: pluginId });
     }
 
-    // --- MODIFICATION: Conditionally swap title and footer content based on options ---
     const cardTitle = options.swapTitleAndFooter ? actionTypeDisplay : gestureDisplayName;
     const footerTextContent = options.swapTitleAndFooter ? gestureDisplayName : actionTypeDisplay;
 
@@ -185,10 +184,17 @@ export async function renderConfigList(
     const footerHtml = `<div class="card-footer"><span>${footerText}</span>${pillsHtml}</div>`;
     const cardTooltip = translate('editTooltip', { item: name || 'item' });
     
+    const deleteButton = createCardActionButton({
+        action: 'delete',
+        titleKey: 'deleteTooltip',
+        iconKey: 'UI_DELETE',
+        extraClasses: ['btn-icon-danger', 'delete-btn']
+    });
+
     const cardElement = createCardElement({
       ...getGestureCategoryIconDetails(category),
       title: cardTitle,
-      actionButtonsHtml: `<button type="button" class="btn btn-icon btn-icon-danger delete-btn" title="${translate('deleteTooltip',{item:name || 'item'})}" aria-label="${translate('deleteTooltip',{item:name || 'item'})}"><span class="material-icons">delete</span></button>`,
+      actionButtonsHtml: deleteButton.outerHTML,
       detailsHtml: actionDetailsHtml,
       footerHtml,
       itemClasses,

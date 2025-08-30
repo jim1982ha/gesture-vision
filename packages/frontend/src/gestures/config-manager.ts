@@ -1,13 +1,8 @@
 /* FILE: packages/frontend/src/gestures/config-manager.ts */
 import type { AppStore } from "#frontend/core/state/app-store.js";
 import type { UIController } from "#frontend/ui/ui-controller-core.js";
-
-import { normalizeNameForMtx } from "#shared/utils/index.js";
-
-import type {
-  GestureConfig,
-  PoseConfig,
-} from "#shared/types/index.js";
+import { normalizeNameForMtx } from "#shared/index.js";
+import type { GestureConfig, PoseConfig } from "#shared/index.js";
 
 export class GestureConfigManager {
   #editingConfigIndex: number | null = null;
@@ -133,7 +128,7 @@ export class GestureConfigManager {
     const normalizedNewName = normalizeNameForMtx(newConfigName).toUpperCase();
 
     const currentConfigs = this.#appStore.getState().gestureConfigs || [];
-    return currentConfigs.some((existingConfig, i) => {
+    return currentConfigs.some((existingConfig: GestureConfig | PoseConfig, i: number) => {
       if (i === ignoreIndex) return false;
       const existingNameKey = "pose" in existingConfig ? "pose" : "gesture";
       const existingName = (

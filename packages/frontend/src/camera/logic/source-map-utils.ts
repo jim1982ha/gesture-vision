@@ -2,7 +2,7 @@
 import { translate } from "#shared/services/translations.js";
 import { normalizeNameForMtx } from "#shared/utils/index.js";
 
-import type { RtspSourceConfig } from "#shared/types/index.js";
+import type { RtspSourceConfig } from "#shared/index.js";
 
 interface DeviceInfo {
     id: string;

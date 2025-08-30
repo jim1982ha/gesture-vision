@@ -1,13 +1,13 @@
 /* FILE: packages/frontend/src/ui/components/plugins/base-plugin-global-settings.component.ts */
-import { UI_EVENTS, PLUGIN_CONFIG_UPDATED_EVENT_PREFIX } from '#shared/constants/index.js';
+import { UI_EVENTS, PLUGIN_CONFIG_UPDATED_EVENT_PREFIX } from '#shared/index.js';
 import { pubsub } from '#shared/core/pubsub.js';
 import { translate } from '#shared/services/translations.js';
 import { createFromTemplate } from '#frontend/ui/utils/template-renderer.js';
 import { setIcon } from '#frontend/ui/helpers/index.js';
-import type { AppStore } from '#frontend/core/state/app-store.js';
 
 import type { IPluginGlobalSettingsComponent, PluginUIContext } from '#frontend/types/index.js';
-import type { ActionSettingFieldDescriptor, PluginManifest, PluginTestConnectionResultPayload } from '#shared/types/index.js';
+import type { ActionSettingFieldDescriptor, PluginManifest, PluginTestConnectionResultPayload } from '#shared/index.js';
+import { createCardElement, createCardActionButton } from '#frontend/ui/utils/card-utils.js';
 
 export class BasePluginGlobalSettingsComponent<TConfig extends object> implements IPluginGlobalSettingsComponent {
     protected pluginId: string;
@@ -16,13 +16,13 @@ export class BasePluginGlobalSettingsComponent<TConfig extends object> implement
     protected fieldDescriptors: ActionSettingFieldDescriptor[];
 
     protected cardElement: HTMLDivElement;
-    protected viewWrapper: HTMLDivElement;
-    protected formElement: HTMLFormElement;
-    protected formFieldsContainer: HTMLDivElement;
-    protected testButton: HTMLButtonElement;
-    protected saveButton: HTMLButtonElement;
-    protected cancelButton: HTMLButtonElement;
-    protected viewModeActionsContainer: HTMLDivElement;
+    protected viewWrapper!: HTMLDivElement;
+    protected formElement!: HTMLFormElement;
+    protected formFieldsContainer!: HTMLDivElement;
+    protected testButton!: HTMLButtonElement;
+    protected saveButton!: HTMLButtonElement;
+    protected cancelButton!: HTMLButtonElement;
+    protected viewModeActionsContainer!: HTMLDivElement;
     protected formElements: Record<string, HTMLElement> = {};
 
     protected isEditing = false;
@@ -34,91 +34,116 @@ export class BasePluginGlobalSettingsComponent<TConfig extends object> implement
     protected lastTestResult: PluginTestConnectionResultPayload | null = null;
 
     #boundConfigUpdateHandler: (config?: unknown) => void;
+    #isInitialized = false;
 
     constructor(pluginId: string, manifest: PluginManifest, context: PluginUIContext, fieldDescriptors: ActionSettingFieldDescriptor[] = []) {
         this.pluginId = pluginId;
         this.manifest = manifest;
         this.context = context;
         this.fieldDescriptors = fieldDescriptors;
-        
         this.cardElement = this.createCardElement();
+        this.#boundConfigUpdateHandler = (newConfig?: unknown) => this.onConfigUpdate(newConfig as TConfig | null);
+    }
+
+    public initialize(): void {
+        if (this.#isInitialized) return;
+
         this.viewWrapper = this.cardElement.querySelector('.plugin-view-content-wrapper') as HTMLDivElement;
         this.formElement = this.cardElement.querySelector('.plugin-global-settings-form') as HTMLFormElement;
         this.formFieldsContainer = this.formElement.querySelector('.form-fields-container') as HTMLDivElement;
         this.testButton = this.cardElement.querySelector('.test-btn-header') as HTMLButtonElement;
         this.saveButton = this.formElement.querySelector('.save-btn') as HTMLButtonElement;
         this.cancelButton = this.formElement.querySelector('.cancel-btn') as HTMLButtonElement;
-        this.viewModeActionsContainer = this.cardElement.querySelector('.view-mode-actions') as HTMLDivElement;
-        
-        this.#boundConfigUpdateHandler = (newConfig?: unknown) => this.onConfigUpdate(newConfig as TConfig | null);
+        this.viewModeActionsContainer = this.cardElement.querySelector('.card-item-actions') as HTMLDivElement;
 
         this.attachEventListeners();
         this.renderFormFields();
-        const appStore = this.context.coreStateManager as AppStore;
-        this.onConfigUpdate(appStore.getState().pluginGlobalConfigs.get(pluginId) as TConfig || null);
+        pubsub.subscribe(`${PLUGIN_CONFIG_UPDATED_EVENT_PREFIX}${this.pluginId}`, this.#boundConfigUpdateHandler);
+        
+        this.#updateUI();
+        
+        this.#isInitialized = true;
     }
 
     protected createCardElement(): HTMLDivElement {
-        const template = `
-            <div class="card-item integration-config-item card-item-clickable" id="{pluginId}-integration-card">
-                <div class="card-header">
-                    <div class="card-header-info">
-                        <div class="card-title-actions-wrapper">
-                            <span class="{iconClasses}">{iconContent}</span>
-                            <span class="card-title">{pluginDisplayName}</span>
-                            <div class="card-item-actions view-mode-actions">
-                                <button type="button" class="btn btn-icon test-btn-header" title="{testConnectionTooltip}" aria-label="{testConnectionTooltip}"><span class="material-icons">network_check</span></button>
-                                <button class="btn btn-icon" data-plugin-id="{pluginId}" data-action="toggle" title="{toggleTooltip}"><span class="material-icons">{toggleIcon}</span></button>
-                                <button class="btn btn-icon btn-icon-danger" data-plugin-id="{pluginId}" data-action="uninstall" title="{uninstallTooltip}"><span class="material-icons">delete_forever</span></button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+        const iconDetails = this.manifest.icon ?? { type: 'material-icons', name: 'extension' };
+        const isEnabled = this.manifest.status === 'enabled';
+
+        const testBtn = createCardActionButton({ action: 'test-connection', titleKey: 'testConnectionTooltip', iconKey: 'UI_NETWORK_CHECK', pluginId: this.pluginId, extraClasses: ['test-btn-header'] });
+        const toggleBtn = createCardActionButton({ action: 'toggle', titleKey: isEnabled ? 'disable' : 'enable', iconKey: isEnabled ? 'UI_TOGGLE_ON' : 'UI_TOGGLE_OFF', pluginId: this.pluginId });
+        const uninstallBtn = createCardActionButton({ action: 'uninstall', titleKey: 'uninstall', iconKey: 'UI_DELETE', pluginId: this.pluginId, extraClasses: ['btn-icon-danger'] });
+        const actionButtonsHtml = `${testBtn.outerHTML}${toggleBtn.outerHTML}${uninstallBtn.outerHTML}`;
+
+        const versionInfo = `v${this.manifest.version} by ${this.manifest.author || 'Unknown'}`;
+        const footerHtml = `<div class="card-footer"><div class="card-detail-line"><span class="material-icons card-detail-icon"></span><span class="card-detail-value">${versionInfo}</span></div></div>`;
+
+        const card = createCardElement({
+            iconName: iconDetails.name,
+            iconType: iconDetails.type,
+            title: translate(this.manifest.nameKey, { defaultValue: this.pluginId }),
+            itemClasses: "integration-config-item card-item-clickable",
+            actionButtonsHtml,
+            footerHtml,
+        });
+        card.id = `${this.pluginId}-integration-card`;
+
+        const innerContentTemplate = `
+            <div>
                 <div class="plugin-view-content-wrapper"></div>
                 <form class="plugin-global-settings-form" style="display: none;" onsubmit="return false;">
                     <div class="form-fields-container"></div>
                     <div class="integration-form-actions">
-                        <button type="button" class="btn btn-secondary cancel-btn"><span class="material-icons"></span><span>{cancelText}</span></button>
-                        <button type="button" class="btn btn-primary save-btn"><span class="material-icons"></span><span>{saveText}</span></button>
+                        <button type="button" class="btn btn-secondary cancel-btn"><span class="btn-icon-span"></span><span class="btn-text-span">{cancelText}</span></button>
+                        <button type="button" class="btn btn-primary save-btn"><span class="btn-icon-span"></span><span class="btn-text-span">{saveText}</span></button>
                     </div>
                 </form>
-                <div data-if="hasFooter" data-html-key="footerHtml"></div>
             </div>`;
+            
+        const wrapper = createFromTemplate(innerContentTemplate, {
+            cancelText: translate('cancel'),
+            saveText: translate('save'),
+        })!;
         
-        const iconDetails = this.manifest.icon ?? { type: 'material-icons', name: 'extension' };
-        const isMdi = iconDetails.type === 'mdi' || iconDetails.name.startsWith('mdi-');
-        const isEnabled = this.manifest.status === 'enabled';
-        const versionInfo = `v${this.manifest.version} by ${this.manifest.author || 'Unknown'}`;
-        const footerHtml = `<div class="card-footer"><div class="card-detail-line"><span class="material-icons card-detail-icon" title="Version Info">info_outline</span><span class="card-detail-value">${versionInfo}</span></div></div>`;
+        const footerContainer = card.querySelector('.card-footer')?.parentElement;
+        if (footerContainer) {
+            Array.from(wrapper.children).forEach(child => card.insertBefore(child, footerContainer));
+        } else {
+            card.append(...Array.from(wrapper.children));
+        }
+        
+        setIcon(card.querySelector('.cancel-btn .btn-icon-span'), 'UI_CANCEL');
+        setIcon(card.querySelector('.save-btn .btn-icon-span'), 'UI_SAVE');
+        setIcon(card.querySelector('.card-footer .card-detail-icon'), 'UI_INFO');
 
-        return createFromTemplate(template, {
-            pluginId: this.pluginId,
-            iconClasses: `card-icon ${isMdi ? `mdi ${iconDetails.name}` : 'material-icons'}`,
-            iconContent: isMdi ? '' : iconDetails.name,
-            pluginDisplayName: translate(this.manifest.nameKey, { defaultValue: this.pluginId }),
-            testConnectionTooltip: translate('testConnectionTooltip'),
-            cancelText: translate('cancel'), saveText: translate('save'),
-            toggleTooltip: translate(isEnabled ? 'disable' : 'enable'),
-            toggleIcon: isEnabled ? 'toggle_on' : 'toggle_off',
-            uninstallTooltip: translate('uninstall'),
-            hasFooter: true, footerHtml: footerHtml
-        }) as HTMLDivElement;
+        return card;
     }
 
     protected renderFormFields(): void {
         this.formFieldsContainer.innerHTML = '';
         this.formElements = {};
+        const hasPasswordField = this.fieldDescriptors.some(field => field.type === 'password');
+        const hasUsernameField = this.fieldDescriptors.some(field => field.autocomplete === 'username');
+
+        if (hasPasswordField && !hasUsernameField) {
+            const hiddenInput = document.createElement('input');
+            hiddenInput.type = 'text';
+            hiddenInput.className = 'visually-hidden';
+            hiddenInput.autocomplete = 'username';
+            hiddenInput.tabIndex = -1;
+            this.formFieldsContainer.appendChild(hiddenInput);
+        }
+
         this.fieldDescriptors.forEach(field => {
             const template = `
                 <div class="form-group">
                     <label for="{pluginId}-{id}">{label}</label>
-                    <input type="{type}" id="{pluginId}-{id}" class="form-control" placeholder="{placeholder}" {autocompleteAttr}>
+                    <input type="{type}" id="{pluginId}-{id}" class="form-control" placeholder="{placeholder}" autocomplete="{autocomplete}">
                     <small data-if="hasHelpText">{helpText}</small>
                 </div>`;
             const data = {
                 pluginId: this.pluginId, id: field.id, label: translate(field.labelKey), type: field.type,
                 placeholder: field.placeholderKey ? translate(field.placeholderKey) : '',
-                autocompleteAttr: field.type === 'password' ? 'autocomplete="current-password"' : '',
+                autocomplete: field.autocomplete || '',
                 hasHelpText: !!field.helpTextKey, helpText: field.helpTextKey ? translate(field.helpTextKey) : '',
             };
             const formGroup = createFromTemplate(template, data);
@@ -131,13 +156,17 @@ export class BasePluginGlobalSettingsComponent<TConfig extends object> implement
 
     protected renderViewContent(): void {
         const description = translate(this.manifest.descriptionKey || '', { defaultValue: '' });
-        let contentHtml = `<div class="card-detail-line"><span class="material-icons card-detail-icon" title="${translate('descriptionOptionalLabel')}">notes</span><span class="card-detail-value allow-wrap">${description}</span></div>`;
+        
+        const descIcon = document.createElement('span'); setIcon(descIcon, 'UI_NOTES'); descIcon.className = 'material-icons card-detail-icon'; descIcon.title = translate('descriptionOptionalLabel');
+        let contentHtml = `<div class="card-detail-line">${descIcon.outerHTML}<span class="card-detail-value allow-wrap">${description}</span></div>`;
 
         this.fieldDescriptors.forEach(field => {
             const value = this.initialConfig ? (this.initialConfig as Record<string, unknown>)[field.id] : undefined;
             const displayValue = field.type === 'password' && value ? '********' : value || translate('Not Set');
             const valueClass = !value || value === '' ? 'value-not-set' : (field.type === 'password' ? 'masked' : '');
-            contentHtml += `<div class="card-detail-line"><span class="card-detail-icon material-icons">vpn_key</span><span class="card-detail-value ${valueClass}">${displayValue}</span></div>`;
+            
+            const fieldIcon = document.createElement('span'); setIcon(fieldIcon, 'UI_KEY'); fieldIcon.className = 'material-icons card-detail-icon';
+            contentHtml += `<div class="card-detail-line">${fieldIcon.outerHTML}<span class="card-detail-value ${valueClass}">${displayValue}</span></div>`;
         });
         this.viewWrapper.innerHTML = `<div class="card-details">${contentHtml}</div>`;
     }
@@ -152,7 +181,6 @@ export class BasePluginGlobalSettingsComponent<TConfig extends object> implement
         this.cancelButton?.addEventListener('click', this.handleCancel);
         this.cardElement?.addEventListener('click', this.handleCardClick);
         this.formElement?.addEventListener('input', () => { this.hasChanges = true; this.#updateUI(); });
-        pubsub.subscribe(`${PLUGIN_CONFIG_UPDATED_EVENT_PREFIX}${this.pluginId}`, this.#boundConfigUpdateHandler);
     }
     
     protected handleSave = async (): Promise<void> => {
@@ -170,7 +198,8 @@ export class BasePluginGlobalSettingsComponent<TConfig extends object> implement
         }
     };
     
-    protected handleTestConnection = async (): Promise<void> => {
+    protected handleTestConnection = async (event: MouseEvent): Promise<void> => {
+        event.stopPropagation();
         const configToTest = this.isEditing ? this.getFormValues() : this.initialConfig;
         if (!configToTest || !Object.values(configToTest).some(v => v)) {
             pubsub.publish(UI_EVENTS.SHOW_ERROR, { messageKey: "haUrlTokenMissing" }); return;
@@ -194,7 +223,12 @@ export class BasePluginGlobalSettingsComponent<TConfig extends object> implement
         }
     };
     
-    protected handleCardClick = (e: MouseEvent): void => { if (!(e.target as HTMLElement).closest('.card-item-actions button, .integration-form-actions button') && !this.isEditing) this.switchToEditMode(); };
+    protected handleCardClick = (e: MouseEvent): void => { 
+        if (!(e.target as HTMLElement).closest('.card-item-actions button, .integration-form-actions button') && !this.isEditing) {
+            e.stopPropagation();
+            this.switchToEditMode(); 
+        }
+    };
     protected handleCancel = (): void => { this.switchToViewMode(); pubsub.publish(UI_EVENTS.SHOW_NOTIFICATION, { messageKey: "changesDiscarded", type: "info", duration: 2000 }); };
     
     protected switchToEditMode(): void { this.isEditing = true; this.hasChanges = false; this.#updateUI(); }
@@ -215,28 +249,27 @@ export class BasePluginGlobalSettingsComponent<TConfig extends object> implement
         if (toggleBtn) {
             toggleBtn.title = translate(isEnabled ? 'disable' : 'enable');
             toggleBtn.disabled = this.isPending;
-            setIcon(toggleBtn, this.isPending ? 'UI_HOURGLASS' : (isEnabled ? 'toggle_on' : 'toggle_off'));
+            setIcon(toggleBtn, this.isPending ? 'UI_HOURGLASS' : (isEnabled ? 'UI_TOGGLE_ON' : 'UI_TOGGLE_OFF'));
         }
         this.cardElement.querySelector<HTMLButtonElement>('button[data-action="uninstall"]')!.disabled = this.isPending;
         
         const configToTest = this.isEditing ? this.getFormValues() : this.initialConfig;
         const canTest = !!configToTest && Object.values(configToTest).some(v => v);
         this.testButton.disabled = this.isTestingConnection || !canTest;
-
-        const iconEl = this.testButton.querySelector(".material-icons")!;
+        
         this.testButton.classList.remove("connecting", "btn-success", "btn-danger");
         
         if (this.isTestingConnection) {
             this.testButton.classList.add("connecting");
-            iconEl.textContent = "hourglass_top";
+            setIcon(this.testButton, 'UI_HOURGLASS');
             this.testButton.title = translate("testingConnection");
         } else if (this.lastTestResult) {
             const { success, messageKey, error } = this.lastTestResult;
             this.testButton.classList.add(success ? "btn-success" : "btn-danger");
-            iconEl.textContent = success ? "check_circle" : "error";
+            setIcon(this.testButton, success ? "UI_CONFIRM" : "UI_ERROR");
             this.testButton.title = translate(messageKey ?? (success ? 'haConnectionSuccess' : 'haConnectionFailed'), { message: error?.message ?? '' });
         } else {
-            iconEl.textContent = "network_check";
+            setIcon(this.testButton, 'UI_NETWORK_CHECK');
             this.testButton.title = translate("testConnectionTooltip");
         }
     }
@@ -248,23 +281,28 @@ export class BasePluginGlobalSettingsComponent<TConfig extends object> implement
         this.isPending = extraState.isPending || false;
         const newManifest = this.context.pluginUIService.getPluginManifest(this.pluginId);
         if (newManifest) this.manifest = newManifest;
-        this.onConfigUpdate(c);
+        
+        // FIX: Ensure the card's visual state reflects its enabled/disabled status.
         this.cardElement.classList.toggle('config-item-disabled', this.manifest.status !== 'enabled');
         this.cardElement.classList.toggle('is-pending', this.isPending);
+        
+        this.onConfigUpdate(c);
     }
 
     public onConfigUpdate(newConfig: TConfig | null): void {
         this.initialConfig = structuredClone(newConfig) as TConfig | null;
-        this.#updateUI();
+        if (this.#isInitialized) {
+            this.#updateUI();
+        }
     }
     
     public applyTranslations(): void {
         const titleEl = this.cardElement.querySelector<HTMLElement>('.card-title');
         if (titleEl) titleEl.textContent = translate(this.manifest.nameKey, { defaultValue: this.pluginId });
-        setIcon(this.saveButton, 'UI_SAVE');
-        setIcon(this.cancelButton, 'UI_CANCEL');
-        this.cancelButton.querySelector('span:not(.material-icons)')!.textContent = translate('cancel');
-        this.saveButton.querySelector('span:not(.material-icons)')!.textContent = translate('save');
+        setIcon(this.saveButton.querySelector('.btn-icon-span'), 'UI_SAVE');
+        setIcon(this.cancelButton.querySelector('.btn-icon-span'), 'UI_CANCEL');
+        this.cancelButton.querySelector('.btn-text-span')!.textContent = translate('cancel');
+        this.saveButton.querySelector('.btn-text-span')!.textContent = translate('save');
         this.renderFormFields();
         this.#updateUI();
     }

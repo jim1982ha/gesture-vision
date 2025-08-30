@@ -1,8 +1,7 @@
 /* FILE: packages/frontend/src/services/plugin-ui.service.ts */
 import type { AppStore } from '#frontend/core/state/app-store.js';
 import type { CameraService } from '#frontend/services/camera.service.js';
-import { UI_EVENTS } from '#shared/constants/index.js';
-import { pubsub } from '#shared/core/pubsub.js';
+import { UI_EVENTS, pubsub } from '#shared/index.js';
 import { webSocketService } from './websocket-service.js';
 import { translate } from '#shared/services/translations.js';
 import { createSearchableDropdown } from '#frontend/ui/components/searchable-dropdown.js';
@@ -10,7 +9,7 @@ import { setIcon, updateButtonGroupActiveState } from '#frontend/ui/helpers/inde
 import { BasePluginGlobalSettingsComponent } from '#frontend/ui/components/plugins/base-plugin-global-settings.component.js';
 import { GenericPluginActionSettingsComponent } from '#frontend/ui/components/plugins/generic-plugin-action-settings.component.js';
 import { createCardElement } from '#frontend/ui/utils/card-utils.js';
-import type { PluginManifest, PluginTestConnectionResultPayload,} from '#shared/types/index.js';
+import type { PluginManifest, PluginTestConnectionResultPayload,} from '#shared/index.js';
 import type {
   FrontendPluginModule,
   CreatePluginGlobalSettingsComponentFn,
@@ -21,8 +20,9 @@ import type {
 import type { TranslationService } from './translation.service.js';
 import type { UIController } from '#frontend/ui/ui-controller-core.js';
 import type { GestureProcessor } from '#frontend/gestures/processor.js';
-import * as constants from '#shared/constants/index.js';
+import * as constants from '#shared/index.js';
 import * as actionDisplayUtils from '#frontend/ui/helpers/display-helpers.js';
+import * as utils from '#shared/utils/index.js';
 import { ActionPluginUIManager } from '#frontend/ui/components/gesture-form/action-plugin-ui-manager.js';
 
 export class PluginUIService {
@@ -41,20 +41,16 @@ export class PluginUIService {
     string,
     { element: HTMLElement; pluginId: string }[]
   >();
-  #uiControllerRef: UIController;
+  #uiControllerRef: UIController | null = null;
   #unsubscribeStore: () => void;
   #manifestUpdateDebounceTimer: number | null = null;
 
   constructor(
     appStore: AppStore,
-    translationService: TranslationService,
-    uiControllerRef: UIController,
-    gestureProcessorRef: GestureProcessor | null
+    translationService: TranslationService
   ) {
     this.#appStore = appStore;
     this.#translationService = translationService;
-    this.#uiControllerRef = uiControllerRef;
-    this.#gestureProcessorRef = gestureProcessorRef;
 
     this.#unsubscribeStore = this.#appStore.subscribe((state) =>
       this.#debounceManifestUpdate(state.pluginManifests)
@@ -69,6 +65,8 @@ export class PluginUIService {
 
   public setUIController(uiController: UIController): void {
     this.#uiControllerRef = uiController;
+    this.#cameraServiceRef = uiController.cameraService;
+    this.#gestureProcessorRef = uiController.gesture;
   }
 
   destroy() {
@@ -124,6 +122,9 @@ export class PluginUIService {
     if (pluginsToInitialize.length > 0) {
       await this.#initializePlugins(pluginsToInitialize.map((p) => p.id));
     }
+    
+    // Signal that manifests are processed and UI can render things depending on them
+    pubsub.publish(UI_EVENTS.PLUGINS_MANIFESTS_PROCESSED);
   }
 
   #deregisterPluginUI(pluginId: string): void {
@@ -197,10 +198,10 @@ export class PluginUIService {
       gesture: this.#gestureProcessorRef || undefined,
       webSocketService: webSocketService || undefined,
       requestCloseSettingsModal: () =>
-        this.#uiControllerRef?.closeSettingsModal(),
+        this.#uiControllerRef?.modalManager?.closeSettingsModal(),
       globalSettingsModalManager:
         this.#uiControllerRef?._globalSettingsForm || undefined,
-      uiController: this.#uiControllerRef,
+      uiController: this.#uiControllerRef || undefined,
       data: {},
       services: {
         translate: translate as (
@@ -223,6 +224,7 @@ export class PluginUIService {
         services: {
           actionDisplayUtils,
         },
+        utils,
       },
     };
   }
@@ -307,21 +309,16 @@ export class PluginUIService {
     currentSettings: Record<string, unknown> | null
   ): Promise<IPluginActionSettingsComponent | null> {
     const module = await this.loadPluginFrontendModule(pluginId);
-    const context = this.getPluginUIContext(pluginId);
+    if (!module?.actionSettingsFields) return null;
 
-    if (module?.actionSettingsFields) {
-      const { GenericPluginActionSettingsComponent } = await import(
-        '../ui/components/plugins/generic-plugin-action-settings.component.js'
-      );
-      const component = new GenericPluginActionSettingsComponent(
-        pluginId,
-        module.actionSettingsFields,
-        context
-      );
-      component.render(currentSettings);
-      return component;
-    }
-    return null;
+    const context = this.getPluginUIContext(pluginId);
+    const component = new GenericPluginActionSettingsComponent(
+      pluginId,
+      module.actionSettingsFields,
+      context
+    );
+    component.render(currentSettings);
+    return component;
   }
 
   public getActionDisplayDetailsRenderer = (

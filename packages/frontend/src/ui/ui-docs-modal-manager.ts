@@ -2,7 +2,7 @@
 import {
   UI_EVENTS,
   DOCS_MODAL_EVENTS,
-} from "#shared/constants/index.js";
+} from "#shared/index.js";
 import { pubsub } from "#shared/core/pubsub.js";
 import { type LanguageCode } from '#shared/services/translations.js';
 

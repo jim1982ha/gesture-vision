@@ -1,9 +1,10 @@
 /* FILE: packages/frontend/src/services/websocket/ws-lifecycle.ts */
 // Manages the WebSocket lifecycle: connection, events, ping/pong, and reconnection.
-import { WEBSOCKET_EVENTS, UI_EVENTS } from "#shared/constants/index.js";
-import type { WebSocketMessage } from "#shared/types/index.js"; 
+import { WEBSOCKET_EVENTS, UI_EVENTS } from "#shared/index.js";
+import type { WebSocketMessage } from "#shared/index.js"; 
 import { handleWsMessageLogic } from "./ws-message-handler.js";
 import type { WebSocketService } from "../websocket-service.js";
+import { appStore } from '#frontend/core/state/app-store.js';
 
 const RECONNECT_INTERVAL_MIN = 1000;
 const RECONNECT_INTERVAL_MAX = 30000;
@@ -35,11 +36,12 @@ export function connectLogic(this: WebSocketService): void {
 
 export function disconnectLogic(this: WebSocketService, allowReconnect = true, resetGlobalReconnectAttempts = false): void {
   const wsToClose = this._state.ws;
-  const wasConnected = this._state.isConnected;
 
   stopPingTimerLogic.call(this); clearReconnectTimerLogic.call(this);
   this._state.isConnected = false; this._state.isConnecting = false;
   this._state.ws = null;
+
+  appStore.getState().actions.setWsConnectionStatus(false);
 
   if (resetGlobalReconnectAttempts) this._state.reconnectAttempts = 0;
   if (!allowReconnect) this._state.reconnectAttempts = MAX_RECONNECT_ATTEMPTS + 1;
@@ -50,7 +52,6 @@ export function disconnectLogic(this: WebSocketService, allowReconnect = true, r
       try { wsToClose.close(1000, "Client initiated disconnect"); } catch (_e) { /* Ignored */ }
     }
   }
-  if (wasConnected) this._publishEvent(WEBSOCKET_EVENTS.DISCONNECTED);
 }
 
 // --- Event Handlers ---
@@ -69,16 +70,14 @@ function removeWsEventListenersLogic(this: WebSocketService, wsInstance: WebSock
 function handleWsOpenLogic(this: WebSocketService, event: Event): void {
   if (!this._state.ws || this._state.ws !== event.target) return;
   this._state.isConnected = true; this._state.isConnecting = false; this._state.reconnectAttempts = 0;
-  this._publishEvent(WEBSOCKET_EVENTS.CONNECTED);
+  appStore.getState().actions.setWsConnectionStatus(true);
   startPingTimerLogic.call(this);
 }
 
 function handleWsCloseLogic(this: WebSocketService, event: CloseEvent): void {
-  const wasConnected = this._state.isConnected;
   if (this._state.ws === event.target) {
     this.disconnect(true, false);
   }
-  if (wasConnected) this._publishEvent(WEBSOCKET_EVENTS.DISCONNECTED);
   if (event.code !== 1000 && this._state.reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
     scheduleReconnectLogic.call(this);
   } else if (this._state.reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {

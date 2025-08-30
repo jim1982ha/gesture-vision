@@ -1,15 +1,12 @@
 /* FILE: packages/frontend/src/ui/tabs/plugins-tab.ts */
 import type { AppStore, FrontendFullState } from '#frontend/core/state/app-store.js';
 import type { UIController } from '#frontend/ui/ui-controller-core.js';
-import { createCardElement } from '#frontend/ui/utils/card-utils.js';
+import { createCardElement, createCardActionButton } from '#frontend/ui/utils/card-utils.js';
 import { setIcon } from '#frontend/ui/helpers/index.js';
 import { BaseSettingsTab, type TabElements } from '../base-settings-tab.js';
 
-import { UI_EVENTS } from '#shared/constants/index.js';
-import { pubsub } from '#shared/core/pubsub.js';
-import { translate } from '#shared/services/translations.js';
-
-import type { FullConfiguration, PluginManifest } from '#shared/types/index.js';
+import { UI_EVENTS, pubsub, translate } from '#shared/index.js';
+import type { FullConfiguration, PluginManifest } from '#shared/index.js';
 import type { IPluginGlobalSettingsComponent, PluginUIContext } from '#frontend/types/index.js';
 
 export interface PluginsTabElements extends TabElements {
@@ -17,6 +14,8 @@ export interface PluginsTabElements extends TabElements {
     pluginsListPlaceholder?: HTMLElement | null;
     pluginInstallUrl?: HTMLInputElement | null;
     pluginInstallBtn?: HTMLButtonElement | null;
+    pluginInstallUrlLabel?: HTMLElement | null;
+    pluginDevInfoText?: HTMLElement | null;
     openPluginDevDocsBtn?: HTMLButtonElement | null;
 }
 
@@ -29,6 +28,8 @@ export class PluginsTab extends BaseSettingsTab<PluginsTabElements> {
     constructor(elements: PluginsTabElements, appStore: AppStore, uiControllerRef: UIController) {
         super(elements, appStore);
         this.#uiControllerRef = uiControllerRef;
+
+        pubsub.subscribe(UI_EVENTS.RECEIVE_UI_CONTRIBUTION, this.#renderContributions);
     }
     
     public async finishInitialization(): Promise<void> {
@@ -55,16 +56,6 @@ export class PluginsTab extends BaseSettingsTab<PluginsTabElements> {
         this._addEventListenerHelper("openPluginDevDocsBtn", "click", this.#handleOpenDocsClick);
     }
     
-    protected _attachCommonEventListeners(): void {
-        this._appStore.subscribe((state, prevState) => {
-            if(this._isInitialized && this._doesConfigUpdateAffectThisTab(state, prevState)) {
-                this.#pendingPlugins.clear();
-                this.loadSettings();
-            }
-        });
-        pubsub.subscribe(UI_EVENTS.RECEIVE_UI_CONTRIBUTION, this.#renderContributions);
-    }
-
     protected _doesConfigUpdateAffectThisTab(newState: FrontendFullState, oldState: FrontendFullState): boolean {
         return newState.pluginManifests !== oldState.pluginManifests || newState.pluginGlobalConfigs !== oldState.pluginGlobalConfigs;
     }
@@ -144,8 +135,10 @@ export class PluginsTab extends BaseSettingsTab<PluginsTabElements> {
         } catch (error) {
             console.error(`[PluginsTab] Failed to set plugin state for '${pluginId}':`, error);
             pubsub.publish(UI_EVENTS.SHOW_ERROR, { message: `Failed to change plugin state: ${(error as Error).message}` });
-            this.#pendingPlugins.delete(pluginId); 
-            this.loadSettings();
+        } finally {
+            // FIX: Always remove from pending set after the API call finishes.
+            // The WebSocket update will trigger the final re-render with the correct state.
+            this.#pendingPlugins.delete(pluginId);
         }
     };
     
@@ -170,8 +163,8 @@ export class PluginsTab extends BaseSettingsTab<PluginsTabElements> {
                     } else { throw new Error(result.message); }
                 } catch (error) {
                     pubsub.publish(UI_EVENTS.SHOW_ERROR, { message: `Uninstall failed: ${(error as Error).message}` });
+                } finally {
                     this.#pendingPlugins.delete(pluginId);
-                    this.loadSettings();
                 }
             },
         });
@@ -204,54 +197,65 @@ export class PluginsTab extends BaseSettingsTab<PluginsTabElements> {
     
         const pluginUIContext = this.#uiControllerRef.pluginUIService?.getPluginUIContext() as PluginUIContext;
     
-        const cardPromises = manifests.map(async (manifest) => {
+        const cardElements: HTMLElement[] = [];
+    
+        for (const manifest of manifests) {
             const hasSettings = manifest.capabilities.hasGlobalSettings;
             const isPending = this.#pendingPlugins.has(manifest.id);
-            let component: IPluginGlobalSettingsComponent | null = null;
+            let component = this.#pluginSettingsComponents.get(manifest.id) || null;
     
-            if (hasSettings) {
-                if (this.#pluginSettingsComponents.has(manifest.id)) {
-                    component = this.#pluginSettingsComponents.get(manifest.id)!;
-                } else if (this.#uiControllerRef.pluginUIService) {
-                    const factory = await this.#uiControllerRef.pluginUIService.getGlobalSettingsComponentFactory(manifest.id);
-                    if (factory) {
-                        component = factory(manifest.id, manifest, pluginUIContext);
-                        this.#pluginSettingsComponents.set(manifest.id, component);
-                    }
+            if (hasSettings && !component && this.#uiControllerRef.pluginUIService) {
+                const factory = await this.#uiControllerRef.pluginUIService.getGlobalSettingsComponentFactory(manifest.id);
+                if (factory) {
+                    component = factory(manifest.id, manifest, pluginUIContext);
+                    this.#pluginSettingsComponents.set(manifest.id, component);
                 }
-                component?.update?.(this._appStore.getState().pluginGlobalConfigs.get(manifest.id) || null, pluginUIContext, { isPending });
             }
-            
-            return component 
-                ? component.getElement() 
-                : this.#createBasicPluginCard(manifest, isPending);
-        });
     
-        const elementsToRender = await Promise.all(cardPromises);
-        container.replaceChildren(...elementsToRender.filter((el): el is HTMLElement => !!el));
+            if (component) {
+                component.update(this._appStore.getState().pluginGlobalConfigs.get(manifest.id) || null, pluginUIContext, { isPending });
+                cardElements.push(component.getElement());
+            } else {
+                cardElements.push(this.#createBasicPluginCard(manifest, isPending));
+            }
+        }
+        
+        container.replaceChildren(...cardElements);
+
+        for (const el of cardElements) {
+            const componentId = el.id.replace('-integration-card', '');
+            if (this.#pluginSettingsComponents.has(componentId)) {
+                const component = this.#pluginSettingsComponents.get(componentId)!;
+                component.initialize?.();
+            }
+        }
     }
 
     #createBasicPluginCard(manifest: PluginManifest, isPending: boolean): HTMLDivElement {
         const isEnabled = manifest.status === 'enabled';
-        const actionButtons = `
-            <button class="btn btn-icon" data-plugin-id="${manifest.id}" data-action="toggle" title="${translate(isEnabled ? 'disable' : 'enable')}" ${isPending ? 'disabled' : ''}>
-                <span class="material-icons">${isPending ? 'hourglass_top' : (isEnabled ? 'toggle_on' : 'toggle_off')}</span>
-            </button>
-            <button class="btn btn-icon btn-icon-danger" data-plugin-id="${manifest.id}" data-action="uninstall" title="${translate('uninstall')}" ${isPending ? 'disabled' : ''}>
-                <span class="material-icons">delete_forever</span>
-            </button>
-        `;
+        
+        const toggleButton = createCardActionButton({ action: 'toggle', titleKey: isEnabled ? 'disable' : 'enable', iconKey: isPending ? 'UI_HOURGLASS' : (isEnabled ? 'UI_TOGGLE_ON' : 'UI_TOGGLE_OFF'), pluginId: manifest.id });
+        toggleButton.disabled = isPending;
+
+        const uninstallButton = createCardActionButton({ action: 'uninstall', titleKey: 'uninstall', iconKey: 'UI_DELETE', pluginId: manifest.id, extraClasses: ['btn-icon-danger'] });
+        uninstallButton.disabled = isPending;
+        
+        const actionButtonsHtml = `${toggleButton.outerHTML}${uninstallButton.outerHTML}`;
+
         const description = translate(manifest.descriptionKey || '', { defaultValue: '' });
         const versionInfo = `v${manifest.version} by ${manifest.author || 'Unknown'}`;
 
-        const detailsHtml = `<div class="card-detail-line"><span class="material-icons card-detail-icon" title="${translate('descriptionOptionalLabel')}">notes</span><span class="card-detail-value allow-wrap">${description}</span></div>`;
-        const footerHtml = `<div class="card-footer"><div class="card-detail-line"><span class="material-icons card-detail-icon" title="Version Info">info_outline</span><span class="card-detail-value">${versionInfo}</span></div></div>`;
+        const detailsHtml = `<div class="card-detail-line"><span class="material-icons card-detail-icon" title="${translate('descriptionOptionalLabel')}"></span><span class="card-detail-value allow-wrap">${description}</span></div>`;
+        const footerHtml = `<div class="card-footer"><div class="card-detail-line"><span class="material-icons card-detail-icon" title="Version Info"></span><span class="card-detail-value">${versionInfo}</span></div></div>`;
 
         const card = createCardElement({
-            ...(manifest.icon ? { iconName: manifest.icon.name, iconType: manifest.icon.type } : { iconName: 'extension' }),
+            ...(manifest.icon ? { iconName: manifest.icon.name, iconType: manifest.icon.type } : { iconName: 'UI_EXTENSION' }),
             title: translate(manifest.nameKey, { defaultValue: manifest.id }),
-            itemClasses: "plugin-item", actionButtonsHtml: actionButtons, detailsHtml, footerHtml
+            itemClasses: "plugin-item", actionButtonsHtml, detailsHtml, footerHtml
         });
+        
+        setIcon(card.querySelector('.card-detail-line:first-of-type .card-detail-icon'), 'UI_NOTES');
+        setIcon(card.querySelector('.card-footer .card-detail-icon'), 'UI_INFO');
         
         if (manifest.status !== 'enabled') card.classList.add('config-item-disabled');
         if (isPending) card.classList.add('is-pending');
@@ -263,7 +267,7 @@ export class PluginsTab extends BaseSettingsTab<PluginsTabElements> {
             { element: this._elements.pluginInstallUrlLabel, config: 'pluginInstallUrlLabel' },
             { element: this._elements.pluginInstallUrl, config: { key: 'pluginInstallUrlPlaceholder', attribute: 'placeholder' }},
             { element: this._elements.pluginInstallBtn?.querySelector('span:not(.material-icons)'), config: 'pluginInstallBtnText' },
-            { element: document.getElementById('pluginDevInfoText'), config: 'pluginDevInfoText' },
+            { element: this._elements.pluginDevInfoText, config: 'pluginDevInfoText' },
             { element: this._elements.openPluginDevDocsBtn, config: 'pluginDevInfoLink' }
         ]);
         this.loadSettings();

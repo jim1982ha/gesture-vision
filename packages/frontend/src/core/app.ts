@@ -1,329 +1,214 @@
 /* FILE: packages/frontend/src/core/app.ts */
 // Main application class, initializes and coordinates core modules.
-import { WebcamManager } from '#frontend/camera/manager.js';
-import { AppStatusManager } from '#frontend/core/app-status-manager.js';
-import type { AppStore } from '#frontend/core/state/app-store.js';
+import { AppStatusManager } from './app-status-manager.js';
+import type { AppStore } from './state/app-store.js';
+import type { AllDOMElements } from './dom-elements.js';
 import { GestureProcessor } from '#frontend/gestures/processor.js';
 import { CameraService } from '#frontend/services/camera.service.js';
 import type { TranslationService } from '#frontend/services/translation.service.js';
-import { webSocketService } from '#frontend/services/websocket-service.js';
 import { UIController } from '#frontend/ui/ui-controller-core.js';
-
-import { ALL_EVENTS } from '#shared/constants/index.js';
-import { pubsub } from '#shared/core/pubsub.js';
-import { normalizeNameForMtx } from '#shared/utils/index.js';
-
-import type {
-  RoiConfig,
-  RtspSourceConfig,
-} from '#shared/types/index.js';
-import type { AppDOMElements as AppElements } from '#frontend/types/index.js';
+import {
+  pubsub,
+  WEBCAM_EVENTS,
+  UI_EVENTS,
+  CAMERA_SOURCE_EVENTS,
+  DOCS_MODAL_EVENTS,
+  normalizeNameForMtx,
+} from '#shared/index.js';
+import type { RtspSourceConfig } from '#shared/index.js';
+import { CameraManager } from '#frontend/camera/camera-manager.js';
 
 export class App {
-  ui: UIController | null = null;
-  webcam: WebcamManager | null = null;
-  cameraService: CameraService | null = null;
-  gesture: GestureProcessor | null = null;
-  appStatusManager: AppStatusManager | null = null;
+  ui: UIController;
+  cameraService: CameraService;
+  gesture: GestureProcessor;
+  appStatusManager: AppStatusManager;
   appStore: AppStore;
   translationService: TranslationService;
-  elements: Partial<AppElements> = {};
+  elements: Partial<AllDOMElements>;
+  cameraManager: CameraManager;
   #frameAnalysisHandlerId: number | null = null;
-
   #videoOriginalParent: HTMLElement | null = null;
   #videoOriginalNextSibling: Node | null = null;
 
   constructor(
-    passedElements: Partial<AppElements> = {},
-    appStoreInstance: AppStore,
-    translationServiceInstance: TranslationService
+    elements: Partial<AllDOMElements>,
+    appStore: AppStore,
+    translationService: TranslationService
   ) {
-    this.elements = passedElements;
-    if (!appStoreInstance)
-      throw new Error('App constructor requires an AppStore instance.');
-    this.appStore = appStoreInstance;
-    if (!translationServiceInstance)
-      throw new Error('App constructor requires a TranslationService instance.');
-    this.translationService = translationServiceInstance;
+    this.elements = elements;
+    this.appStore = appStore;
+    this.translationService = translationService;
+    this.appStatusManager = new AppStatusManager();
+
+    // Create GestureProcessor first. It does not need the renderer in its constructor.
+    this.gesture = new GestureProcessor(this.appStore);
+
+    // Now create CameraManager, passing the valid GestureProcessor instance.
+    // The CameraManager constructor will create the CanvasRenderer.
+    this.cameraManager = new CameraManager(
+      elements.videoElement as HTMLVideoElement,
+      elements.outputCanvas as HTMLCanvasElement,
+      this.appStore,
+      this.gesture
+    );
+
+    // Finally, provide the GestureProcessor with its required CanvasRenderer reference.
+    this.gesture.setCanvasRenderer(this.cameraManager.getCanvasRenderer());
+
+    this.cameraService = new CameraService(this.cameraManager);
+    this.ui = new UIController(this);
 
     this.setAppVersionDisplay();
+
+    this.elements.appVersionDisplaySettings?.addEventListener('click', () => {
+      pubsub.publish(DOCS_MODAL_EVENTS.REQUEST_OPEN, 'ABOUT');
+    });
   }
 
   public async initializeAppSequence(): Promise<void> {
     try {
+      console.info('[Init Step 1/4] Waiting for Translation Service...');
       await this.translationService.waitUntilInitialized();
+      console.info('[Init Step 1/4] Translation Service is ready.');
 
-      this.appStatusManager = new AppStatusManager();
+      console.info('[Init Step 2/4] Initializing App Status Manager...');
       this.appStatusManager.setAppRef(this);
+      console.info('[Init Step 2/4] App Status Manager is ready.');
 
-      this.gesture = new GestureProcessor(this.appStore, this.elements);
-
-      this.ui = new UIController(
-        this.elements,
-        this.appStore,
-        this.appStatusManager,
-        this.translationService,
-        this.gesture
-      );
-      this.ui.setAppRef(this);
-
+      console.info('[Init Step 3/4] Initializing UI Controller...');
       await this.ui.initialize();
+      console.info('[Init Step 3/4] UI Controller is ready.');
 
-      const updateRoiCallbackForWebcamManager = async (
-        sourceId: string | null,
-        roiConfig: RoiConfig
-      ) => {
-        if (!sourceId || !sourceId.startsWith('rtsp:')) return;
-        const streamName = normalizeNameForMtx(sourceId.substring(5));
-        try {
-          const response = await fetch(`/api/rtsp/${streamName}/roi`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(roiConfig),
-          });
-          if (!response.ok) {
-            const errorText = await response
-              .text()
-              .catch(() => 'Unknown API error');
-            pubsub.publish(ALL_EVENTS.UI.SHOW_ERROR, {
-              message: `ROI update failed: ${errorText}`,
-            });
-          }
-        } catch (_error) {
-          pubsub.publish(ALL_EVENTS.UI.SHOW_ERROR, {
-            message: `ROI update network error.`,
-          });
-        }
-      };
-
-      this.webcam = new WebcamManager(
-        this.elements.videoElement as HTMLVideoElement,
-        this.elements.outputCanvas as HTMLCanvasElement,
-        this.appStore,
-        this.gesture,
-        updateRoiCallbackForWebcamManager
-      );
-      this.webcam.setAppRef(this);
-
-      this.cameraService = new CameraService(this.webcam, this.appStore);
-
-      if (this.ui) {
-        this.ui.setWebcamManager(this.webcam);
-        this.ui.setCameraService(this.cameraService);
-        if (this.webcam)
-          this.ui.setCameraSourceManager(this.webcam.getCameraSourceManager());
-      }
-
-      if (this.ui.getRenderer() && this.webcam) {
-        const canvasRenderer = this.webcam.getCanvasRenderer();
-        if (canvasRenderer)
-          this.ui.getRenderer()?.setCanvasRenderer(canvasRenderer);
-        else
-          console.error(
-            '[App] CRITICAL: CanvasRenderer instance is null on WebcamManager.'
-          );
-      } else
-        console.error(
-          '[App] CRITICAL: Could not wire up CanvasRenderer due to missing UI or WebcamManager instances.'
-        );
-
-      await this.ui.waitUntilReady();
-
-      pubsub.subscribe(
-        ALL_EVENTS.WEBCAM.STREAM_START,
-        this._startFrameUpdates
-      );
-      pubsub.subscribe(ALL_EVENTS.WEBCAM.STREAM_STOP, this._cancelFrameUpdates);
-
-      await this.webcam.initialize();
-
+      console.info('[Init Step 4/4] Setting up core event listeners...');
       this.setupLifecycleListeners();
-    } catch (_error: unknown) {
-      const typedError = _error as Error;
-      console.error('[App] FATAL Error during initialization:', typedError);
-      const appContainer = document.body;
-      const uiWithFatalError = this.ui as {
-        _showFatalError: (msg: string) => void;
-      } | null;
-      if (
-        uiWithFatalError &&
-        typeof uiWithFatalError._showFatalError === 'function'
-      ) {
-        uiWithFatalError._showFatalError(
-          `Initialization Failed: ${typedError.message}\n${typedError.stack}`
-        );
-      } else {
-        appContainer.innerHTML = `<div style="color: red; padding: 20px; font-family: sans-serif;"><h1>Application Initialization Failed</h1><p>Error: ${
-          typedError.message
-        }. Check console.</p><pre>${typedError.stack || ''}</pre></div>`;
-      }
+      pubsub.subscribe(WEBCAM_EVENTS.STREAM_START, this.#startFrameUpdates);
+      pubsub.subscribe(WEBCAM_EVENTS.STREAM_STOP, this.#cancelFrameUpdates);
+      pubsub.subscribe(CAMERA_SOURCE_EVENTS.CHANGED, (id?: unknown) =>
+        this.startStreamWithSource(id as string | null | undefined)
+      );
+      console.info('[Init Step 4/4] Core event listeners are active.');
+
+    } catch (e) {
+      console.error('[App] FATAL Error during initialization:', e);
+      document.body.innerHTML = `<div style="color: red; padding: 20px;"><h1>App Init Failed</h1><p>${
+        (e as Error).message
+      }</p></div>`;
     }
   }
 
   public setAppVersionDisplay(): void {
-    try {
-      const versionDiv = this.elements.appVersionDisplaySettings;
-      if (versionDiv) {
-        const appVersion =
-          typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev';
-        versionDiv.textContent = `v. ${appVersion}`;
-      } else console.warn('[App] Settings version display element not found.');
-    } catch (_error: unknown) {
-      console.error('[App] Failed to set app version display:', _error);
-    }
-  }
-
-  public isAppWebcamRunning(): boolean {
-    return this.appStatusManager?.isWebcamRunning() ?? false;
-  }
-  public isAppModelLoaded(): boolean {
-    return this.appStatusManager?.isModelLoaded() ?? false;
+    const versionDiv = this.elements.appVersionDisplaySettings;
+    if (versionDiv)
+      versionDiv.textContent = `v. ${
+        typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev'
+      }`;
   }
 
   public setupLifecycleListeners(): void {
-    document.addEventListener('visibilitychange', this._handleVisibilityChange);
-    window.addEventListener('pagehide', this._handlePageHide);
-    pubsub.subscribe(ALL_EVENTS.UI.REQUEST_VIDEO_REPARENT, (p?: unknown) =>
+    document.addEventListener('visibilitychange', this.#handleVisibilityChange);
+    pubsub.subscribe(UI_EVENTS.REQUEST_VIDEO_REPARENT, (p?: unknown) =>
       this.#handleVideoReparentRequest(
         p as { placeholderElement?: HTMLElement; release?: boolean }
       )
     );
-    const hot = import.meta.hot;
-    if (hot)
-      hot.dispose(() => {
-        document.removeEventListener(
-          'visibilitychange',
-          this._handleVisibilityChange
-        );
-        window.removeEventListener('pagehide', this._handlePageHide);
-      });
   }
 
-  private _handleVisibilityChange = (): void => {
-    if (!this.webcam) return;
-    if (document.visibilityState === 'hidden' && this.isAppWebcamRunning()) {
-      this.webcam
-        .stop()
-        .catch((e) =>
-          console.error('[App] Error stopping stream on visibility change:', e)
-        );
-    } else if (
-      document.visibilityState === 'visible' &&
-      webSocketService &&
-      !webSocketService.isConnected()
+  #handleVisibilityChange = (): void => {
+    if (
+      document.visibilityState === 'hidden' &&
+      this.cameraService.isStreamActive()
     ) {
-      webSocketService.forceReconnect();
+      this.cameraService.stopStream().catch((e) => console.error(e));
     }
-  };
-
-  private _handlePageHide = (): void => {
-    if (this.webcam && this.isAppWebcamRunning())
-      this.webcam
-        .stop()
-        .catch((e) =>
-          console.error('[App] Error stopping stream on page hide:', e)
-        );
   };
 
   #handleVideoReparentRequest = (payload?: {
     placeholderElement?: HTMLElement;
     release?: boolean;
   }): void => {
-    const videoContainerElement = this.elements.videoContainer as HTMLElement;
-    if (!videoContainerElement) return;
+    const videoContainer = this.elements.videoContainer as HTMLElement;
+    if (!videoContainer) return;
 
     if (payload?.release) {
-      if (this.#videoOriginalParent) {
+      if (this.#videoOriginalParent)
         this.#videoOriginalParent.insertBefore(
-          videoContainerElement,
+          videoContainer,
           this.#videoOriginalNextSibling
         );
-      } else {
-        console.error(
-          '[App] Cannot release video container: Original parent not stored.'
-        );
-      }
     } else if (payload?.placeholderElement) {
-      this.#videoOriginalParent = videoContainerElement.parentElement;
-      this.#videoOriginalNextSibling = videoContainerElement.nextSibling;
-      payload.placeholderElement.appendChild(videoContainerElement);
+      this.#videoOriginalParent = videoContainer.parentElement;
+      this.#videoOriginalNextSibling = videoContainer.nextSibling;
+      payload.placeholderElement.appendChild(videoContainer);
     }
   };
 
-  public async _startStreamWithSource(
+  public async startStreamWithSource(
     targetDeviceId: string | null | undefined
   ): Promise<void> {
-    if (!this.webcam || !this.ui?._cameraSourceManager) {
-      pubsub.publish(ALL_EVENTS.UI.SHOW_ERROR, {
-        message: 'Cannot start stream (core missing).',
-      });
-      return;
-    }
-
     const safeTargetId = targetDeviceId || '';
-    pubsub.publish(ALL_EVENTS.CAMERA_SOURCE.REQUESTING_STREAM_START, safeTargetId);
+    pubsub.publish(CAMERA_SOURCE_EVENTS.REQUESTING_STREAM_START, safeTargetId);
 
-    if (!this.appStatusManager?.isModelLoaded()) {
-      pubsub.publish(ALL_EVENTS.UI.SHOW_ERROR, { messageKey: 'modelLoading' });
-      pubsub.publish(ALL_EVENTS.UI.REQUEST_BUTTON_STATE_UPDATE);
-      return;
-    }
-    let rtspConfig: RtspSourceConfig | undefined | null = null;
+    let rtspConfig: RtspSourceConfig | null = null;
     if (safeTargetId.startsWith('rtsp:')) {
-      const normalizedName = normalizeNameForMtx(safeTargetId.substring(5));
       const rtspSources = this.appStore.getState().rtspSources || [];
       rtspConfig =
         rtspSources.find(
-          (s: RtspSourceConfig) => normalizeNameForMtx(s.name) === normalizedName
+          (s) => `rtsp:${normalizeNameForMtx(s.name)}` === safeTargetId
         ) || null;
       if (!rtspConfig) {
-        pubsub.publish(ALL_EVENTS.UI.SHOW_ERROR, {
-          message: `Config not found for ${normalizedName}`,
+        pubsub.publish(UI_EVENTS.SHOW_ERROR, {
+          message: `Config not found for ${safeTargetId}`,
         });
-        pubsub.publish(ALL_EVENTS.UI.REQUEST_BUTTON_STATE_UPDATE);
         return;
       }
     }
+
     try {
-      if (this.appStatusManager.isWebcamRunning()) {
-        await this.webcam.stop(false);
-        await new Promise((resolve) => setTimeout(resolve, 100));
-      }
-      await this.webcam.start(safeTargetId, rtspConfig);
+      await this.cameraService.startStream({
+        cameraId: safeTargetId,
+        rtspSourceConfig: rtspConfig,
+      });
     } catch (e) {
-      console.error(
-        `[App] Error during startStream for source '${safeTargetId}':`,
-        e
-      );
-      this.ui._cameraSourceManager?.clearSelectedSource();
-      pubsub.publish(ALL_EVENTS.UI.REQUEST_BUTTON_STATE_UPDATE);
+      console.error(`[App] Error starting stream for '${safeTargetId}':`, e);
     }
   }
 
-  private _startFrameUpdates = (): void => {
-    this._cancelFrameUpdates();
+  #startFrameUpdates = (): void => {
+    this.#cancelFrameUpdates();
     const frameLoop = (): void => {
-      if (!this.webcam?.isStreaming()) {
-        this._cancelFrameUpdates();
+      if (!this.cameraService.isStreamActive()) {
+        this.#cancelFrameUpdates();
         return;
       }
+      
+      const videoElement = this.cameraManager?.getVideoElement();
+      const canvasElement = this.cameraManager?.getCanvasRenderer()?.getCanvasElement();
 
-      if (this.webcam?._videoElement) {
-        this.gesture?.processFrame({
-          videoElement: this.webcam._videoElement,
-          roiConfig: this.gesture?._state.lastPublishedRoiConfig || null,
-          timestamp: performance.now(),
-        });
+      if (videoElement && canvasElement) {
+        // First, synchronously draw the current video frame and any available landmarks to the canvas for display.
+        this.cameraManager.getCanvasRenderer().drawOutput();
+        
+        // Then, asynchronously process the raw video frame for gestures.
+        // This ensures the AI always processes a non-mirrored frame, fixing the landmark mirroring bug.
+        this.gesture.processFrame({
+            videoElement: videoElement,
+            imageSourceElement: videoElement, // Use the raw video as the source for AI
+            roiConfig: this.gesture.getStateLogic().getActiveStreamRoi(),
+            timestamp: performance.now(),
+          }).catch(error => {
+            console.error("[App] Unhandled error in frame processing promise:", error);
+          });
       }
+
       this.#frameAnalysisHandlerId = requestAnimationFrame(frameLoop);
     };
     this.#frameAnalysisHandlerId = requestAnimationFrame(frameLoop);
   };
 
-  private _cancelFrameUpdates = (): void => {
-    if (this.#frameAnalysisHandlerId) {
+  #cancelFrameUpdates = (): void => {
+    if (this.#frameAnalysisHandlerId)
       cancelAnimationFrame(this.#frameAnalysisHandlerId);
-    }
     this.#frameAnalysisHandlerId = null;
   };
 }

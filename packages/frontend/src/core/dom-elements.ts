@@ -99,6 +99,7 @@ export function getAllDOMElements(): AllDOMElements {
     languageLabel: document.getElementById("languageLabel"),
     globalCooldownLabel: document.getElementById("globalCooldownLabel"),
     resolutionPrefLabel: document.getElementById("resolutionPrefLabel"),
+    resolutionHelp: document.getElementById("resolutionHelp"),
     targetFpsLabel: document.getElementById("targetFpsLabel"),
     telemetryEnabledLabel: document.getElementById("telemetryEnabledLabel"),
     telemetryEnableLabelText: document.getElementById("telemetryEnableLabelText"),
@@ -156,6 +157,8 @@ export function getAllDOMElements(): AllDOMElements {
     pluginInstallBtn: document.getElementById('pluginInstallBtn'),
     pluginInstallUrlLabel: document.getElementById('pluginInstallUrlLabel'),
     pluginInstallBtnText: document.getElementById('pluginInstallBtnText'),
+    pluginDevInfoText: document.getElementById('pluginDevInfoText'),
+    openPluginDevDocsBtn: document.getElementById('openPluginDevDocsBtn'),
     clearHistoryButton: document.getElementById("clearHistoryButton"),
 
     videoElement: document.getElementById("webcam"),

@@ -1,6 +1,8 @@
 /* FILE: packages/frontend/src/ui/utils/card-utils.ts */
 // Utility for creating card UI elements using a declarative template.
 import { createFromTemplate } from "./template-renderer.js";
+import { setIcon } from '#frontend/ui/helpers/index.js';
+import { translate } from '#shared/services/translations.js';
 
 export interface CardContent {
   iconName: string; 
@@ -13,6 +15,32 @@ export interface CardContent {
   datasetAttributes?: Record<string, string>;
   titleAttribute?: string; 
   ariaLabel?: string;    
+}
+
+interface ActionButtonConfig {
+    action: string;
+    titleKey: string;
+    iconKey: string;
+    extraClasses?: string[];
+    pluginId?: string;
+}
+
+/**
+ * Creates a standardized icon button element for use in card actions.
+ * @param config - The configuration for the button.
+ * @returns The generated HTMLButtonElement.
+ */
+export function createCardActionButton(config: ActionButtonConfig): HTMLButtonElement {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = `btn btn-icon ${config.extraClasses?.join(' ') || ''}`;
+    if (config.pluginId) button.dataset.pluginId = config.pluginId;
+    button.dataset.action = config.action;
+    button.title = translate(config.titleKey);
+    button.setAttribute('aria-label', translate(config.titleKey));
+    button.innerHTML = `<span></span>`; // Ensure inner span for the icon
+    setIcon(button, config.iconKey);
+    return button;
 }
 
 export function createCardElement(content: CardContent): HTMLDivElement {

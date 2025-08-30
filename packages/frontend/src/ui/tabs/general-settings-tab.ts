@@ -1,12 +1,12 @@
 /* FILE: packages/frontend/src/ui/tabs/general-settings-tab.ts */
 import type { AppStore, FrontendFullState } from '#frontend/core/state/app-store.js';
-import { translate } from '#shared/services/translations.js';
+import { translate } from '#shared/index.js';
 import {
   BaseSettingsTab,
   type ButtonGroupOption,
   type TabElements,
 } from '../base-settings-tab.js';
-import type { FullConfiguration } from '#shared/types/index.js';
+import type { FullConfiguration } from '#shared/index.js';
 
 export interface GeneralSettingsTabElements extends TabElements {
   globalCooldownSlider?: HTMLInputElement | null;
@@ -16,6 +16,7 @@ export interface GeneralSettingsTabElements extends TabElements {
   telemetryToggleGroup?: HTMLElement | null;
   globalCooldownLabel?: HTMLElement | null;
   resolutionPrefLabel?: HTMLElement | null;
+  resolutionHelp?: HTMLElement | null;
   targetFpsLabel?: HTMLElement | null;
   telemetryEnabledLabel?: HTMLElement | null;
   targetFpsHelp?: HTMLElement | null;
@@ -167,6 +168,7 @@ export class GeneralSettingsTab extends BaseSettingsTab<GeneralSettingsTabElemen
         element: this._elements.resolutionPrefLabel,
         config: 'processingResolutionLabel',
       },
+      { element: this._elements.resolutionHelp, config: 'resolutionHelpWebcamOnly' },
       { element: this._elements.targetFpsLabel, config: { key: 'targetFpsLabel' } },
       {
         element: this._elements.telemetryEnabledLabel,

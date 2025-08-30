@@ -7,7 +7,7 @@ import type {
   PluginManifest,
   ActionResult,
   ActionDetails,
-} from '#shared/types/index.js';
+} from '#shared/index.js';
 
 export type ConnectToCompanionFn = (host: string) => Promise<unknown>;
 
@@ -21,8 +21,6 @@ export interface ActionHandler {
 }
 
 export interface BackendPluginContext {
-  pluginManager: unknown;
-  configService: unknown;
   getPluginGlobalConfig: <T>() => Promise<T | null>;
   connectToCompanion: ConnectToCompanionFn;
 }

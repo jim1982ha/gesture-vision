@@ -2,6 +2,7 @@
 import { SIDEBAR_AUTO_HIDE_DELAY_MS } from '#frontend/constants/app-defaults.js';
 import { setIcon, toggleElementClass } from '#frontend/ui/helpers/index.js';
 import type { UIController } from '#frontend/ui/ui-controller-core.js';
+import { translate } from '#shared/index.js';
 
 export interface SidebarManagerElements {
   configSidebar: HTMLElement | null;
@@ -13,8 +14,6 @@ export interface SidebarManagerElements {
   historySidebarToggleBtn: HTMLButtonElement | null;
   configSidebarHeaderCloseBtn: HTMLButtonElement | null;
   historySidebarHeaderCloseBtn: HTMLButtonElement | null;
-  configSidebarIcon: HTMLElement | null;
-  historySidebarIcon: HTMLElement | null;
   clearHistoryButton?: HTMLButtonElement | null;
 }
 
@@ -36,7 +35,7 @@ export class SidebarManager {
   #initialize(): void {
     this.updateViewportState();
     this.#attachEventListeners();
-    this.#setStaticIcons();
+    this.applyTranslations();
     this.#setInitialDesktopState();
   }
 
@@ -85,6 +84,28 @@ export class SidebarManager {
       this.#clearAutoHideTimeout('history')
     );
   }
+  
+  public applyTranslations(): void {
+    const configHeader = this.#elements.configSidebar?.querySelector('.sidebar-header');
+    if (configHeader) {
+        (configHeader.querySelector('.header-title') as HTMLElement).textContent = translate('gestureSettings');
+        setIcon(configHeader.querySelector('.header-icon'), 'UI_TUNE');
+    }
+
+    const historyHeader = this.#elements.historySidebar?.querySelector('.sidebar-header');
+    if (historyHeader) {
+        (historyHeader.querySelector('.header-title') as HTMLElement).textContent = translate('history');
+        setIcon(historyHeader.querySelector('.header-icon'), 'UI_HISTORY');
+    }
+
+    setIcon(this.#elements.gestureConfigToggleMobile, 'UI_TUNE');
+    setIcon(this.#elements.historyToggleMobile, 'UI_HISTORY');
+    setIcon(this.#elements.clearHistoryButton, 'UI_DELETE');
+    setIcon(this.#elements.configSidebarToggleBtn, this.#isConfigSidebarOpen ? 'UI_CHEVRON_LEFT' : 'UI_CHEVRON_RIGHT');
+    setIcon(this.#elements.historySidebarToggleBtn, this.#isHistorySidebarOpen ? 'UI_CHEVRON_RIGHT' : 'UI_CHEVRON_LEFT');
+
+    this.#elements.clearHistoryButton?.setAttribute('title', translate('clearHistory'));
+  }
 
   public updateViewportState(): void {
     this.isMobile =
@@ -92,23 +113,6 @@ export class SidebarManager {
       window.matchMedia('(any-pointer: coarse)').matches;
     this.#uiControllerRef.layoutManager?.applyOrientationLock();
     this.#setInitialDesktopState();
-  }
-
-  #setStaticIcons(): void {
-    const configHeader = this.#elements.configSidebar?.querySelector('.sidebar-header');
-    const historyHeader = this.#elements.historySidebar?.querySelector('.sidebar-header');
-
-    setIcon(configHeader?.querySelector('.header-icon'), 'UI_TUNE');
-    setIcon(historyHeader?.querySelector('.header-icon'), 'UI_HISTORY');
-    setIcon(this.#elements.configSidebarHeaderCloseBtn, 'UI_CLOSE');
-    setIcon(this.#elements.historySidebarHeaderCloseBtn, 'UI_CLOSE');
-    setIcon(this.#elements.gestureConfigToggleMobile, 'UI_TUNE');
-    setIcon(this.#elements.historyToggleMobile, 'UI_HISTORY');
-    setIcon(this.#elements.configSidebarIcon, 'UI_TUNE');
-    setIcon(this.#elements.historySidebarIcon, 'UI_HISTORY');
-    setIcon(this.#elements.clearHistoryButton, 'UI_DELETE');
-    setIcon(this.#elements.configSidebarToggleBtn, 'UI_CHEVRON_RIGHT');
-    setIcon(this.#elements.historySidebarToggleBtn, 'UI_CHEVRON_LEFT');
   }
 
   #setInitialDesktopState = (): void => {

@@ -1,14 +1,15 @@
 /* FILE: packages/frontend/src/types/index.ts */
 // Contains types that are exclusively used by the frontend application.
 
-import type { GestureCategoryIconType } from '#shared/constants/index.js';
+import type { GestureCategoryIconType } from '#shared/index.js';
 import type {
   ActionSettingFieldDescriptor,
   ActionSettingFieldOption,
   ActionDisplayDetail,
   PluginManifest,
-} from '#shared/types/index.js';
+} from '#shared/index.js';
 import type { CardContent } from '#frontend/ui/utils/card-utils.js';
+import type { Landmark } from '@mediapipe/tasks-vision';
 
 export interface ThemePreference {
   base: string;
@@ -17,6 +18,7 @@ export interface ThemePreference {
 
 export interface FrameAnalysisFrameData {
   videoElement: HTMLVideoElement;
+  imageSourceElement: HTMLVideoElement | HTMLCanvasElement; // New property to specify the analysis source
   roiConfig: { x: number; y: number; width: number; height: number } | null;
   timestamp: number;
 }
@@ -52,6 +54,15 @@ export interface HistoryEntry {
   details?: unknown;
 }
 
+export interface SnapshotPromise {
+  resolve: (
+    value:
+      | { landmarks: Landmark[] | null; imageData: ImageData | null }
+      | PromiseLike<{ landmarks: Landmark[] | null; imageData: ImageData | null }>
+  ) => void;
+  reject: (reason?: unknown) => void;
+}
+
 // --- Frontend Plugin Interfaces ---
 export type ActionDisplayDetailsRendererFn = (
   actionPluginSettings: unknown,
@@ -77,6 +88,7 @@ export type CreatePluginActionSettingsComponentFn = (
 
 export interface IPluginGlobalSettingsComponent {
   getElement(): HTMLElement;
+  initialize?(): void;
   update(
     currentPluginGlobalConfig: unknown | null,
     context: PluginUIContext,
@@ -159,5 +171,6 @@ export interface PluginUIContext {
     services: {
       actionDisplayUtils: unknown;
     };
+    utils: unknown;
   };
 }

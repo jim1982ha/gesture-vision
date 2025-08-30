@@ -42,9 +42,6 @@ function manualPartialsInjectorPlugin() {
     "<!-- general-settings-tab-inject -->": readPartialForVitePluginHtml(
       "_modal_settings_tab_general.html"
     ),
-    "<!-- integrations-settings-tab-inject -->": readPartialForVitePluginHtml(
-      "_modal_settings_tab_integrations.html"
-    ),
     "<!-- plugins-settings-tab-inject -->": readPartialForVitePluginHtml(
       "_modal_settings_tab_plugins.html"
     ),
@@ -358,7 +355,8 @@ export default defineConfig(({ _command, mode }) => {
         },
       },
     },
-    css: { postcss: "./postcss.config.js" },
+    // FIX: Point to the new .cjs config file.
+    css: { postcss: "./postcss.config.cjs" },
     resolve: {
       alias: {
         "#frontend": path.resolve(__dirname, "src"),

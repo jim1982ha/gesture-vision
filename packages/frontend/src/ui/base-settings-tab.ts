@@ -11,9 +11,9 @@ import {
 } from '#frontend/ui/ui-translation-updater.js';
 import { renderButtonGroup } from '#frontend/ui/helpers/index.js';
 
-import { type GestureCategoryIconType } from '#shared/constants/index.js';
+import { type GestureCategoryIconType } from '#shared/index.js';
 
-import type { FullConfiguration } from '#shared/types/index.js';
+import type { FullConfiguration } from '#shared/index.js';
 
 export type HTMLElementOrNull = HTMLElement | null;
 export type HTMLInputElementOrNull = HTMLInputElement | null;
@@ -43,6 +43,15 @@ export abstract class BaseSettingsTab<T extends TabElements> {
   constructor(elements: T, appStore: AppStore) {
     this._elements = elements;
     this._appStore = appStore;
+
+    // Subscriptions are now initialized immediately upon construction.
+    this._appStore.subscribe((state, prevState) => {
+      // The `_isInitialized` check is removed. The handler now reacts to early state changes,
+      // ensuring the tab's data is ready even before it's first displayed.
+      if (this._doesConfigUpdateAffectThisTab(state, prevState)) {
+        this.loadSettings();
+      }
+    });
   }
 
   protected async _additionalInitializationChecks(): Promise<void> {
@@ -53,21 +62,9 @@ export abstract class BaseSettingsTab<T extends TabElements> {
     if (this._isInitialized) return;
     await this._additionalInitializationChecks();
     this._isInitialized = true;
-    this._attachCommonEventListeners();
     this._initializeSpecificEventListeners();
     this.loadSettings();
     this.applyTranslations();
-  }
-
-  protected _attachCommonEventListeners(): void {
-    this._appStore.subscribe((state, prevState) => {
-      if (
-        this._isInitialized &&
-        this._doesConfigUpdateAffectThisTab(state, prevState)
-      ) {
-        this.loadSettings();
-      }
-    });
   }
 
   protected abstract _initializeSpecificEventListeners(): void;

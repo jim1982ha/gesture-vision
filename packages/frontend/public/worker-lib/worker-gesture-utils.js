@@ -96,52 +96,28 @@
     );
   }
 
-  function calculateRuleScore(value, avg, minThresh, maxThresh) {
-    if (value < minThresh || value > maxThresh) return 0.0;
-    if (avg <= minThresh) return value >= minThresh ? 1.0 : 0.0;
-    if (avg >= maxThresh) return value <= maxThresh ? 1.0 : 0.0;
-    if (value <= avg)
-      return avg - minThresh < 1e-6
-        ? Math.abs(avg - value) < 1e-6
-          ? 1.0
-          : 0.0
-        : (value - minThresh) / (avg - minThresh);
-    return maxThresh - avg < 1e-6
-      ? Math.abs(value - avg) < 1e-6
-        ? 1.0
-        : 0.0
-      : (maxThresh - value) / (maxThresh - avg);
+  function calculateRuleScore(value, _avg, minThresh, maxThresh) {
+    if (value >= minThresh && value <= maxThresh) {
+        return 1.0;
+    }
+    return 0.0;
   }
 
   function checkGesture(landmarks, rules) {
-    if (
-      !landmarks ||
-      !Array.isArray(landmarks) ||
-      landmarks.length === 0 ||
-      !rules
-    )
+    // REVISED AND STRENGTHENED GUARD CLAUSE
+    if (!landmarks || !Array.isArray(landmarks) || landmarks.length === 0 || !rules) {
       return { detected: false, confidence: 0 };
-    const {
-      type,
-      relativeDistances = [],
-      jointAngles = [],
-      tolerance = 0.0,
-    } = rules;
+    }
+      
+    const { type, relativeDistances = [], jointAngles = [] } = rules;
 
     if (type !== "hand" && type !== "pose")
       return { detected: false, confidence: 0 };
 
     const scores = [];
     const applyRule = (rule, calculateFn, points) => {
-      let { min, max } = rule;
-      if (tolerance > 0) {
-        const originalRange = rule.max - rule.min;
-        const toleranceAmount = (originalRange / 2) * tolerance;
-        min = Math.max(0, rule.min - toleranceAmount);
-        max = rule.max + toleranceAmount;
-      }
       scores.push(
-        calculateRuleScore(calculateFn(...points), rule.avg, min, max)
+        calculateRuleScore(calculateFn(...points), rule.avg, rule.min, rule.max)
       );
     };
 
@@ -154,9 +130,7 @@
 
     jointAngles.forEach((rule) => {
       const points = [
-        landmarks[rule.p1],
-        landmarks[rule.p2],
-        landmarks[rule.p3],
+        landmarks[rule.p1], landmarks[rule.p2], landmarks[rule.p3],
       ].filter(Boolean);
       if (points.length === 3 && areLandmarksVisible(points, type))
         applyRule(rule, calculateAngle, points);

@@ -2,6 +2,7 @@
 import type { ThemeSettingsTabElements } from "#frontend/ui/tabs/theme-settings-tab.js";
  
 import { translate } from "#shared/services/translations.js"; 
+import { setIcon } from "../helpers/index.js";
 
 import type { UIController } from "../ui-controller-core.js"; 
 
@@ -54,8 +55,8 @@ export function renderThemeSelectionTab(
 
     const iconSpan = document.createElement("span");
     iconSpan.classList.add("material-icons");
-    iconSpan.textContent = theme.icon || "palette"; 
     iconSpan.setAttribute("aria-hidden", "true"); 
+    setIcon(iconSpan, theme.icon);
 
     const nameSpan = document.createElement("span");
     nameSpan.classList.add("theme-name", "toggle-button-text"); 

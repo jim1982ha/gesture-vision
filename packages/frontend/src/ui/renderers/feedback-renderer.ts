@@ -3,9 +3,7 @@ import type { AppStore } from '#frontend/core/state/app-store.js';
 import type { PluginUIService } from '#frontend/services/plugin-ui.service.js';
 import type { RendererElements } from '#frontend/ui/ui-renderer-core.js';
 
-import { UI_EVENTS } from '#shared/constants/index.js';
-import { pubsub } from '#shared/core/pubsub.js';
-import { translate } from '#shared/services/translations.js';
+import { UI_EVENTS, pubsub, translate } from '#shared/index.js';
 import { formatGestureNameForDisplay } from '#frontend/ui/helpers/index.js';
 
 interface GestureStatusData {

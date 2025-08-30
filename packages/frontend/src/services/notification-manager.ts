@@ -1,12 +1,10 @@
 /* FILE: packages/frontend/src/services/notification-manager.ts */
 import type { UIController } from "#frontend/ui/ui-controller-core.js";
  
-import { UI_EVENTS, WEBSOCKET_EVENTS, WEBCAM_EVENTS } from "#shared/constants/index.js";
-import { pubsub } from "#shared/core/pubsub.js"; 
-import { translate } from "#shared/services/translations.js";
+import { UI_EVENTS, WEBSOCKET_EVENTS, WEBCAM_EVENTS, pubsub, translate } from "#shared/index.js";
 
  
-import type { ActionResultPayload, UploadCustomGestureAckPayload, ValidationErrorDetail } from "#shared/types/index.js"; 
+import type { ActionResultPayload, UploadCustomGestureAckPayload, ValidationErrorDetail } from "#shared/index.js"; 
 
 interface NotificationData {
     messageKey?: string;

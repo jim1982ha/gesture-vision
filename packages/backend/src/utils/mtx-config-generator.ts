@@ -1,7 +1,7 @@
 /* FILE: packages/backend/src/utils/mtx-config-generator.ts */
 import fs from 'fs/promises';
 
-import type { RtspSourceConfig } from '#shared/types/index.js';
+import type { RtspSourceConfig } from '#shared/index.js';
 
 const MTX_CONFIG_PATH = '/tmp/generated_mediamtx.yml';
 

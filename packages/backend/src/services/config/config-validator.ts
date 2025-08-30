@@ -1,13 +1,13 @@
 /* FILE: packages/backend/src/services/config/config-validator.ts */
 import { z } from 'zod';
 
-import { FullConfigurationSchema } from '#shared/validation/schemas.js';
+import { FullConfigurationSchema } from '#shared/index.js';
 
 import type {
   FullConfiguration,
   SectionValidationResult,
   ValidationErrorDetail,
-} from '#shared/types/index.js';
+} from '#shared/index.js';
 
 export class ConfigValidator {
   public validateFullConfig(data: unknown):
@@ -49,7 +49,7 @@ export class ConfigValidator {
 
     const errors: ValidationErrorDetail[] = result.error.issues.map(
       (e: z.ZodIssue) => ({
-        field: e.path.length > 0 ? `${key}.${e.path.join('.')}` : key,
+        field: e.path.length > 0 ? `${String(key)}.${e.path.join('.')}` : String(key),
         messageKey: e.message,
         details: { code: e.code, value: data },
       })
