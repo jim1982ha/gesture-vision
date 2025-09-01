@@ -1,30 +1,46 @@
 <!-- FILE: packages/frontend/src/partials/_modal_documentation.html -->
-<!-- Documentation Modal -->
-<div id="docsModal" class="modal docs-modal">
-    <div class="modal-content docs-modal-content">
-        <h3 id="docsModalTitle"><span class="material-icons header-icon"></span><span
-                class="header-title">Documentation</span>
-            <button id="docsCloseButton" class="btn btn-icon header-close-btn"
-                aria-label="Close Docs"><span class="mdi" aria-hidden="true"></span></button>
-        </h3>
-        <div class="modal-scrollable-content" id="docsModalScrollableContent">
-            <div class="docs-container-modal">
-                <aside class="docs-toc-modal" id="modalTocSidebar">
-                    <nav class="controls docs-modal-controls" id="modalTocControls">
-                        <button id="modalLoadAboutBtn" class="btn btn-secondary">ABOUT</button>
-                        <button id="modalLoadDevBtn" class="btn btn-secondary">DEV</button>
-                        <button id="modalLoadPluginDevBtn" class="btn btn-secondary">SDK</button>
-                        <button id="modalLoadProdBtn" class="btn btn-secondary">PROD</button>
-                        <button id="modalLoadGuidesBtn" class="btn btn-secondary">GUIDES</button>
-                    </nav>
-                    <ul id="modalTocList"></ul>
-                </aside>
-                <main class="docs-content-modal" id="modalDocsContent">
-                    <article id="modalContent">
-                        <p>Select doc.</p>
-                    </article>
-                </main>
-            </div>
-        </div>
+<div id="docsModal" class="modal">
+  <div class="modal-content !max-w-6xl">
+    <div id="docsModalTitle" class="modal-header">
+      <span class="material-icons header-icon"></span>
+      <span class="header-title">Documentation</span>
+      <div id="docs-lang-selector-placeholder" class="ml-auto"></div>
+      <button
+        id="docsCloseButton"
+        class="btn btn-icon header-close-btn"
+        aria-label="Close Docs"
+      >
+        <span class="mdi" aria-hidden="true"></span>
+      </button>
     </div>
+    <div id="docsModalScrollableContent" class="modal-scrollable-content !p-0">
+      <div
+        class="flex flex-col p-0 desktop:flex-row desktop:p-6 desktop:gap-6 h-full"
+      >
+        <aside
+          id="modalTocSidebar"
+          class="sticky top-0 z-dropdown bg-surface p-4 border-b border-border desktop:p-0 desktop:border-b-0 desktop:border-r desktop:pr-4 desktop:w-72 desktop:flex-shrink-0 desktop:self-start"
+        >
+          <nav
+            id="modalTocControls"
+            class="flex flex-nowrap justify-start gap-1"
+          >
+            <!-- Buttons are dynamically inserted here -->
+          </nav>
+          <ul
+            id="modalTocList"
+            class="hidden desktop:block mt-4 space-y-2 overflow-y-auto"
+          ></ul>
+        </aside>
+        <main id="modalDocsContent" class="flex-1 min-w-0 px-4 desktop:px-0">
+          <article
+            id="modalContent"
+            class="prose dark:prose-invert max-w-none prose-headings:text-text-primary prose-strong:text-text-primary prose-a:text-primary hover:prose-a:text-primary-hover"
+          >
+            <p>Select doc.</p>
+          </article>
+        </main>
+      </div>
+    </div>
+  </div>
 </div>

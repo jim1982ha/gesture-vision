@@ -1,20 +1,12 @@
 /* FILE: packages/frontend/src/services/language-manager.ts */
 import type { AppStore } from '#frontend/core/state/app-store.js';
-import { updateButtonGroupActiveState } from '#frontend/ui/helpers/index.js';
 import {
   translate,
   type LanguageCode,
   translations,
   defaultLang,
 } from '#shared/services/translations.js';
-
-export interface LanguageManagerElements {
-  languageSelectGroupHeader: HTMLElement | null;
-  mainSettingsToggle: HTMLButtonElement | null;
-  mobileLanguageContainer?: HTMLElement | null | undefined;
-  mobileLanguageDropdownTrigger?: HTMLButtonElement | null;
-  mobileLanguageDropdownPanel?: HTMLElement | null;
-}
+import { updateButtonGroupActiveState } from '#frontend/ui/helpers/index.js';
 
 const LANGUAGE_OPTIONS: Array<{
   code: LanguageCode;
@@ -27,18 +19,23 @@ const LANGUAGE_OPTIONS: Array<{
 ];
 
 export class LanguageManager {
-  #elements: LanguageManagerElements;
   #appStore: AppStore;
   #isInitialized = false;
-  #isMobileDropdownOpen = false;
+  #isDropdownOpen = false;
   #unsubscribeStore: () => void;
 
-  constructor(elements: LanguageManagerElements, appStore: AppStore) {
-    this.#appStore = appStore;
-    this.#elements = elements;
+  #container: HTMLElement | null;
+  #dropdownTrigger: HTMLButtonElement | null;
+  #dropdownPanel: HTMLElement | null;
 
-    this.#renderDesktopLanguageButtons();
-    this.#renderMobileTriggerAndPanel();
+  constructor(appStore: AppStore) {
+    this.#appStore = appStore;
+
+    this.#container = null;
+    this.#dropdownTrigger = null;
+    this.#dropdownPanel = null;
+
+    this.#renderTriggerAndPanel();
     this.applyTranslations();
 
     this.#attachEventListeners();
@@ -50,76 +47,46 @@ export class LanguageManager {
 
   destroy(): void {
     this.#unsubscribeStore();
+    document.removeEventListener('click', this.#handleClickOutside);
   }
 
-  #renderDesktopLanguageButtons(): void {
-    const group = this.#elements.languageSelectGroupHeader;
-    if (!group) return;
-
-    group.innerHTML = '';
-    LANGUAGE_OPTIONS.forEach((opt) => {
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.className = 'btn btn-secondary btn-icon';
-      button.dataset.value = opt.code;
-
-      const translatedLabel = translate(opt.labelKey, {
-        defaultValue: opt.code.toUpperCase(),
-      });
-      button.title = translatedLabel;
-      button.setAttribute('aria-label', translatedLabel);
-
-      if (opt.icon) {
-        const iconSpan = document.createElement('span');
-        iconSpan.className = 'lang-icon';
-        iconSpan.textContent = opt.icon;
-        button.appendChild(iconSpan);
-      }
-
-      group.appendChild(button);
-    });
-  }
-
-  #renderMobileTriggerAndPanel(): void {
-    const settingsButton = this.#elements.mainSettingsToggle;
-    const navControls = settingsButton?.closest('.nav-controls');
-    if (!navControls || !settingsButton) return;
+  #renderTriggerAndPanel(): void {
+    const historyButton = document.getElementById("headerHistoryToggle");
+    const navControls = historyButton?.closest('.nav-controls');
+    if (!navControls || !historyButton || document.getElementById('languageDropdownTrigger')) return;
   
-    if (document.getElementById('mobileLanguageDropdownTrigger')) return;
-  
-    this.#elements.mobileLanguageContainer = document.createElement('div');
-    this.#elements.mobileLanguageContainer.className = 'mobile-language-selector-container mobile-only-inline-flex';
+    this.#container = document.createElement('div');
+    this.#container.className = 'language-selector-container relative inline-flex';
   
     const trigger = document.createElement('button');
-    trigger.id = 'mobileLanguageDropdownTrigger';
+    trigger.id = 'languageDropdownTrigger';
     trigger.className = 'btn header-dropdown-trigger btn-secondary';
     trigger.setAttribute('aria-haspopup', 'true');
     trigger.setAttribute('aria-expanded', 'false');
     trigger.innerHTML = `<span class="lang-icon"></span>`;
-    this.#elements.mobileLanguageDropdownTrigger = trigger;
+    this.#dropdownTrigger = trigger;
   
     const panel = document.createElement('div');
-    panel.id = 'mobileLanguageDropdownPanel';
-    panel.className = 'header-dropdown-panel hidden';
+    panel.id = 'languageDropdownPanel';
+    panel.className = 'header-dropdown-panel';
     panel.setAttribute('role', 'menu');
-    panel.setAttribute('aria-labelledby', 'mobileLanguageDropdownTrigger');
-    this.#elements.mobileLanguageDropdownPanel = panel;
+    panel.setAttribute('aria-labelledby', 'languageDropdownTrigger');
+    this.#dropdownPanel = panel;
   
-    this.#elements.mobileLanguageContainer.appendChild(trigger);
-    this.#elements.mobileLanguageContainer.appendChild(panel);
+    this.#container.appendChild(trigger);
+    this.#container.appendChild(panel);
   
-    // Always insert directly before the main settings toggle button.
-    navControls.insertBefore(this.#elements.mobileLanguageContainer, settingsButton);
+    navControls.insertBefore(this.#container, historyButton);
   }
 
-  #renderMobileLanguageMenu(): void {
-    const panel = this.#elements.mobileLanguageDropdownPanel;
+  #renderLanguageMenu(): void {
+    const panel = this.#dropdownPanel;
     if (!panel) return;
     panel.innerHTML = '';
     LANGUAGE_OPTIONS.forEach((opt) => {
       const button = document.createElement('button');
       button.type = 'button';
-      button.className = 'btn btn-secondary';
+      button.className = 'btn btn-secondary w-full justify-start';
       button.dataset.value = opt.code;
       button.role = 'menuitemradio';
       const iconSpan = document.createElement('span');
@@ -136,22 +103,14 @@ export class LanguageManager {
   }
 
   #attachEventListeners(): void {
-    this.#elements.languageSelectGroupHeader?.addEventListener(
-      'click',
-      this.#handleLanguageChange
-    );
-    const navControls = this.#elements.mainSettingsToggle?.closest('.nav-controls');
-    navControls?.addEventListener('click', (e) => {
+    this.#container?.addEventListener('click', (e) => {
       const target = e.target as HTMLElement;
-      if (target.closest('#mobileLanguageDropdownTrigger'))
-        this.#toggleMobileDropdown();
-    });
-    navControls?.addEventListener('click', (e) => {
-      const target = e.target as HTMLElement;
-      if (target.closest('#mobileLanguageDropdownPanel'))
+      if (target.closest('#languageDropdownTrigger')) {
+        this.toggleDropdown();
+      } else if (target.closest('button[data-value]')) {
         this.#handleLanguageChange(e as MouseEvent);
+      }
     });
-
     document.addEventListener('click', this.#handleClickOutside);
   }
 
@@ -161,51 +120,18 @@ export class LanguageManager {
     this.applyTranslations();
   };
 
-  #toggleMobileDropdown = (): void => {
-    this.#isMobileDropdownOpen = !this.#isMobileDropdownOpen;
-    const panel = this.#elements.mobileLanguageDropdownPanel;
-    const trigger = this.#elements.mobileLanguageDropdownTrigger;
+  public toggleDropdown = (): void => {
+    this.#isDropdownOpen = !this.#isDropdownOpen;
+    const panel = this.#dropdownPanel;
+    const trigger = this.#dropdownTrigger;
 
-    if (panel && trigger) {
-      if (this.#isMobileDropdownOpen) {
-        const topAnchor =
-          trigger.closest('.top-nav')?.getBoundingClientRect().bottom ??
-          trigger.getBoundingClientRect().bottom;
-        panel.style.top = `${topAnchor + 4}px`;
-        panel.style.left = '50%';
-        panel.style.right = 'auto';
-
-        panel.style.setProperty(
-          '--dropdown-initial-transform',
-          'translateX(-50%) translateY(-10px) scale(0.95)'
-        );
-        panel.style.setProperty(
-          '--dropdown-visible-transform',
-          'translateX(-50%) translateY(0) scale(1)'
-        );
-      }
-
-      panel.classList.toggle('hidden', !this.#isMobileDropdownOpen);
-      panel.classList.toggle('visible', this.#isMobileDropdownOpen);
-    }
-
-    if (trigger) {
-      trigger.setAttribute('aria-expanded', String(this.#isMobileDropdownOpen));
-    }
+    if (panel) panel.classList.toggle('visible', this.#isDropdownOpen);
+    if (trigger) trigger.setAttribute('aria-expanded', String(this.#isDropdownOpen));
   };
 
   #handleClickOutside = (event: MouseEvent): void => {
-    if (this.#isMobileDropdownOpen) {
-      const trigger = this.#elements.mobileLanguageDropdownTrigger;
-      const panel = this.#elements.mobileLanguageDropdownPanel;
-      if (
-        trigger &&
-        panel &&
-        !trigger.contains(event.target as Node) &&
-        !panel.contains(event.target as Node)
-      ) {
-        this.#toggleMobileDropdown();
-      }
+    if (this.#isDropdownOpen && this.#container && !this.#container.contains(event.target as Node)) {
+      this.toggleDropdown();
     }
   };
 
@@ -217,53 +143,37 @@ export class LanguageManager {
     if (button?.dataset.value) {
       const newLanguage = button.dataset.value as LanguageCode;
       this.setLanguage(newLanguage);
-      if (this.#isMobileDropdownOpen) this.#toggleMobileDropdown();
+      if (this.#isDropdownOpen) this.toggleDropdown();
     }
   };
 
   #updateUISelect(): void {
     if (!this.#isInitialized) return;
     const currentLang = this.getCurrentLanguage();
+    const triggerIcon = this.#dropdownTrigger?.querySelector('.lang-icon');
 
-    if (this.#elements.languageSelectGroupHeader) {
-      updateButtonGroupActiveState(
-        this.#elements.languageSelectGroupHeader,
-        currentLang
-      );
-    }
-
-    const triggerIcon = this.#elements.mobileLanguageDropdownTrigger?.querySelector(
-      '.lang-icon'
-    );
     if (triggerIcon) {
       const currentLangOption = LANGUAGE_OPTIONS.find(
         (opt) => opt.code === currentLang
       );
       triggerIcon.textContent = currentLangOption?.icon || '🌐';
-      if (this.#elements.mobileLanguageDropdownTrigger) {
-        this.#elements.mobileLanguageDropdownTrigger.title = translate(
+      if (this.#dropdownTrigger) {
+        this.#dropdownTrigger.title = translate(
           currentLangOption?.labelKey || 'language'
         );
       }
     }
-    this.#elements.mobileLanguageDropdownPanel
-      ?.querySelectorAll('button[data-value]')
-      .forEach((btn) => {
-        btn.setAttribute(
-          'aria-checked',
-          String((btn as HTMLButtonElement).dataset.value === currentLang)
-        );
-      });
+    
+    updateButtonGroupActiveState(this.#dropdownPanel, currentLang);
   }
 
   public applyTranslations(): void {
     if (!this.#isInitialized) return;
-    this.#renderDesktopLanguageButtons();
-    this.#renderMobileLanguageMenu();
+    this.#renderLanguageMenu();
     this.#updateUISelect();
   }
 
-  setLanguage(newLanguage: LanguageCode): boolean {
+  public setLanguage(newLanguage: LanguageCode): boolean {
     if (!this.#isInitialized || !translations[newLanguage]) {
       console.warn(
         `[LanguageManager] Attempted to set invalid language or not initialized: ${newLanguage}`
@@ -279,10 +189,12 @@ export class LanguageManager {
     return false;
   }
 
-  getCurrentLanguage(): LanguageCode {
+  public getCurrentLanguage(): LanguageCode {
     return (
       (this.#appStore.getState().languagePreference as LanguageCode | undefined) ||
       defaultLang
     );
   }
+
+  public isDropdownOpen = (): boolean => this.#isDropdownOpen;
 }

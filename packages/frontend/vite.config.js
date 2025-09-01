@@ -56,9 +56,6 @@ function manualPartialsInjectorPlugin() {
     "<!-- header-inject -->": readPartialForVitePluginHtml("_header.html"),
     "<!-- main-content-inject -->":
       readPartialForVitePluginHtml("_main_content.html"),
-    "<!-- config-sidebar-inject -->": readPartialForVitePluginHtml(
-      "_config_sidebar.html"
-    ),
     "<!-- history-sidebar-inject -->": readPartialForVitePluginHtml(
       "_history_sidebar.html"
     ),
@@ -78,6 +75,9 @@ function manualPartialsInjectorPlugin() {
       readPartialForVitePluginHtml("_bottom_nav.html"),
     "<!-- modal-confirmation-inject -->": readPartialForVitePluginHtml(
       "_modal_confirmation.html"
+    ),
+    "<!-- modal-gesture-config-inject -->": readPartialForVitePluginHtml(
+      "_modal_gesture_config.html"
     ),
     "<!-- modal-settings-head-inject -->": readPartialForVitePluginHtml(
       "_modal_settings_head.html"
@@ -355,7 +355,6 @@ export default defineConfig(({ _command, mode }) => {
         },
       },
     },
-    // FIX: Point to the new .cjs config file.
     css: { postcss: "./postcss.config.cjs" },
     resolve: {
       alias: {

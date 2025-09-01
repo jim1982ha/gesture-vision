@@ -4,7 +4,6 @@ import type { CameraService } from '#frontend/services/camera.service.js';
 import { UI_EVENTS, pubsub } from '#shared/index.js';
 import { webSocketService } from './websocket-service.js';
 import { translate } from '#shared/services/translations.js';
-import { createSearchableDropdown } from '#frontend/ui/components/searchable-dropdown.js';
 import { setIcon, updateButtonGroupActiveState } from '#frontend/ui/helpers/index.js';
 import { BasePluginGlobalSettingsComponent } from '#frontend/ui/components/plugins/base-plugin-global-settings.component.js';
 import { GenericPluginActionSettingsComponent } from '#frontend/ui/components/plugins/generic-plugin-action-settings.component.js';
@@ -16,6 +15,7 @@ import type {
   IPluginActionSettingsComponent,
   ActionDisplayDetailsRendererFn,
   PluginUIContext,
+  IPluginGlobalSettingsComponent,
 } from '#frontend/types/index.js';
 import type { TranslationService } from './translation.service.js';
 import type { UIController } from '#frontend/ui/ui-controller-core.js';
@@ -33,6 +33,7 @@ export class PluginUIService {
     string,
     Promise<FrontendPluginModule | undefined>
   >();
+  #pluginSettingsComponents = new Map<string, IPluginGlobalSettingsComponent>(); // New: Manages component instances
   #appStore: AppStore;
   #translationService: TranslationService;
   #cameraServiceRef: CameraService | null = null;
@@ -71,6 +72,8 @@ export class PluginUIService {
 
   destroy() {
     this.#unsubscribeStore();
+    this.#pluginSettingsComponents.forEach(component => component.destroy?.());
+    this.#pluginSettingsComponents.clear();
   }
 
   #debounceManifestUpdate(manifests?: PluginManifest[]): void {
@@ -84,110 +87,81 @@ export class PluginUIService {
 
   async #handleManifestUpdate(manifests?: PluginManifest[]): Promise<void> {
     if (!manifests || !Array.isArray(manifests)) return;
-
     const oldManifestsMap = new Map(this.#pluginManifests);
     const newManifestsMap = new Map(manifests.map((m) => [m.id, m]));
     this.#pluginManifests = newManifestsMap;
-
     this.#translationService.mergePluginTranslations(manifests);
 
-    const addedPlugins = manifests.filter(
-      (m) => !oldManifestsMap.has(m.id) && m.status === 'enabled'
-    );
-    const removedPlugins = Array.from(oldManifestsMap.values()).filter(
-      (m) => !newManifestsMap.has(m.id)
-    );
-    const statusChangedPlugins = manifests.filter((m) => {
-      const oldM = oldManifestsMap.get(m.id);
-      return oldM && oldM.status !== m.status;
-    });
+    await this.#reconcilePluginComponents(newManifestsMap, oldManifestsMap);
 
-    const pluginsToDeregister = [
-      ...removedPlugins,
-      ...statusChangedPlugins.filter((m) => m.status === 'disabled'),
-    ];
-    const pluginsToInitialize = [
-      ...addedPlugins,
-      ...statusChangedPlugins.filter((m) => m.status === 'enabled'),
-    ];
-
-    if (pluginsToDeregister.length > 0 || pluginsToInitialize.length > 0) {
-      this.#uiControllerRef?.applyTranslations();
-    }
-
-    if (pluginsToDeregister.length > 0) {
-      pluginsToDeregister.forEach((p) => this.#deregisterPluginUI(p.id));
-    }
-
-    if (pluginsToInitialize.length > 0) {
-      await this.#initializePlugins(pluginsToInitialize.map((p) => p.id));
-    }
-    
-    // Signal that manifests are processed and UI can render things depending on them
     pubsub.publish(UI_EVENTS.PLUGINS_MANIFESTS_PROCESSED);
   }
 
-  #deregisterPluginUI(pluginId: string): void {
-    const moduleToDestroy = this.#loadedFrontendModules.get(pluginId);
-    if (moduleToDestroy && typeof moduleToDestroy.destroy === 'function') {
-      try {
-        moduleToDestroy.destroy();
-      } catch (e) {
-        console.error(
-          `[PluginUIService] Error destroying frontend module for '${pluginId}':`,
-          e
-        );
-      }
-    }
+  async #reconcilePluginComponents(newManifests: Map<string, PluginManifest>, oldManifests: Map<string, PluginManifest>): Promise<void> {
+    const pluginsToDeregister = Array.from(oldManifests.values()).filter(m => !newManifests.has(m.id) || newManifests.get(m.id)!.status === 'disabled');
+    const pluginsToInitialize = Array.from(newManifests.values()).filter(m => m.status === 'enabled' && oldManifests.get(m.id)?.status !== 'enabled');
+    const pluginsToUpdate = Array.from(newManifests.values()).filter(m => m.status === 'enabled' && oldManifests.get(m.id)?.status === 'enabled');
 
+    for (const plugin of pluginsToDeregister) {
+      this.#deregisterPlugin(plugin.id);
+    }
+    for (const plugin of pluginsToInitialize) {
+      await this.#initializePlugin(plugin);
+    }
+    for (const manifest of pluginsToUpdate) {
+        const component = this.#pluginSettingsComponents.get(manifest.id);
+        if (component) {
+            const config = this.#appStore.getState().pluginGlobalConfigs.get(manifest.id) || null;
+            component.update(config, this.getPluginUIContext(manifest.id), {});
+        }
+    }
+    
+    // If any plugins were enabled or disabled, trigger a UI update for contributions.
+    if (pluginsToDeregister.length > 0 || pluginsToInitialize.length > 0) {
+      this.#uiControllerRef?.applyTranslations();
+      pubsub.publish(UI_EVENTS.RECEIVE_UI_CONTRIBUTION, {
+          initialized: pluginsToInitialize.map(p => p.id),
+          deregistered: pluginsToDeregister.map(p => p.id)
+      });
+    }
+  }
+
+  async #initializePlugin(manifest: PluginManifest): Promise<void> {
+    const module = await this.loadPluginFrontendModule(manifest.id);
+    if (!module) return;
+
+    if (manifest.capabilities.hasGlobalSettings && module.createGlobalSettingsComponent) {
+      const component = module.createGlobalSettingsComponent(manifest.id, manifest, this.getPluginUIContext(manifest.id));
+      component.initialize?.();
+      const config = this.#appStore.getState().pluginGlobalConfigs.get(manifest.id) || null;
+      component.update(config, this.getPluginUIContext(manifest.id));
+      this.#pluginSettingsComponents.set(manifest.id, component);
+    }
+  }
+
+  #deregisterPlugin(pluginId: string): void {
+    const component = this.#pluginSettingsComponents.get(pluginId);
+    component?.destroy?.();
+    this.#pluginSettingsComponents.delete(pluginId);
+    
+    // Only remove the contribution from the internal list. The UIController will handle the DOM.
     for (const slotId of this.#uiContributions.keys()) {
-      const contributions = this.#uiContributions.get(slotId) || [];
-      this.#uiContributions.set(
-        slotId,
-        contributions.filter((c) => {
-          if (c.pluginId === pluginId) {
-            c.element.remove();
-            return false;
-          }
-          return true;
-        })
-      );
+        const contributions = (this.#uiContributions.get(slotId) || []).filter(c => c.pluginId !== pluginId);
+        this.#uiContributions.set(slotId, contributions);
     }
-    const existingLink = document.head.querySelector<HTMLLinkElement>(
-      `link[data-plugin-id="${pluginId}"]`
-    );
-    if (existingLink) existingLink.remove();
 
+    document.head.querySelector<HTMLLinkElement>(`link[data-plugin-id="${pluginId}"]`)?.remove();
     this.#loadedFrontendModules.delete(pluginId);
     this.#actionDisplayRenderers.delete(pluginId);
     this.#moduleLoadPromises.delete(pluginId);
-    pubsub.publish(UI_EVENTS.RECEIVE_UI_CONTRIBUTION, {
-      removedPluginId: pluginId,
-    });
-  }
-  
-  async #initializePlugins(pluginIds: string[]): Promise<void> {
-    if (pluginIds.length === 0) return;
-    const initPromises = pluginIds.map((id) =>
-      this.loadPluginFrontendModule(id).catch((err) => {
-        console.error(
-          `[PluginUIService] Failed to load module for plugin ${id}:`,
-          err
-        );
-        return undefined;
-      })
-    );
-    await Promise.all(initPromises);
-    pubsub.publish(UI_EVENTS.RECEIVE_UI_CONTRIBUTION, { pluginIds });
   }
 
   public setCameraService(cameraService: CameraService | null): void {
     this.#cameraServiceRef = cameraService;
   }
   
-  public getLoadedModuleById(pluginId: string): FrontendPluginModule | undefined {
-    return this.#loadedFrontendModules.get(pluginId);
-  }
+  public getLoadedModuleById = (pluginId: string): FrontendPluginModule | undefined => this.#loadedFrontendModules.get(pluginId);
+  public getGlobalSettingsComponents = (): Map<string, IPluginGlobalSettingsComponent> => this.#pluginSettingsComponents;
 
   public getPluginUIContext(pluginId?: string): PluginUIContext {
     return {
@@ -197,84 +171,49 @@ export class PluginUIService {
       cameraService: this.#cameraServiceRef || undefined,
       gesture: this.#gestureProcessorRef || undefined,
       webSocketService: webSocketService || undefined,
-      requestCloseSettingsModal: () =>
-        this.#uiControllerRef?.modalManager?.closeSettingsModal(),
-      globalSettingsModalManager:
-        this.#uiControllerRef?._globalSettingsForm || undefined,
+      requestCloseSettingsModal: () => this.#uiControllerRef?.modalManager?.closeSettingsModal(),
+      globalSettingsModalManager: this.#uiControllerRef?._globalSettingsForm || undefined,
       uiController: this.#uiControllerRef || undefined,
       data: {},
       services: {
-        translate: translate as (
-          key: string,
-          substitutions?: Record<string, unknown> | undefined
-        ) => string,
+        translate: translate as ( key: string, substitutions?: Record<string, unknown> | undefined ) => string,
         pubsub,
       },
       uiComponents: {
-        createCardElement,
-        createSearchableDropdown,
-        setIcon,
-        updateButtonGroupActiveState,
-        BasePluginGlobalSettingsComponent,
-        GenericPluginActionSettingsComponent,
-        ActionPluginUIManager,
+        createCardElement, setIcon, updateButtonGroupActiveState,
+        BasePluginGlobalSettingsComponent, GenericPluginActionSettingsComponent, ActionPluginUIManager,
       },
-      shared: {
-        constants,
-        services: {
-          actionDisplayUtils,
-        },
-        utils,
-      },
+      shared: { constants, services: { actionDisplayUtils }, utils },
     };
   }
 
-  public async loadPluginFrontendModule(
-    pluginId: string
-  ): Promise<FrontendPluginModule | undefined> {
-    if (this.#loadedFrontendModules.has(pluginId))
-      return this.#loadedFrontendModules.get(pluginId);
-    if (this.#moduleLoadPromises.has(pluginId))
-      return this.#moduleLoadPromises.get(pluginId)!;
+  public async loadPluginFrontendModule(pluginId: string): Promise<FrontendPluginModule | undefined> {
+    if (this.#loadedFrontendModules.has(pluginId)) return this.#loadedFrontendModules.get(pluginId);
+    if (this.#moduleLoadPromises.has(pluginId)) return this.#moduleLoadPromises.get(pluginId)!;
 
     const manifest = this.getPluginManifest(pluginId);
     if (!manifest) return undefined;
 
-    if (manifest.frontendStyle) {
-      const existingLink = document.head.querySelector<HTMLLinkElement>(
-        `link[data-plugin-id="${pluginId}"]`
-      );
-      if (!existingLink) {
-        const link = document.createElement('link');
-        link.rel = 'stylesheet';
-        link.type = 'text/css';
-        link.href = `/api/plugins/assets/${pluginId}/${manifest.frontendStyle}`;
-        link.dataset.pluginId = pluginId;
-        document.head.appendChild(link);
-      }
+    if (manifest.frontendStyle && !document.head.querySelector<HTMLLinkElement>(`link[data-plugin-id="${pluginId}"]`)) {
+      const link = document.createElement('link');
+      link.rel = 'stylesheet'; link.type = 'text/css';
+      link.href = `/api/plugins/${pluginId}/assets/${manifest.frontendStyle}`;
+      link.dataset.pluginId = pluginId;
+      document.head.appendChild(link);
     }
 
     if (!manifest.frontendEntry) return undefined;
-    const moduleUrl = `/api/plugins/assets/${pluginId}/${manifest.frontendEntry}`;
+    const moduleUrl = `/api/plugins/${pluginId}/assets/${manifest.frontendEntry}`;
     const loadPromise = (async () => {
       try {
-        const module = (await import(/* @vite-ignore */ moduleUrl))
-          .default as FrontendPluginModule;
+        const module = (await import(/* @vite-ignore */ `${moduleUrl}?v=${Date.now()}`)).default as FrontendPluginModule;
         module.manifest = manifest;
-        if (typeof module.getActionDisplayDetails === 'function')
-          this.#actionDisplayRenderers.set(
-            pluginId,
-            module.getActionDisplayDetails
-          );
-        if (typeof module.init === 'function')
-          await module.init(this.getPluginUIContext(pluginId));
+        if (typeof module.getActionDisplayDetails === 'function') this.#actionDisplayRenderers.set(pluginId, module.getActionDisplayDetails);
+        if (typeof module.init === 'function') await module.init(this.getPluginUIContext(pluginId));
         this.#loadedFrontendModules.set(pluginId, module);
         return module;
       } catch (error) {
-        console.error(
-          `[PluginUIService] Error loading module for '${pluginId}':`,
-          error
-        );
+        console.error(`[PluginUIService] Error loading module for '${pluginId}':`, error);
         return undefined;
       } finally {
         this.#moduleLoadPromises.delete(pluginId);
@@ -284,117 +223,64 @@ export class PluginUIService {
     return loadPromise;
   }
 
-  public getPluginManifest = (pluginId: string): PluginManifest | undefined =>
-    this.#pluginManifests.get(pluginId);
-  public getAllPluginManifests = (): PluginManifest[] =>
-    Array.from(this.#pluginManifests.values());
-  public getAvailableActionPlugins = (): PluginManifest[] =>
-    this.getAllPluginManifests().filter(
-      (m) => m.capabilities.providesActions && m.status === 'enabled'
-    );
-  public getPluginsWithGlobalSettings = (): PluginManifest[] =>
-    this.getAllPluginManifests().filter((m) => m.capabilities.hasGlobalSettings);
-  public hasAnyPluginWithGlobalSettings = (): boolean =>
-    this.getPluginsWithGlobalSettings().length > 0;
+  public getPluginManifest = (pluginId: string): PluginManifest | undefined => this.#pluginManifests.get(pluginId);
+  public getAllPluginManifests = (): PluginManifest[] => Array.from(this.#pluginManifests.values());
+  public getAvailableActionPlugins = (): PluginManifest[] => this.getAllPluginManifests().filter(m => m.capabilities.providesActions && m.status === 'enabled');
+  public getPluginsWithGlobalSettings = (): PluginManifest[] => this.getAllPluginManifests().filter((m) => m.capabilities.hasGlobalSettings);
+  public hasAnyPluginWithGlobalSettings = (): boolean => this.getPluginsWithGlobalSettings().length > 0;
 
-  public async getGlobalSettingsComponentFactory(
-    pluginId: string
-  ): Promise<CreatePluginGlobalSettingsComponentFn | undefined> {
+  public async getGlobalSettingsComponentFactory(pluginId: string): Promise<CreatePluginGlobalSettingsComponentFn | undefined> {
     const module = await this.loadPluginFrontendModule(pluginId);
     return module?.createGlobalSettingsComponent;
   }
 
-  public async createActionSettingsComponent(
-    pluginId: string,
-    currentSettings: Record<string, unknown> | null
-  ): Promise<IPluginActionSettingsComponent | null> {
+  public async createActionSettingsComponent(pluginId: string, currentSettings: Record<string, unknown> | null): Promise<IPluginActionSettingsComponent | null> {
     const module = await this.loadPluginFrontendModule(pluginId);
     if (!module?.actionSettingsFields) return null;
 
     const context = this.getPluginUIContext(pluginId);
-    const component = new GenericPluginActionSettingsComponent(
-      pluginId,
-      module.actionSettingsFields,
-      context
-    );
+    const component = new GenericPluginActionSettingsComponent(pluginId, module.actionSettingsFields, context);
     component.render(currentSettings);
     return component;
   }
 
-  public getActionDisplayDetailsRenderer = (
-    pluginId: string
-  ): ActionDisplayDetailsRendererFn | undefined =>
-    this.#actionDisplayRenderers.get(pluginId);
+  public getActionDisplayDetailsRenderer = (pluginId: string): ActionDisplayDetailsRendererFn | undefined => this.#actionDisplayRenderers.get(pluginId);
 
-  public async getPluginGlobalConfig(
-    pluginId: string
-  ): Promise<unknown | null> {
-    const cachedConfig = this.#appStore
-      .getState()
-      .pluginGlobalConfigs.get(pluginId);
+  public async getPluginGlobalConfig(pluginId: string): Promise<unknown | null> {
+    const cachedConfig = this.#appStore.getState().pluginGlobalConfigs.get(pluginId);
     if (cachedConfig !== undefined) return cachedConfig;
 
     webSocketService.request('GET_PLUGIN_GLOBAL_CONFIG', { pluginId });
     return undefined;
   }
 
-  public async savePluginGlobalConfig(
-    pluginId: string,
-    config: unknown
-  ): Promise<{
-    success: boolean;
-    message?: string;
-    config?: unknown;
-    validationErrors?: unknown;
-  }> {
-    if (!this.#pluginManifests.has(pluginId))
-      return {
-        success: false,
-        message: `Plugin '${pluginId}' not registered.`,
-      };
-    return webSocketService.request('PATCH_PLUGIN_GLOBAL_CONFIG', {
-      pluginId,
-      config,
-    });
+  public async savePluginGlobalConfig(pluginId: string, config: unknown): Promise<{ success: boolean; message?: string; config?: unknown; validationErrors?: unknown; }> {
+    if (!this.#pluginManifests.has(pluginId)) return { success: false, message: `Plugin '${pluginId}' not registered.` };
+    return webSocketService.request('PATCH_PLUGIN_GLOBAL_CONFIG', { pluginId, config });
   }
 
-  public async sendPluginTestConnectionRequest(
-    pluginId: string,
-    configToTest: unknown
-  ): Promise<PluginTestConnectionResultPayload | null> {
-    if (!this.#pluginManifests.has(pluginId))
-      return {
-        pluginId,
-        success: false,
-        messageKey: 'pluginNotRegistered',
-        error: { message: `Plugin '${pluginId}' not found.` },
-      };
+  public async sendPluginTestConnectionRequest(pluginId: string, configToTest: unknown): Promise<PluginTestConnectionResultPayload | null> {
+    if (!this.#pluginManifests.has(pluginId)) return { pluginId, success: false, messageKey: 'pluginNotRegistered', error: { message: `Plugin '${pluginId}' not found.` } };
     try {
-      const response = await fetch(`/api/plugins/${pluginId}/test`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(configToTest),
-      });
+      const response = await fetch(`/api/plugins/${pluginId}/test`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(configToTest), });
       return response.json() as Promise<PluginTestConnectionResultPayload>;
     } catch (error) {
-      return {
-        pluginId,
-        success: false,
-        messageKey: 'TEST_FAILED',
-        error: { message: (error as Error).message },
-      };
+      return { pluginId, success: false, messageKey: 'TEST_FAILED', error: { message: (error as Error).message } };
     }
   }
 
-  public registerContribution(
-    slotId: string,
-    element: HTMLElement,
-    pluginId: string
-  ): void {
-    if (!this.#uiContributions.has(slotId))
+  public registerContribution(slotId: string, element: HTMLElement, pluginId: string): void {
+    if (!this.#uiContributions.has(slotId)) {
       this.#uiContributions.set(slotId, []);
-    this.#uiContributions.get(slotId)!.push({ element, pluginId });
+    }
+    const slotContributions = this.#uiContributions.get(slotId)!;
+    // Prevent duplicate registrations
+    if (!slotContributions.some(c => c.pluginId === pluginId)) {
+        slotContributions.push({ element, pluginId });
+    }
+    
+    // FIX: Publish an event to notify the UIController that a new contribution is ready.
+    pubsub.publish(UI_EVENTS.RECEIVE_UI_CONTRIBUTION, { slotId, pluginId });
   }
-  public getContributionsForSlot = (slotId: string): HTMLElement[] =>
-    (this.#uiContributions.get(slotId) || []).map((c) => c.element);
+  public getContributionsForSlot = (slotId: string): HTMLElement[] => (this.#uiContributions.get(slotId) || []).map((c) => c.element);
 }

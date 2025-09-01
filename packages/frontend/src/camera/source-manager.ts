@@ -27,6 +27,9 @@ interface DeviceInfo {
   label: string;
 }
 
+// FIX: Define a type for the payload which can be a string or an object
+type CameraClickPayload = string | { deviceId: string; isFlip: boolean };
+
 export class CameraSourceManager {
   #selectedCameraSource = '';
   #appStore: AppStore;
@@ -77,8 +80,8 @@ export class CameraSourceManager {
   }
 
   #attachEventListeners(): void {
-    pubsub.subscribe(UI_EVENTS.CAMERA_LIST_ITEM_CLICKED, (deviceId?: unknown) =>
-      this.#handleCameraSourceChange(deviceId as string | null | undefined)
+    pubsub.subscribe(UI_EVENTS.CAMERA_LIST_ITEM_CLICKED, (payload?: unknown) =>
+      this.#handleCameraSourceChange(payload as CameraClickPayload | null | undefined)
     );
     pubsub.subscribe(WEBCAM_EVENTS.DEVICE_UPDATE, (data?: unknown) =>
       this.#handleWebcamDeviceUpdate(data as { devices?: DeviceInfo[] } | undefined)
@@ -125,14 +128,18 @@ export class CameraSourceManager {
     pubsub.publish(CAMERA_SOURCE_EVENTS.MAP_UPDATED, new Map(this.#combinedDeviceMap));
   };
 
-  #handleCameraSourceChange = (deviceId: string | null | undefined): void =>
-    this.#setSelectedSource(deviceId);
+  #handleCameraSourceChange = (payload: CameraClickPayload | null | undefined): void => {
+      const deviceId = typeof payload === 'object' && payload !== null ? payload.deviceId : payload;
+      const isFlip = typeof payload === 'object' && payload !== null ? payload.isFlip : false;
+      this.#setSelectedSource(deviceId, isFlip);
+  }
 
-  #setSelectedSource(deviceId: string | null | undefined): void {
+  #setSelectedSource(deviceId: string | null | undefined, isFlip = false): void {
     const newSource = deviceId?.trim() ?? '';
     const isStreamActive = this.#appStore.getState().isWebcamRunning;
 
-    if (this.#selectedCameraSource === newSource && isStreamActive) {
+    // FIX: Add `!isFlip` to the condition to allow the camera flip action to proceed even if the source ID is the same.
+    if (this.#selectedCameraSource === newSource && isStreamActive && !isFlip) {
         console.log(`[LOG] SourceManager: Clicked same active source ('${newSource}'), ignoring restart.`);
         return; 
     }

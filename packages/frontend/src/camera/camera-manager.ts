@@ -198,7 +198,8 @@ export class CameraManager {
         secureStorage.set(STORAGE_KEY_LAST_WEBCAM_ID, deviceIdFromTrack);
       }
     }
-    const roiForProcessing = rtspSourceConfig?.roi || null;
+
+    const roiForProcessing = this.isStreamingRtsp() ? (rtspSourceConfig?.roi || null) : null;
     this.#gestureProcessorRef.setActiveStreamRoi(roiForProcessing);
     this.#canvasRendererRef.updateSourceInfo(
       this.#currentDeviceId,
@@ -238,10 +239,11 @@ export class CameraManager {
     if (!this.canFlipCamera()) return;
     this.#currentFacingMode =
       this.#currentFacingMode === 'user' ? 'environment' : 'user';
-    pubsub.publish(
-      UI_EVENTS.CAMERA_LIST_ITEM_CLICKED,
-      MOBILE_WEBCAM_PLACEHOLDER_ID
-    );
+    // FIX: Publish an object payload with an `isFlip` flag to bypass the duplicate-click check in the source manager.
+    pubsub.publish(UI_EVENTS.CAMERA_LIST_ITEM_CLICKED, {
+      deviceId: MOBILE_WEBCAM_PLACEHOLDER_ID,
+      isFlip: true,
+    });
   }
 
   public isStreaming(): boolean {

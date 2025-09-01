@@ -21,8 +21,8 @@ export class LandmarkDrawer {
         targetRectWidthOnCanvas: number,
         targetRectHeightOnCanvas: number,
         options: DrawingOptions,
-        fullVideoWidth: number, 
-        fullVideoHeight: number,
+        _fullVideoWidth: number, 
+        _fullVideoHeight: number,
         activeRoiPercent: ROICoordinates | null,
         isMirrored: boolean,
         focusPoints: Set<number> | null,
@@ -30,7 +30,6 @@ export class LandmarkDrawer {
     ): void {
         if (
             !landmarksSet || !Array.isArray(landmarksSet) || landmarksSet.length === 0 ||
-            !fullVideoWidth || !fullVideoHeight || fullVideoWidth === 0 || fullVideoHeight === 0 ||
             targetRectWidthOnCanvas <= 0 || targetRectHeightOnCanvas <= 0
         ) {
             return;
@@ -51,43 +50,22 @@ export class LandmarkDrawer {
             const pointsToDraw = singleInstanceLandmarks.map((lm, index) => {
                 if (typeof lm?.x !== "number" || typeof lm?.y !== "number" || isNaN(lm.x) || isNaN(lm.y)) return null;
                 
-                let finalNormX = lm.x;
-                let finalNormY = lm.y;
+                const normX = lm.x;
+                const normY = lm.y;
                 let pointColor = defaultColor;
 
                 if (activeRoiPercent) {
                     pointColor = inRoiColor; 
-                    finalNormX = (activeRoiPercent.x / 100.0) + (lm.x * (activeRoiPercent.width / 100.0));
-                    finalNormY = (activeRoiPercent.y / 100.0) + (lm.y * (activeRoiPercent.height / 100.0));
                 }
                 
-                if (isMirrored) {
-                    finalNormX = 1.0 - finalNormX;
-                }
+                // Landmarks are normalized to the source frame (either full or ROI).
+                // Target rect is the pixel area on canvas where that source is drawn.
+                const scaledX = targetRectXOnCanvas + (isMirrored ? (1 - normX) : normX) * targetRectWidthOnCanvas;
+                const scaledY = targetRectYOnCanvas + normY * targetRectHeightOnCanvas;
                 
                 if (focusPoints && focusPoints.has(index)) {
                     pointColor = focusColor;
                 }
-                
-                const canvasWidth = targetRectWidthOnCanvas;
-                const canvasHeight = targetRectHeightOnCanvas;
-                const canvasAspect = canvasWidth / canvasHeight;
-                const sourceAspect = fullVideoWidth / fullVideoHeight;
-                let scale: number, videoRenderX = 0, videoRenderY = 0;
-
-                // This logic calculates the 'letterboxing' or 'pillarboxing' offset and scale
-                // to correctly map normalized landmark coordinates (0.0-1.0) from the full video
-                // frame to the scaled and centered video image being drawn on the canvas.
-                if (sourceAspect > canvasAspect) { // Video is wider than canvas (pillarbox)
-                    scale = canvasHeight / fullVideoHeight;
-                    videoRenderX = (canvasWidth - fullVideoWidth * scale) / 2;
-                } else { // Video is taller than canvas (letterbox)
-                    scale = canvasWidth / fullVideoWidth;
-                    videoRenderY = (targetRectHeightOnCanvas - fullVideoHeight * scale) / 2;
-                }
-                
-                const scaledX = targetRectXOnCanvas + videoRenderX + (finalNormX * fullVideoWidth * scale);
-                const scaledY = targetRectYOnCanvas + videoRenderY + (finalNormY * fullVideoHeight * scale);
                 
                 return { x: scaledX, y: scaledY, color: pointColor };
 

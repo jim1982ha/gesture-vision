@@ -1,13 +1,12 @@
 /* FILE: packages/frontend/src/ui/tabs/plugins-tab.ts */
 import type { AppStore, FrontendFullState } from '#frontend/core/state/app-store.js';
 import type { UIController } from '#frontend/ui/ui-controller-core.js';
-import { createCardElement, createCardActionButton } from '#frontend/ui/utils/card-utils.js';
+import { createCardElement, createCardActionButton, type CardFooterConfig } from '#frontend/ui/utils/card-utils.js';
 import { setIcon } from '#frontend/ui/helpers/index.js';
 import { BaseSettingsTab, type TabElements } from '../base-settings-tab.js';
 
 import { UI_EVENTS, pubsub, translate } from '#shared/index.js';
 import type { FullConfiguration, PluginManifest } from '#shared/index.js';
-import type { IPluginGlobalSettingsComponent, PluginUIContext } from '#frontend/types/index.js';
 
 export interface PluginsTabElements extends TabElements {
     pluginsListContainer?: HTMLElement | null;
@@ -23,10 +22,9 @@ export class PluginsTab extends BaseSettingsTab<PluginsTabElements> {
     #uiControllerRef: UIController;
     #isInstalling = false;
     #pendingPlugins = new Set<string>();
-    #pluginSettingsComponents = new Map<string, IPluginGlobalSettingsComponent>();
 
-    constructor(elements: PluginsTabElements, appStore: AppStore, uiControllerRef: UIController) {
-        super(elements, appStore);
+    constructor(appStore: AppStore, uiControllerRef: UIController, elementQueries: { [K in keyof PluginsTabElements]: string }) {
+        super(appStore, elementQueries);
         this.#uiControllerRef = uiControllerRef;
 
         pubsub.subscribe(UI_EVENTS.RECEIVE_UI_CONTRIBUTION, this.#renderContributions);
@@ -136,8 +134,6 @@ export class PluginsTab extends BaseSettingsTab<PluginsTabElements> {
             console.error(`[PluginsTab] Failed to set plugin state for '${pluginId}':`, error);
             pubsub.publish(UI_EVENTS.SHOW_ERROR, { message: `Failed to change plugin state: ${(error as Error).message}` });
         } finally {
-            // FIX: Always remove from pending set after the API call finishes.
-            // The WebSocket update will trigger the final re-render with the correct state.
             this.#pendingPlugins.delete(pluginId);
         }
     };
@@ -170,7 +166,7 @@ export class PluginsTab extends BaseSettingsTab<PluginsTabElements> {
         });
     };
 
-    #renderPluginCards = async (manifests: PluginManifest[]): Promise<void> => {
+    #renderPluginCards = (manifests: PluginManifest[]): void => {
         const container = this._elements.pluginsListContainer;
         const placeholder = this._elements.pluginsListPlaceholder;
         if (!container || !placeholder) return;
@@ -185,50 +181,18 @@ export class PluginsTab extends BaseSettingsTab<PluginsTabElements> {
             container.appendChild(placeholder);
             return;
         }
-    
-        const newManifestIds = new Set(manifests.map(m => m.id));
-    
-        for (const [pluginId, component] of this.#pluginSettingsComponents.entries()) {
-            if (!newManifestIds.has(pluginId)) {
-                component.destroy?.();
-                this.#pluginSettingsComponents.delete(pluginId);
-            }
-        }
-    
-        const pluginUIContext = this.#uiControllerRef.pluginUIService?.getPluginUIContext() as PluginUIContext;
-    
-        const cardElements: HTMLElement[] = [];
-    
-        for (const manifest of manifests) {
-            const hasSettings = manifest.capabilities.hasGlobalSettings;
-            const isPending = this.#pendingPlugins.has(manifest.id);
-            let component = this.#pluginSettingsComponents.get(manifest.id) || null;
-    
-            if (hasSettings && !component && this.#uiControllerRef.pluginUIService) {
-                const factory = await this.#uiControllerRef.pluginUIService.getGlobalSettingsComponentFactory(manifest.id);
-                if (factory) {
-                    component = factory(manifest.id, manifest, pluginUIContext);
-                    this.#pluginSettingsComponents.set(manifest.id, component);
-                }
-            }
-    
+        
+        const pluginComponents = this.#uiControllerRef.pluginUIService.getGlobalSettingsComponents();
+        const cardElements = manifests.map(manifest => {
+            const component = pluginComponents.get(manifest.id);
             if (component) {
-                component.update(this._appStore.getState().pluginGlobalConfigs.get(manifest.id) || null, pluginUIContext, { isPending });
-                cardElements.push(component.getElement());
+                return component.getElement();
             } else {
-                cardElements.push(this.#createBasicPluginCard(manifest, isPending));
+                return this.#createBasicPluginCard(manifest, this.#pendingPlugins.has(manifest.id));
             }
-        }
+        });
         
         container.replaceChildren(...cardElements);
-
-        for (const el of cardElements) {
-            const componentId = el.id.replace('-integration-card', '');
-            if (this.#pluginSettingsComponents.has(componentId)) {
-                const component = this.#pluginSettingsComponents.get(componentId)!;
-                component.initialize?.();
-            }
-        }
     }
 
     #createBasicPluginCard(manifest: PluginManifest, isPending: boolean): HTMLDivElement {
@@ -243,19 +207,20 @@ export class PluginsTab extends BaseSettingsTab<PluginsTabElements> {
         const actionButtonsHtml = `${toggleButton.outerHTML}${uninstallButton.outerHTML}`;
 
         const description = translate(manifest.descriptionKey || '', { defaultValue: '' });
-        const versionInfo = `v${manifest.version} by ${manifest.author || 'Unknown'}`;
-
+        
         const detailsHtml = `<div class="card-detail-line"><span class="material-icons card-detail-icon" title="${translate('descriptionOptionalLabel')}"></span><span class="card-detail-value allow-wrap">${description}</span></div>`;
-        const footerHtml = `<div class="card-footer"><div class="card-detail-line"><span class="material-icons card-detail-icon" title="Version Info"></span><span class="card-detail-value">${versionInfo}</span></div></div>`;
+        const footerConfig: CardFooterConfig = {
+            mainText: `v${manifest.version} by ${manifest.author || 'Unknown'}`,
+            statusIconKey: 'UI_INFO'
+        };
 
         const card = createCardElement({
             ...(manifest.icon ? { iconName: manifest.icon.name, iconType: manifest.icon.type } : { iconName: 'UI_EXTENSION' }),
             title: translate(manifest.nameKey, { defaultValue: manifest.id }),
-            itemClasses: "plugin-item", actionButtonsHtml, detailsHtml, footerHtml
+            itemClasses: "plugin-item", actionButtonsHtml, detailsHtml, footerConfig
         });
         
         setIcon(card.querySelector('.card-detail-line:first-of-type .card-detail-icon'), 'UI_NOTES');
-        setIcon(card.querySelector('.card-footer .card-detail-icon'), 'UI_INFO');
         
         if (manifest.status !== 'enabled') card.classList.add('config-item-disabled');
         if (isPending) card.classList.add('is-pending');

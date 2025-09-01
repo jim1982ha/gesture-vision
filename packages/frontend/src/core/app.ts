@@ -2,7 +2,6 @@
 // Main application class, initializes and coordinates core modules.
 import { AppStatusManager } from './app-status-manager.js';
 import type { AppStore } from './state/app-store.js';
-import type { AllDOMElements } from './dom-elements.js';
 import { GestureProcessor } from '#frontend/gestures/processor.js';
 import { CameraService } from '#frontend/services/camera.service.js';
 import type { TranslationService } from '#frontend/services/translation.service.js';
@@ -25,35 +24,27 @@ export class App {
   appStatusManager: AppStatusManager;
   appStore: AppStore;
   translationService: TranslationService;
-  elements: Partial<AllDOMElements>;
   cameraManager: CameraManager;
   #frameAnalysisHandlerId: number | null = null;
   #videoOriginalParent: HTMLElement | null = null;
   #videoOriginalNextSibling: Node | null = null;
 
   constructor(
-    elements: Partial<AllDOMElements>,
     appStore: AppStore,
     translationService: TranslationService
   ) {
-    this.elements = elements;
     this.appStore = appStore;
     this.translationService = translationService;
     this.appStatusManager = new AppStatusManager();
 
-    // Create GestureProcessor first. It does not need the renderer in its constructor.
+    const videoElement = document.getElementById("webcam") as HTMLVideoElement;
+    const outputCanvas = document.getElementById("output_canvas") as HTMLCanvasElement;
+    if (!videoElement || !outputCanvas) {
+      throw new Error("Critical video or canvas element not found in DOM.");
+    }
+
     this.gesture = new GestureProcessor(this.appStore);
-
-    // Now create CameraManager, passing the valid GestureProcessor instance.
-    // The CameraManager constructor will create the CanvasRenderer.
-    this.cameraManager = new CameraManager(
-      elements.videoElement as HTMLVideoElement,
-      elements.outputCanvas as HTMLCanvasElement,
-      this.appStore,
-      this.gesture
-    );
-
-    // Finally, provide the GestureProcessor with its required CanvasRenderer reference.
+    this.cameraManager = new CameraManager(videoElement, outputCanvas, this.appStore, this.gesture);
     this.gesture.setCanvasRenderer(this.cameraManager.getCanvasRenderer());
 
     this.cameraService = new CameraService(this.cameraManager);
@@ -61,24 +52,24 @@ export class App {
 
     this.setAppVersionDisplay();
 
-    this.elements.appVersionDisplaySettings?.addEventListener('click', () => {
+    document.getElementById("appVersionDisplaySettings")?.addEventListener('click', () => {
       pubsub.publish(DOCS_MODAL_EVENTS.REQUEST_OPEN, 'ABOUT');
     });
   }
 
   public async initializeAppSequence(): Promise<void> {
     try {
-      console.info('[Init Step 1/4] Waiting for Translation Service...');
+      console.info("[Init Step 1/4] Waiting for Translation Service...");
       await this.translationService.waitUntilInitialized();
-      console.info('[Init Step 1/4] Translation Service is ready.');
+      console.info("[Init Step 1/4] Translation Service is ready.");
 
-      console.info('[Init Step 2/4] Initializing App Status Manager...');
+      console.info("[Init Step 2/4] Initializing App Status Manager...");
       this.appStatusManager.setAppRef(this);
-      console.info('[Init Step 2/4] App Status Manager is ready.');
+      console.info("[Init Step 2/4] App Status Manager is ready.");
 
-      console.info('[Init Step 3/4] Initializing UI Controller...');
+      console.info("[Init Step 3/4] Initializing UI Controller...");
       await this.ui.initialize();
-      console.info('[Init Step 3/4] UI Controller is ready.');
+      console.info("[Init Step 3/4] UI Controller is ready.");
 
       console.info('[Init Step 4/4] Setting up core event listeners...');
       this.setupLifecycleListeners();
@@ -98,7 +89,7 @@ export class App {
   }
 
   public setAppVersionDisplay(): void {
-    const versionDiv = this.elements.appVersionDisplaySettings;
+    const versionDiv = document.getElementById("appVersionDisplaySettings");
     if (versionDiv)
       versionDiv.textContent = `v. ${
         typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev'
@@ -127,7 +118,7 @@ export class App {
     placeholderElement?: HTMLElement;
     release?: boolean;
   }): void => {
-    const videoContainer = this.elements.videoContainer as HTMLElement;
+    const videoContainer = document.querySelector(".video-container") as HTMLElement;
     if (!videoContainer) return;
 
     if (payload?.release) {
@@ -186,14 +177,10 @@ export class App {
       const canvasElement = this.cameraManager?.getCanvasRenderer()?.getCanvasElement();
 
       if (videoElement && canvasElement) {
-        // First, synchronously draw the current video frame and any available landmarks to the canvas for display.
         this.cameraManager.getCanvasRenderer().drawOutput();
-        
-        // Then, asynchronously process the raw video frame for gestures.
-        // This ensures the AI always processes a non-mirrored frame, fixing the landmark mirroring bug.
         this.gesture.processFrame({
             videoElement: videoElement,
-            imageSourceElement: videoElement, // Use the raw video as the source for AI
+            imageSourceElement: videoElement,
             roiConfig: this.gesture.getStateLogic().getActiveStreamRoi(),
             timestamp: performance.now(),
           }).catch(error => {

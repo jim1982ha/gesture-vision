@@ -1,0 +1,16 @@
+/* FILE: packages/frontend/src/styles/_utilities.css */
+@layer components {
+  .list-placeholder {
+    @apply text-center text-text-secondary italic py-6;
+  }
+  .visually-hidden {
+    @apply absolute overflow-hidden h-1 w-1 -m-px p-0 border-0;
+    clip: rect(0, 0, 0, 0);
+  }
+  .toggle-button-text {
+    @apply hidden desktop:inline;
+  }
+  .inactive-list-title {
+    @apply col-span-full text-sm font-semibold text-text-secondary border-b border-border pb-2 mb-2 mt-4;
+  }
+}

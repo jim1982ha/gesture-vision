@@ -64,7 +64,6 @@ export const GESTURE_CATEGORY_ICONS = {
   UI_ERROR: { iconName: "error_outline", iconType: "material-icons" },
   UI_TOGGLE_ON: { iconName: "toggle_on", iconType: "material-icons" },
   UI_TOGGLE_OFF: { iconName: "toggle_off", iconType: "material-icons" },
-  // Newly Added Icons
   UI_EXTENSION: { iconName: "extension", iconType: "material-icons" },
   UI_VIDEOCAM: { iconName: "videocam", iconType: "material-icons" },
   UI_ARROW_DROP_DOWN: { iconName: "arrow_drop_down", iconType: "material-icons" },

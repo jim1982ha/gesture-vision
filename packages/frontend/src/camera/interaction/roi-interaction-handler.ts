@@ -132,6 +132,10 @@ export class RoiInteractionHandler {
             this.#lastRoiDisplayCoordinatesPx = coords ? { ...coords } : null;
         }
     }
+    
+    public getLastRoiDisplayCoordinates(): ROICoordinates | null {
+        return this.#lastRoiDisplayCoordinatesPx;
+    }
 
     #recalculateLastRoiDisplayCoordinatesFromConfig(roiConfigPercentForCalc?: ROICoordinates | null): void {
         const currentRoiConfig = roiConfigPercentForCalc || this.#authoritativeRoiConfigPercent;

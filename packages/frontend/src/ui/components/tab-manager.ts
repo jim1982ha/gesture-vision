@@ -26,9 +26,10 @@ export function initializeTabs({
     return { activateTab: () => {}, getCurrentTab: () => null };
   }
 
-  const tabButtons = Array.from(
-    tabsContainer.querySelectorAll<HTMLButtonElement>(".modal-tab-button[data-tab]") 
+  const getTabButtons = () => Array.from(
+    tabsContainer.querySelectorAll<HTMLButtonElement>(".settings-tab-nav-button[data-tab]") 
   );
+  
   const tabContents = Array.from(
     contentContainer.querySelectorAll<HTMLElement>(".settings-tab-content[data-tab-content]") 
   );
@@ -37,22 +38,23 @@ export function initializeTabs({
   function activateTab(tabKey: string, forceCallback = false): void {
     const previousActiveTabKeyForCallback = currentActiveTabKey; 
     let newlyDeterminedActiveKey: string | null = null;
+    const currentTabButtons = getTabButtons();
 
-    const targetButton = tabButtons.find(button => button.dataset.tab === tabKey && !button.classList.contains("hidden"));
+    const targetButton = currentTabButtons.find(button => button.dataset.tab === tabKey && !button.classList.contains("hidden"));
     
     if (targetButton) {
         newlyDeterminedActiveKey = tabKey;
     } else {
       const defaultButtonInstance = tabsContainer.querySelector<HTMLButtonElement>(
-          `.modal-tab-button[data-tab="${defaultTabKey}"]:not(.hidden)`
+          `.settings-tab-nav-button[data-tab="${defaultTabKey}"]:not(.hidden)`
       );
-      if (defaultButtonInstance && defaultButtonInstance.dataset.tab) {
+      if (defaultButtonInstance?.dataset.tab) {
           newlyDeterminedActiveKey = defaultButtonInstance.dataset.tab;
       } else {
           const firstVisibleButton = tabsContainer.querySelector<HTMLButtonElement>(
-              ".modal-tab-button:not(.hidden)"
+              ".settings-tab-nav-button:not(.hidden)"
           );
-          if (firstVisibleButton && firstVisibleButton.dataset.tab) {
+          if (firstVisibleButton?.dataset.tab) {
               newlyDeterminedActiveKey = firstVisibleButton.dataset.tab;
           } else {
               console.error("[TabManager] No visible tabs found to activate as fallback.");
@@ -63,7 +65,7 @@ export function initializeTabs({
     
     currentActiveTabKey = newlyDeterminedActiveKey; 
 
-    tabButtons.forEach((button) => {
+    currentTabButtons.forEach((button) => {
       const isActive = button.dataset.tab === currentActiveTabKey;
       button.classList.toggle("active", isActive);
     });
@@ -84,15 +86,14 @@ export function initializeTabs({
   }
 
   tabsContainer.addEventListener("click", (event: MouseEvent) => { 
-    const button = (event.target as HTMLElement).closest<HTMLButtonElement>(".modal-tab-button[data-tab]");
-    if (button instanceof HTMLButtonElement && button.dataset.tab) {
-      if (!button.classList.contains("hidden")) {
-        activateTab(button.dataset.tab, false); 
-      }
+    const button = (event.target as HTMLElement).closest<HTMLButtonElement>(".settings-tab-nav-button[data-tab]");
+    if (button?.dataset.tab && !button.classList.contains("hidden")) {
+      activateTab(button.dataset.tab, false); 
     }
   });
   
-  activateTab(defaultTabKey, true); 
+  // Initial activation after a microtask to allow DOM to update
+  setTimeout(() => activateTab(defaultTabKey, true), 0);
 
   return {
     activateTab, 

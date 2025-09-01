@@ -15,6 +15,7 @@ import {
 import { setIcon } from "./helpers/index.js";
 
 import type { UIController } from "./ui-controller-core.js";
+import { translate } from "#shared/services/translations.js";
 
 export interface DocsModalElements {
   docsModal: HTMLElement | null;
@@ -26,11 +27,6 @@ export interface DocsModalElements {
   modalDocsContent: HTMLElement | null;
   modalContent: HTMLElement | null;
   modalTocList: HTMLElement | null;
-  modalLoadProdBtn: HTMLButtonElement | null;
-  modalLoadDevBtn: HTMLButtonElement | null;
-  modalLoadPluginDevBtn: HTMLButtonElement | null;
-  modalLoadGuidesBtn: HTMLButtonElement | null;
-  modalLoadAboutBtn: HTMLButtonElement | null;
   modalTocControls: HTMLElement | null;
   docsModalScrollableContent?: HTMLElement | null;
 }
@@ -42,6 +38,7 @@ export class DocsModalManager {
   #contentLoader: DocsContentLoader;
   #tocManager: DocsTocManager;
   #unsubscribeStore: () => void;
+  #unsubscribeDropdownToggle: () => void;
 
   constructor(uiControllerRef: UIController) {
     if (!uiControllerRef || !uiControllerRef.appStore) {
@@ -70,71 +67,40 @@ export class DocsModalManager {
         }
       }
     );
+    
+    this.#unsubscribeDropdownToggle = pubsub.subscribe('language-dropdown-toggled', () => {
+        if (this.#elements.docsModal?.classList.contains('visible')) {
+            this.#tocManager.syncMovedLanguageSelectorUI();
+        }
+    });
   }
   
   destroy(): void {
     this.#unsubscribeStore();
+    this.#unsubscribeDropdownToggle();
   }
 
   #queryElements(): void {
-    const allAppElements = this.#uiControllerRef?._elements;
-    if (!allAppElements) return;
     const query = (id: string) => document.getElementById(id);
 
-    this.#elements.docsModal =
-      (allAppElements.docsModal as HTMLElement) ?? query("docsModal");
-    this.#elements.docsCloseButton =
-      (allAppElements.docsCloseButton as HTMLButtonElement) ??
-      (query("docsCloseButton") as HTMLButtonElement);
-    this.#elements.docsModalTitle =
-      (allAppElements.docsModalTitle as HTMLElement) ?? query("docsModalTitle");
-    this.#elements.docsModalIcon =
-      this.#elements.docsModalTitle?.querySelector<HTMLElement>(
-        ".header-icon"
-      ) ?? null;
-    this.#elements.docsModalTitleText =
-      this.#elements.docsModalTitle?.querySelector<HTMLElement>(
-        ".header-title"
-      ) ?? null;
-    this.#elements.modalTocSidebar =
-      (allAppElements.modalTocSidebar as HTMLElement) ??
-      query("modalTocSidebar");
-    this.#elements.modalDocsContent =
-      (allAppElements.modalDocsContent as HTMLElement) ??
-      query("modalDocsContent");
-    this.#elements.modalContent =
-      (allAppElements.modalContent as HTMLElement | null) ??
-      (query("modalContent") as HTMLElement);
-    this.#elements.modalTocList =
-      (allAppElements.modalTocList as HTMLElement) ?? query("modalTocList");
-    this.#elements.modalLoadProdBtn =
-      (allAppElements.modalLoadProdBtn as HTMLButtonElement) ??
-      (query("modalLoadProdBtn") as HTMLButtonElement);
-    this.#elements.modalLoadDevBtn =
-      (allAppElements.modalLoadDevBtn as HTMLButtonElement) ??
-      (query("modalLoadDevBtn") as HTMLButtonElement);
-    this.#elements.modalLoadPluginDevBtn =
-      (query("modalLoadPluginDevBtn") as HTMLButtonElement);
-    this.#elements.modalLoadGuidesBtn =
-      (allAppElements.modalLoadGuidesBtn as HTMLButtonElement) ??
-      (query("modalLoadGuidesBtn") as HTMLButtonElement);
-    this.#elements.modalLoadAboutBtn =
-      (allAppElements.modalLoadAboutBtn as HTMLButtonElement) ??
-      (query("modalLoadAboutBtn") as HTMLButtonElement);
-    this.#elements.modalTocControls =
-      (allAppElements.modalTocControls as HTMLElement) ??
-      query("modalTocControls");
-    this.#elements.docsModalScrollableContent =
-      (allAppElements.docsModalScrollableContent as HTMLElement) ??
-      query("docsModalScrollableContent");
+    this.#elements.docsModal = query("docsModal") as HTMLElement;
+    this.#elements.docsCloseButton = query("docsCloseButton") as HTMLButtonElement;
+    this.#elements.docsModalTitle = query("docsModalTitle") as HTMLElement;
+    this.#elements.docsModalIcon = this.#elements.docsModalTitle?.querySelector<HTMLElement>(".header-icon") ?? null;
+    this.#elements.docsModalTitleText = this.#elements.docsModalTitle?.querySelector<HTMLElement>(".header-title") ?? null;
+    this.#elements.modalTocSidebar = query("modalTocSidebar") as HTMLElement;
+    this.#elements.modalDocsContent = query("modalDocsContent") as HTMLElement;
+    this.#elements.modalContent = query("modalContent") as HTMLElement;
+    this.#elements.modalTocList = query("modalTocList") as HTMLElement;
+    this.#elements.modalTocControls = query("modalTocControls") as HTMLElement;
+    this.#elements.docsModalScrollableContent = query("docsModalScrollableContent") as HTMLElement;
   }
 
   #verifyElements(calledFrom: string): boolean {
     const required: Array<keyof DocsModalElements> = [
       "docsModal", "docsCloseButton", "docsModalTitle", "modalTocSidebar",
-      "modalDocsContent", "modalContent", "modalTocList", "modalLoadProdBtn",
-      "modalLoadDevBtn", "modalLoadPluginDevBtn", "modalLoadGuidesBtn",
-      "modalLoadAboutBtn", "modalTocControls", "docsModalScrollableContent",
+      "modalDocsContent", "modalContent", "modalTocList", "modalTocControls", 
+      "docsModalScrollableContent",
     ];
     for (const key of required) {
       if (!this.#elements[key]) {
@@ -147,12 +113,6 @@ export class DocsModalManager {
 
   #attachEventListeners(): void {
     this.#elements.docsCloseButton?.addEventListener("click", this.closeModal);
-    const loadDoc = (docKey: string) => this.#loadAndRenderDocument(docKey);
-    this.#elements.modalLoadProdBtn?.addEventListener("click", () => loadDoc("PRODUCTION"));
-    this.#elements.modalLoadDevBtn?.addEventListener("click", () => loadDoc("DEVELOPMENT"));
-    this.#elements.modalLoadPluginDevBtn?.addEventListener("click", () => loadDoc("PLUGIN_DEV"));
-    this.#elements.modalLoadGuidesBtn?.addEventListener("click", () => loadDoc("GUIDES"));
-    this.#elements.modalLoadAboutBtn?.addEventListener("click", () => loadDoc("ABOUT"));
     pubsub.subscribe(DOCS_MODAL_EVENTS.REQUEST_CLOSE, this.closeModal);
     pubsub.subscribe(DOCS_MODAL_EVENTS.REQUEST_OPEN, (docKey?: unknown) => this.openModal(docKey as string | null));
   }
@@ -190,13 +150,12 @@ export class DocsModalManager {
       contentArticle.innerHTML = await this.#contentLoader.fetchAndProcess(targetDocPath, currentLang);
       requestAnimationFrame(() => {
         this.#tocManager.generate(contentArticle);
-        // FIX: Pass the current docKey to the manageLanguageSelector method.
         this.#tocManager.manageLanguageSelector(this.#currentDocKey);
       });
       scrollContainer.scrollTop = 0;
     } catch (error) {
       console.error(`Error loading document ${docKey}:`, error);
-      contentArticle.innerHTML = `<p style="color: var(--error);">Error loading document.</p>`;
+      contentArticle.innerHTML = `<p style="color: var(--error);">${translate("errorLoadingDoc")}</p>`;
       modalTocList.innerHTML = `<li>Error</li>`;
       this.#currentDocKey = "";
     }
@@ -220,19 +179,34 @@ export class DocsModalManager {
     this.#currentDocKey = "";
   };
 
+  #renderTocControls = (): void => {
+    const container = this.#elements.modalTocControls;
+    if (!container) return;
+    container.innerHTML = '';
+    const controls = [
+      { docKey: 'ABOUT', labelKey: 'docsAboutButton' },
+      { docKey: 'GUIDES', labelKey: 'docsGuidesButton' },
+      { docKey: 'DEVELOPMENT', labelKey: 'docsDevButton' },
+      { docKey: 'PLUGIN_DEV', labelKey: 'docsPluginDevButton' },
+      { docKey: 'PRODUCTION', labelKey: 'docsProdButton' },
+    ];
+    controls.forEach(control => {
+      const button = document.createElement('button');
+      button.className = 'btn btn-secondary !text-xs !px-1 desktop:!px-4';
+      button.textContent = translate(control.labelKey, { defaultValue: control.docKey });
+      button.addEventListener('click', () => this.#loadAndRenderDocument(control.docKey));
+      container.appendChild(button);
+    });
+  }
+
   public applyTranslations = (): void => {
-    const titleTextElement = this.#elements.docsModalTitleText;
+    this.#renderTocControls();
     const itemsToTranslate: TranslationConfigItem[] = [
-      { element: titleTextElement, config: "documentationTitle" },
-      { element: this.#elements.modalLoadAboutBtn, config: { key: "docsAboutButton", defaultValue: "ABOUT" } },
-      { element: this.#elements.modalLoadDevBtn, config: { key: "docsDevButton", defaultValue: "DEV" } },
-      { element: this.#elements.modalLoadPluginDevBtn, config: { key: "docsPluginDevButton", defaultValue: "SDK" } },
-      { element: this.#elements.modalLoadProdBtn, config: { key: "docsProdButton", defaultValue: "PROD" } },
-      { element: this.#elements.modalLoadGuidesBtn, config: { key: "docsGuidesButton", defaultValue: "GUIDES" } },
+      { element: this.#elements.docsModalTitleText, config: "documentationTitle" },
       { element: this.#elements.docsCloseButton, config: { key: "close", attribute: "title" } },
     ];
     updateTranslationsForComponent(itemsToTranslate);
     setIcon(this.#elements.docsModalIcon, "UI_DOCS");
-    this.#tocManager.updateClonedLangSelectorUI();
+    this.#tocManager.syncMovedLanguageSelectorUI();
   };
 }

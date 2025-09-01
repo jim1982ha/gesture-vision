@@ -2,14 +2,11 @@
 import { translate } from '#shared/services/translations.js';
 import type {
   ActionSettingFieldDescriptor,
-  ActionSettingFieldOption,
 } from '#shared/index.js';
 import type {
   IPluginActionSettingsComponent,
   PluginUIContext,
-  CreateSearchableDropdownFn,
 } from '#frontend/types/index.js';
-import type { SearchableDropdown } from '../searchable-dropdown.js';
 
 export class GenericPluginActionSettingsComponent
   implements IPluginActionSettingsComponent
@@ -19,8 +16,8 @@ export class GenericPluginActionSettingsComponent
   #fieldDescriptors: ActionSettingFieldDescriptor[];
   #context: PluginUIContext;
   #formElements: Record<string, HTMLElement> = {};
-  #searchableDropdowns = new Map<string, SearchableDropdown>();
   #dependencyMap = new Map<string, string[]>();
+  #currentSettings: Record<string, unknown> | null = null;
 
   constructor(
     pluginId: string,
@@ -43,13 +40,12 @@ export class GenericPluginActionSettingsComponent
   render(
     currentActionSpecificSettings: Record<string, unknown> | null
   ): HTMLElement {
+    this.#currentSettings = currentActionSpecificSettings;
     this.#uiContainer.innerHTML = '';
     this.#formElements = {};
-    this.#searchableDropdowns.clear();
-    const settings = currentActionSpecificSettings || {};
 
     this.#fieldDescriptors.forEach((field) => {
-      const value = this.#getNestedValue(settings, field.id);
+      const value = this.#getNestedValue(this.#currentSettings || {}, field.id);
       const formGroup = this.#createFormGroup(field, value);
       if (formGroup) this.#uiContainer.appendChild(formGroup);
     });
@@ -95,181 +91,146 @@ export class GenericPluginActionSettingsComponent
     label.htmlFor = `${this.#pluginId}-${field.id}`;
     label.textContent = translate(field.labelKey, { defaultValue: field.labelKey });
 
-    if (field.type === 'select' && field.searchable) {
-      formGroup.appendChild(label);
-      const dropdownGroup = document.createElement('div');
-      dropdownGroup.className = 'searchable-dropdown-group';
-      const searchInput = document.createElement('input');
-      searchInput.type = 'text';
-      searchInput.id = `${this.#pluginId}-${field.id}-search`;
-      searchInput.className = 'searchable-dropdown-input';
-      searchInput.placeholder = translate(
-        field.placeholderKey || 'filterPlaceholder'
-      );
-      searchInput.autocomplete = 'off';
-      const valueInput = document.createElement('input');
-      valueInput.type = 'hidden';
-      valueInput.id = `${this.#pluginId}-${field.id}`;
-      const listElement = document.createElement('div');
-      listElement.className = 'dropdown-list';
-      dropdownGroup.append(searchInput, valueInput, listElement);
-      formGroup.appendChild(dropdownGroup);
-      this.#formElements[field.id] = valueInput;
+    let inputElement: HTMLElement;
+    switch (field.type) {
+      case 'checkbox': {
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.id = `${this.#pluginId}-${field.id}`;
+        checkbox.checked = !!value;
+        this.#formElements[field.id] = checkbox;
+        inputElement = checkbox;
+        formGroup.appendChild(inputElement);
+        formGroup.appendChild(label);
+        break;
+      }
+      case 'select': {
+        formGroup.appendChild(label);
+        const select = document.createElement('select');
+        select.id = `${this.#pluginId}-${field.id}`;
+        select.className = 'form-control';
+        this.#formElements[field.id] = select;
 
-      const dropdownInstance = (
-        this.#context.uiComponents
-          .createSearchableDropdown as CreateSearchableDropdownFn
-      )({
-        inputElement: searchInput,
-        listElement,
-        valueElement: valueInput,
-        fetchItemsFn: (filter: string) =>
-          field.optionsSource
-            ? field.optionsSource(
-                this.#context,
-                this.getActionSettingsToSave() || {},
-                filter
-              )
-            : Promise.resolve([]),
-        onItemSelectFn: () => this.#handleDependencyChange(field.id),
-      });
-      this.#searchableDropdowns.set(field.id, dropdownInstance);
-      this.#populateInitialSearchableDropdown(
-        field,
-        value,
-        searchInput,
-        valueInput,
-        dropdownInstance
-      );
-    } else {
-      let inputElement: HTMLElement;
-      switch (field.type) {
-        case 'checkbox': {
-          const checkbox = document.createElement('input');
-          checkbox.type = 'checkbox';
-          checkbox.id = `${this.#pluginId}-${field.id}`;
-          checkbox.checked = !!value;
-          this.#formElements[field.id] = checkbox;
-          inputElement = checkbox;
-          formGroup.appendChild(inputElement);
-          formGroup.appendChild(label);
-          break;
-        }
-        case 'select': {
-          formGroup.appendChild(label);
-          const selectWrapper = document.createElement('div');
-          selectWrapper.className = 'select-wrapper';
-          const select = document.createElement('select');
-          select.id = `${this.#pluginId}-${field.id}`;
-          select.className = 'form-control';
-          this.#formElements[field.id] = select;
+        select.addEventListener('change', () => this.#handleDependencyChange(field.id));
+        
+        this.#populateSelectOptions(select, field.optionsSource, value);
 
-          if (field.optionsSource && typeof field.optionsSource === 'function') {
-            field.optionsSource(this.#context, this.getActionSettingsToSave() || {})
-              .then((options: ActionSettingFieldOption[]) => {
-                options.forEach((opt) => {
-                  const optionEl = document.createElement('option');
-                  optionEl.value = opt.value;
-                  optionEl.textContent = opt.label;
-                  optionEl.disabled = opt.disabled || false;
-                  if (String(opt.value) === String(value)) optionEl.selected = true;
-                  select.appendChild(optionEl);
-                });
-              })
-              .catch((e: Error) =>
-                console.error(`Error fetching options for ${field.id}:`, e)
-              );
-          }
-          selectWrapper.appendChild(select);
-          inputElement = selectWrapper;
-          formGroup.appendChild(inputElement);
-          break;
-        }
-        case 'textarea': {
-          formGroup.appendChild(label);
-          const textarea = document.createElement('textarea');
-          textarea.id = `${this.#pluginId}-${field.id}`;
-          textarea.className = 'form-control';
-          textarea.rows = field.rows || 3;
-          textarea.placeholder = field.placeholderKey
-            ? translate(field.placeholderKey)
+        inputElement = select;
+        formGroup.appendChild(inputElement);
+        break;
+      }
+      case 'textarea': {
+        formGroup.appendChild(label);
+        const textarea = document.createElement('textarea');
+        textarea.id = `${this.#pluginId}-${field.id}`;
+        textarea.className = 'form-control';
+        textarea.rows = field.rows || 3;
+        textarea.placeholder = field.placeholderKey
+          ? translate(field.placeholderKey)
+          : '';
+        textarea.value = typeof value === 'string' ? value : '';
+        this.#formElements[field.id] = textarea;
+        inputElement = textarea;
+        formGroup.appendChild(inputElement);
+        break;
+      }
+      default: {
+        formGroup.appendChild(label);
+        const input = document.createElement('input');
+        input.type = field.type;
+        input.id = `${this.#pluginId}-${field.id}`;
+        input.className = 'form-control';
+        input.placeholder = field.placeholderKey
+          ? translate(field.placeholderKey)
+          : '';
+        input.value =
+          typeof value === 'string' || typeof value === 'number'
+            ? String(value)
             : '';
-          textarea.value = typeof value === 'string' ? value : '';
-          this.#formElements[field.id] = textarea;
-          inputElement = textarea;
-          formGroup.appendChild(inputElement);
-          break;
-        }
-        default: {
-          // text, url, password
-          formGroup.appendChild(label);
-          const input = document.createElement('input');
-          input.type = field.type;
-          input.id = `${this.#pluginId}-${field.id}`;
-          input.className = 'form-control';
-          input.placeholder = field.placeholderKey
-            ? translate(field.placeholderKey)
-            : '';
-          input.value =
-            typeof value === 'string' || typeof value === 'number'
-              ? String(value)
-              : '';
-          if (field.type === 'password') input.autocomplete = 'new-password';
-          this.#formElements[field.id] = input;
-          inputElement = input;
-          formGroup.appendChild(inputElement);
-        }
+        if (field.type === 'password') input.autocomplete = 'new-password';
+        this.#formElements[field.id] = input;
+        inputElement = input;
+        formGroup.appendChild(inputElement);
       }
     }
 
     if (field.helpTextKey) {
       const helpText = document.createElement('small');
       helpText.textContent = translate(field.helpTextKey);
+      helpText.className = 'form-help-text';
       formGroup.appendChild(helpText);
     }
     return formGroup;
   }
 
-  async #populateInitialSearchableDropdown(
-    field: ActionSettingFieldDescriptor,
-    value: unknown,
-    searchInput: HTMLInputElement,
-    valueInput: HTMLInputElement,
-    dropdown: SearchableDropdown
-  ): Promise<void> {
-    if (value === null || value === undefined) {
-      dropdown.refresh();
-      return;
+  async #populateSelectOptions(select: HTMLSelectElement, optionsSource: ActionSettingFieldDescriptor['optionsSource'], selectedValue: unknown): Promise<void> {
+    if (!optionsSource) return;
+
+    select.innerHTML = `<option disabled>${translate('loading')}...</option>`;
+    select.disabled = true;
+
+    try {
+        const options = await optionsSource(this.#context, this.getActionSettingsToSave() || {});
+        select.innerHTML = '';
+        let valueFound = false;
+        let isFirstOption = true;
+
+        if (options.length === 0 || (options.length === 1 && options[0].disabled)) {
+            const placeholder = document.createElement('option');
+            placeholder.textContent = options[0]?.label || translate('noItemsToDisplay');
+            placeholder.disabled = true;
+            placeholder.selected = true;
+            select.appendChild(placeholder);
+        } else {
+             options.forEach(opt => {
+                const optionEl = document.createElement('option');
+                optionEl.value = opt.value;
+                optionEl.textContent = opt.label;
+                optionEl.disabled = opt.disabled || false;
+                if (String(opt.value) === String(selectedValue)) {
+                    optionEl.selected = true;
+                    valueFound = true;
+                }
+                // FIX: If no saved value is found, automatically select the first valid option.
+                else if (!selectedValue && isFirstOption && !opt.disabled) {
+                    optionEl.selected = true;
+                    valueFound = true; // Treat this as if a value was found to trigger the change event.
+                }
+                if (!opt.disabled) isFirstOption = false;
+                select.appendChild(optionEl);
+            });
+        }
+        
+        if (valueFound) {
+            select.dispatchEvent(new Event('change'));
+        }
+
+    } catch (e) {
+        console.error(`Error populating select options for ${select.id}:`, e);
+        select.innerHTML = `<option disabled selected>${translate('errorGeneric')}</option>`;
+    } finally {
+        select.disabled = false;
     }
-    valueInput.value = String(value);
-    const options = field.optionsSource
-      ? await field.optionsSource(
-          this.#context,
-          this.getActionSettingsToSave() || {},
-          ''
-        )
-      : [];
-    const selectedOption = options.find((opt: ActionSettingFieldOption) => opt.value === value);
-    if (selectedOption) searchInput.value = selectedOption.label;
-    dropdown.refresh();
   }
+
 
   #handleDependencyChange(changedFieldId: string): void {
     const dependents = this.#dependencyMap.get(changedFieldId);
     if (dependents) {
       dependents.forEach((dependentId) => {
-        const dropdown = this.#searchableDropdowns.get(dependentId);
-        const valueInput = this.#formElements[dependentId] as HTMLInputElement;
-        const searchInput =
-          this.#uiContainer.querySelector<HTMLInputElement>(
-            `#${this.#pluginId}-${dependentId}-search`
-          );
-        if (dropdown && valueInput && searchInput) {
-          valueInput.value = '';
-          searchInput.value = '';
-          dropdown.refresh(false);
-        }
+        this.#refreshFieldOptions(dependentId);
       });
+    }
+  }
+
+  async #refreshFieldOptions(fieldId: string): Promise<void> {
+    const field = this.#fieldDescriptors.find(f => f.id === fieldId);
+    const element = this.#formElements[fieldId];
+    if (!field || !element) return;
+    
+    if (element instanceof HTMLSelectElement && field.optionsSource) {
+        const savedValueForDependent = this.#getNestedValue(this.#currentSettings || {}, field.id);
+        await this.#populateSelectOptions(element, field.optionsSource, savedValueForDependent);
     }
   }
 
@@ -331,31 +292,26 @@ export class GenericPluginActionSettingsComponent
 
   applyTranslations(): void {
     if (!this.#uiContainer.isConnected) return;
-    this.#fieldDescriptors.forEach((field) => {
-      const label = this.#uiContainer.querySelector<HTMLLabelElement>(
-        `label[for="${this.#pluginId}-${field.id}"]`
-      );
-      if (label) label.textContent = translate(field.labelKey);
+    
+    this.#fieldDescriptors.forEach(field => {
+        const label = this.#uiContainer.querySelector<HTMLLabelElement>(`label[for="${this.#pluginId}-${field.id}"]`);
+        if (label) label.textContent = translate(field.labelKey);
 
-      let elToUpdate: HTMLElement | null | undefined = this.#formElements[field.id];
-      if (this.#searchableDropdowns.has(field.id)) {
-        this.#searchableDropdowns.get(field.id)?.applyTranslations?.();
-        return;
-      }
-      if (elToUpdate?.classList.contains('select-wrapper'))
-        elToUpdate = elToUpdate.querySelector('select');
-      const input = elToUpdate as
-        | HTMLInputElement
-        | HTMLTextAreaElement
-        | undefined;
-      if (input && field.placeholderKey)
-        input.placeholder = translate(field.placeholderKey);
+        const input = this.#formElements[field.id] as HTMLInputElement | HTMLTextAreaElement | undefined;
+        if (input && field.placeholderKey) {
+            input.placeholder = translate(field.placeholderKey);
+        }
 
-      const helpTextEl = this.#uiContainer.querySelector<HTMLElement>(
-        `#${this.#pluginId}-${field.id} ~ small`
-      );
-      if (helpTextEl && field.helpTextKey)
-        helpTextEl.textContent = translate(field.helpTextKey);
+        const helpTextEl = this.#uiContainer.querySelector<HTMLElement>(`#${this.#pluginId}-${field.id} ~ .form-help-text`);
+        if (helpTextEl && field.helpTextKey) {
+            helpTextEl.textContent = translate(field.helpTextKey);
+        }
+
+        if (field.type === 'select' && field.optionsSource) {
+            const selectEl = this.#formElements[field.id] as HTMLSelectElement;
+            const currentValue = selectEl.value;
+            this.#populateSelectOptions(selectEl, field.optionsSource, currentValue);
+        }
     });
   }
 

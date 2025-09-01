@@ -4,7 +4,6 @@
 import type { GestureCategoryIconType } from '#shared/index.js';
 import type {
   ActionSettingFieldDescriptor,
-  ActionSettingFieldOption,
   ActionDisplayDetail,
   PluginManifest,
 } from '#shared/index.js';
@@ -105,20 +104,6 @@ export type CreatePluginGlobalSettingsComponentFn = (
   context: PluginUIContext
 ) => IPluginGlobalSettingsComponent;
 
-export type CreateSearchableDropdownFn = (config: {
-  inputElement: HTMLInputElement;
-  listElement: HTMLElement;
-  valueElement: HTMLInputElement;
-  fetchItemsFn: (filterText: string) => Promise<ActionSettingFieldOption[]>;
-  onItemSelectFn: (value: string, label: string) => void;
-  inputPlaceholder?: string;
-  disabledPlaceholder?: string;
-}) => {
-  refresh: (showAfterRefresh?: boolean) => Promise<void>;
-  setDisabled: (isDisabled: boolean, newPlaceholderText?: string) => void;
-  applyTranslations?: () => void;
-};
-
 export interface FrontendPluginModule {
   manifest: PluginManifest;
   actionSettingsFields?:
@@ -155,7 +140,6 @@ export interface PluginUIContext {
   };
   uiComponents: {
     createCardElement: (content: CardContent) => HTMLDivElement;
-    createSearchableDropdown: CreateSearchableDropdownFn;
     setIcon: unknown;
     updateButtonGroupActiveState: (
       groupElement: HTMLElement | null | undefined,

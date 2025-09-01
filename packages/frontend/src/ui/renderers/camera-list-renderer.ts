@@ -19,8 +19,8 @@ export function updateCameraListUI(
   const streamStatusMap = uiControllerRef.appStore.getState().streamStatus;
 
   const createListItem = (id: string, label: string, iconKey: GestureCategoryIconType, status?: string): HTMLLIElement | null => {
-    const statusHtml = status ? `<span class="stream-status-indicator ${status}" title="${translate(`streamStatus${status.charAt(0).toUpperCase() + status.slice(1)}`)}"></span>` : '';
-    const template = `<li><button class="btn btn-secondary" data-device-id="{id}"><span class="icon-placeholder"></span><span class="label">{label}</span><div data-if="hasStatus" data-html-key="statusIndicatorHTML" style="margin-left:auto;"></div></button></li>`;
+    const statusHtml = status ? `<span class="stream-status-indicator status-${status}" title="${translate(`streamStatus${status.charAt(0).toUpperCase() + status.slice(1)}`)}"></span>` : '';
+    const template = `<li><button class="btn btn-secondary w-full justify-start" data-device-id="{id}"><span class="icon-placeholder"></span><span class="label">{label}</span><div data-if="hasStatus" data-html-key="statusIndicatorHTML" class="ml-auto"></div></button></li>`;
     const item = createFromTemplate(template, { id, label, hasStatus: !!statusHtml, statusIndicatorHTML: statusHtml }) as HTMLLIElement | null;
     if (item) setIcon(item.querySelector('.icon-placeholder'), iconKey);
     return item;

@@ -40,18 +40,24 @@ export abstract class BaseSettingsTab<T extends TabElements> {
   protected _appStore: AppStore;
   protected _isInitialized = false;
 
-  constructor(elements: T, appStore: AppStore) {
-    this._elements = elements;
+  constructor(appStore: AppStore, elementQueries: { [K in keyof T]: string }) {
     this._appStore = appStore;
+    this._elements = this._queryElements(elementQueries);
 
-    // Subscriptions are now initialized immediately upon construction.
     this._appStore.subscribe((state, prevState) => {
-      // The `_isInitialized` check is removed. The handler now reacts to early state changes,
-      // ensuring the tab's data is ready even before it's first displayed.
       if (this._doesConfigUpdateAffectThisTab(state, prevState)) {
         this.loadSettings();
       }
     });
+  }
+  
+  private _queryElements(queries: { [K in keyof T]: string }): T {
+      const elements: Partial<T> = {};
+      for (const key in queries) {
+          const queryResult = document.querySelector(queries[key as keyof T]);
+          elements[key as keyof T] = queryResult as T[keyof T];
+      }
+      return elements as T;
   }
 
   protected async _additionalInitializationChecks(): Promise<void> {
@@ -104,8 +110,9 @@ export abstract class BaseSettingsTab<T extends TabElements> {
 
   protected _renderButtonGroup(
     container: HTMLElement | null | undefined,
-    options: Readonly<Array<ButtonGroupOption>>
+    options: Readonly<Array<ButtonGroupOption>>,
+    renderAsHtml = false
   ): void {
-    renderButtonGroup(container, options);
+    renderButtonGroup(container, options, renderAsHtml);
   }
 }

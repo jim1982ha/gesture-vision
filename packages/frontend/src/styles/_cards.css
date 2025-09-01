@@ -1,0 +1,59 @@
+/* FILE: packages/frontend/src/styles/_cards.css */
+@layer components {
+  .card-item {
+    @apply bg-surface border border-border rounded-xl p-3 flex flex-col shadow-sm transition-all duration-200 ease-in-out;
+  }
+  .card-item-clickable {
+    @apply cursor-pointer hover:shadow-md hover:border-primary;
+  }
+  .card-header {
+    @apply flex items-start w-full flex-shrink-0;
+  }
+  .card-title {
+    @apply font-semibold text-lg text-text-primary truncate flex-grow min-w-0;
+  }
+  .card-icon {
+    @apply text-text-secondary flex-shrink-0 text-xl;
+  }
+  .card-item-actions {
+    @apply flex items-center gap-1 flex-shrink-0 ml-auto;
+  }
+  .card-details {
+    @apply text-sm text-text-secondary flex-col gap-1 flex-grow items-start justify-center;
+  }
+  .card-detail-line {
+    @apply flex items-center gap-2 min-w-0;
+  }
+  .card-detail-icon {
+    @apply text-base text-text-secondary flex-shrink-0;
+  }
+  .card-detail-value {
+    @apply truncate min-w-0;
+    &.allow-wrap {
+      @apply whitespace-normal;
+    }
+  }
+  .card-footer {
+    @apply text-xs text-text-secondary flex items-center justify-between gap-2 mt-auto pt-2 border-t border-border-light flex-shrink-0;
+  }
+  .is-editing-highlight {
+    @apply border-primary shadow-md;
+  }
+  .config-item-disabled {
+    @apply opacity-60 bg-background pointer-events-none;
+  }
+  /* This rule re-enables pointer events ONLY for the action buttons inside a disabled card */
+  .config-item-disabled .card-item-actions {
+    @apply pointer-events-auto;
+  }
+  .is-pending {
+    @apply opacity-50 pointer-events-none animate-pulse;
+  }
+  .confidence-pill,
+  .duration-pill {
+    @apply bg-secondary/20 text-text-secondary px-2 py-0.5 rounded-full text-xs font-medium;
+  }
+  .footer-pills-wrapper {
+    @apply flex items-center gap-1;
+  }
+}

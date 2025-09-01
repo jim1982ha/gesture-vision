@@ -1,0 +1,58 @@
+/* FILE: packages/frontend/src/styles/_modals.css */
+@layer components {
+  .modal {
+    @apply fixed inset-0 z-modal-overlay bg-black/50 backdrop-blur-sm flex items-start justify-center p-4 opacity-0 invisible transition-opacity duration-300;
+    &.visible {
+      visibility: visible;
+      @apply opacity-100;
+    }
+  }
+  .modal-content {
+    @apply bg-surface rounded-lg shadow-2xl w-full max-w-lg flex flex-col max-h-[90vh] scale-95 opacity-0 transition-all duration-300 ease-out;
+    .modal.visible & {
+      @apply scale-100 opacity-100;
+    }
+  }
+  #mainSettingsModal .modal-content {
+    @apply lg:max-w-4xl lg:h-[80vh];
+  }
+  .modal-header {
+    @apply flex-shrink-0 flex items-center gap-3 p-4 border-b border-border;
+    & .header-icon {
+      @apply text-primary text-2xl;
+    }
+    & .header-title {
+      @apply text-lg font-semibold text-text-primary flex-grow;
+    }
+    & .header-close-btn {
+      @apply ml-auto;
+    }
+  }
+  .modal-scrollable-content {
+    @apply flex-1 p-4 overflow-y-auto;
+  }
+  .modal-actions {
+    @apply flex-shrink-0 flex items-center justify-end gap-2 p-4 border-t border-border bg-background;
+  }
+
+  .settings-tab-nav-button {
+    @apply justify-start font-medium text-text-secondary border-none hover:bg-primary/10 hover:text-primary;
+    &.active {
+      @apply bg-primary/20 text-primary;
+    }
+  }
+
+  #modalTocControls .btn {
+    @apply flex-shrink min-w-0;
+  }
+  #modalTocControls .btn > span:last-child {
+    @apply overflow-hidden text-ellipsis whitespace-nowrap;
+  }
+
+  .settings-tab-content {
+    @apply hidden;
+    &.active {
+      @apply block;
+    }
+  }
+}

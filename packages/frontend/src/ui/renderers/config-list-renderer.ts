@@ -4,8 +4,7 @@ import type { AppStore } from '#frontend/core/state/app-store.js';
 import type { PluginUIService } from '#frontend/services/plugin-ui.service.js';
 import type { UIController } from '#frontend/ui/ui-controller-core.js';
 import type { RendererElements } from '#frontend/ui/ui-renderer-core.js';
-import { setElementVisibility } from '#frontend/ui/helpers/index.js';
-import { createCardElement, createCardActionButton } from '#frontend/ui/utils/card-utils.js';
+import { createCardElement, createCardActionButton, type CardFooterConfig } from '#frontend/ui/utils/card-utils.js';
 
 import { translate } from '#shared/services/translations.js';
 import {
@@ -18,10 +17,6 @@ import type { ActionDisplayDetail, GestureConfig, PoseConfig, CustomGestureMetad
 import type { GestureCategoryIconType } from '#shared/index.js';
 
 type CardStatus = { isActive: true; reason: null } | { isActive: false; reason: 'feature_disabled' | 'plugin_missing' | 'plugin_disabled' };
-
-interface RenderOptions {
-    swapTitleAndFooter?: boolean;
-}
 
 async function getDetailsHtml(
     entry: GestureConfig | PoseConfig,
@@ -53,12 +48,11 @@ async function getDetailsHtml(
             console.warn(`[ConfigListRenderer] Error rendering details for plugin '${pluginId}':`, renderError);
         }
     } else if (actionConfig?.settings && typeof actionConfig.settings === 'object' && Object.keys(actionConfig.settings).length > 0) {
-        // Fallback for simple plugins without a custom renderer
         const manifest = pluginUIServiceRef.getPluginManifest(pluginId);
         const pluginIconDetails = getActionIconDetails(manifest);
         return Object.values(actionConfig.settings).slice(0, 2).map((value, index) => {
             const displayValue = (typeof value === 'object' ? JSON.stringify(value) : String(value)) || 'N/A';
-            const iconDetails = index === 0 ? pluginIconDetails : getActionIconDetails(null); // Use plugin icon for first detail, generic for others
+            const iconDetails = index === 0 ? pluginIconDetails : getActionIconDetails(null);
             const isMdi = iconDetails.iconType === 'mdi' || iconDetails.iconName.startsWith('mdi-');
             const iconClass = `card-detail-icon ${isMdi ? `mdi ${iconDetails.iconName}` : 'material-icons'}`;
             const iconContent = isMdi ? '' : iconDetails.iconName;
@@ -74,18 +68,16 @@ export async function renderConfigList(
   configsData?: Array<GestureConfig | PoseConfig> | null,
   appStore?: AppStore | null,
   pluginUIServiceRef?: PluginUIService | null,
-  uiControllerRef?: UIController | null,
-  options: RenderOptions = {}
+  uiControllerRef?: UIController | null
 ): Promise<void> {
-  const activeListDiv = elements.configListDiv;
-  const inactiveListDiv = elements.inactiveConfigListDiv;
+  const listDiv = elements.configListDiv;
 
-  if (!activeListDiv) {
+  if (!listDiv) {
     console.error("[ConfigListRenderer] Main list container (configListDiv) is missing.");
     return;
   }
   
-  let configs: Array<GestureConfig | PoseConfig> = configsData || appStore?.getState().gestureConfigs || [];
+  const configs: Array<GestureConfig | PoseConfig> = configsData || appStore?.getState().gestureConfigs || [];
 
   if (!pluginUIServiceRef || !appStore) return;
   
@@ -126,7 +118,7 @@ export async function renderConfigList(
   const originalNameBeingEdited = uiControllerRef?.getOriginalNameBeingEdited() ?? null;
   const customMetadataList = appStore.getState().customGestureMetadataList || [];
   
-  configs = [...configs].sort((a: GestureConfig | PoseConfig, b: GestureConfig | PoseConfig) => {
+  const sortedConfigs = [...configs].sort((a: GestureConfig | PoseConfig, b: GestureConfig | PoseConfig) => {
     const aStatus = getCardStatus(a, appStore, pluginUIServiceRef, customMetadataList);
     const bStatus = getCardStatus(b, appStore, pluginUIServiceRef, customMetadataList);
     if (aStatus.isActive !== bStatus.isActive) return aStatus.isActive ? -1 : 1;
@@ -135,113 +127,101 @@ export async function renderConfigList(
     return nameA.localeCompare(nameB);
   });
   
-  const activeFragment = document.createDocumentFragment();
-  const inactiveFragment = document.createDocumentFragment();
+  const listFragment = document.createDocumentFragment();
   let activeCount = 0;
   let inactiveCount = 0;
+  
+  const activeCards = [];
+  const inactiveCards = [];
 
-  for (const config of configs) {
+  for (const config of sortedConfigs) {
     const cardStatus = getCardStatus(config, appStore, pluginUIServiceRef, customMetadataList);
     const name = 'pose' in config ? (config as PoseConfig).pose : (config as GestureConfig).gesture;
     const { formattedName, category } = getGestureDisplayInfo(name, customMetadataList);
     const gestureDisplayName = category === 'BUILT_IN_HAND' ? translate(formattedName, { defaultValue: formattedName }) : formattedName;
     
-    let itemClasses = "config-item card-item-clickable";
-    let statusTextForFooter = "";
+    let itemClasses = "config-item";
     if (originalNameBeingEdited === name) itemClasses += " is-editing-highlight";
     
-    if (!cardStatus.isActive) {
-        if (cardStatus.reason === 'plugin_missing' || cardStatus.reason === 'plugin_disabled') {
-            itemClasses += " plugin-missing";
-            const reasonTextKey = cardStatus.reason === 'plugin_disabled' ? 'pluginDisabled' : 'pluginMissing';
-            statusTextForFooter = `<span class="footer-status-text error-text">${translate(reasonTextKey)}</span>`;
-        } else {
-            itemClasses += " config-item-unavailable";
-            statusTextForFooter = `<span class="footer-status-text">${translate("customFeatureDisabled")}</span>`;
-        }
-    }
-    
     const actionDetailsHtml = await getDetailsHtml(config, pluginUIServiceRef);
-  
-    let pillsContent = "";
-    if (cardStatus.isActive) { 
-        if (config.confidence !== undefined) pillsContent += `<span class="confidence-pill">${config.confidence}%</span>`;
-        if (config.duration) pillsContent += `<span class="duration-pill">${config.duration}s</span>`;
-    }
+    const cardTitle = gestureDisplayName;
     
+    const footerConfig: CardFooterConfig = {};
+    
+    let pillsContent = "";
+    if (config.confidence !== undefined) pillsContent += `<span class="confidence-pill">${config.confidence}%</span>`;
+    if (config.duration) pillsContent += `<span class="duration-pill">${config.duration}s</span>`;
+    if (pillsContent) footerConfig.pillsHtml = pillsContent;
+
     let actionTypeDisplay = translate('actionTypeNone');
     const pluginId = config.actionConfig?.pluginId;
     if (pluginId && pluginId !== 'none') {
         const manifest = pluginUIServiceRef.getPluginManifest(pluginId);
         if (manifest?.nameKey) actionTypeDisplay = translate(manifest.nameKey, { defaultValue: pluginId });
     }
-
-    const cardTitle = options.swapTitleAndFooter ? actionTypeDisplay : gestureDisplayName;
-    const footerTextContent = options.swapTitleAndFooter ? gestureDisplayName : actionTypeDisplay;
-
-    const footerText = `${footerTextContent}${statusTextForFooter ? `<span class="card-footer-separator">|</span>${statusTextForFooter}` : ''}`;
-    const pillsHtml = pillsContent ? `<span class="card-footer-separator">|</span><span class="footer-pills-wrapper">${pillsContent}</span>` : '';
-    const footerHtml = `<div class="card-footer"><span>${footerText}</span>${pillsHtml}</div>`;
-    const cardTooltip = translate('editTooltip', { item: name || 'item' });
+    footerConfig.mainText = actionTypeDisplay;
     
+    if (!cardStatus.isActive) {
+      if (cardStatus.reason === 'plugin_missing' || cardStatus.reason === 'plugin_disabled') {
+          itemClasses += " plugin-missing";
+          const reasonTextKey = cardStatus.reason === 'plugin_disabled' ? 'pluginDisabled' : 'pluginMissing';
+          footerConfig.statusText = translate(reasonTextKey);
+          footerConfig.statusClass = 'error';
+      } else {
+          itemClasses += " config-item-unavailable";
+          footerConfig.statusText = translate("customFeatureDisabled");
+      }
+    }
+
     const deleteButton = createCardActionButton({
         action: 'delete',
-        titleKey: 'deleteTooltip',
+        title: translate('deleteTooltip', { item: name }),
         iconKey: 'UI_DELETE',
         extraClasses: ['btn-icon-danger', 'delete-btn']
+    });
+    const editButton = createCardActionButton({
+        action: 'edit',
+        title: translate('editTooltip', { item: name }),
+        iconKey: 'UI_EDIT_NOTE',
+        extraClasses: ['edit-btn']
     });
 
     const cardElement = createCardElement({
       ...getGestureCategoryIconDetails(category),
       title: cardTitle,
-      actionButtonsHtml: deleteButton.outerHTML,
+      actionButtonsHtml: editButton.outerHTML + deleteButton.outerHTML,
       detailsHtml: actionDetailsHtml,
-      footerHtml,
+      footerConfig,
       itemClasses,
       datasetAttributes: { gestureName: name || '' },
-      titleAttribute: cardTooltip,
-      ariaLabel: cardTooltip
     });
 
     if (cardStatus.isActive) {
-      activeFragment.appendChild(cardElement);
+      activeCards.push(cardElement);
       activeCount++;
     } else {
-      inactiveFragment.appendChild(cardElement);
+      inactiveCards.push(cardElement);
       inactiveCount++;
     }
   }
 
-  // Animation handling
-  [activeListDiv, inactiveListDiv].forEach(container => {
-    if (container) {
-      container.classList.add('is-rebuilding');
-      container.innerHTML = ""; // Clear existing content
-    }
-  });
+  listDiv.innerHTML = "";
 
-  activeListDiv.appendChild(activeFragment);
-  
-  if (inactiveListDiv) {
-    inactiveListDiv.appendChild(inactiveFragment);
-  } else {
-    activeListDiv.appendChild(inactiveFragment);
-  }
-  
   if (activeCount === 0 && inactiveCount === 0) {
-      activeListDiv.innerHTML = `<p class="list-placeholder">${translate("noGesturesConfigured")}</p>`;
+      listDiv.innerHTML = `<p class="list-placeholder">${translate("noGesturesConfigured")}</p>`;
+  } else {
+      activeCards.forEach(card => listFragment.appendChild(card));
+      
+      // FIX: Show the "Inactive" title whenever there are inactive cards,
+      // which correctly handles the case where all cards are inactive.
+      if (inactiveCount > 0) {
+          const separatorTitle = document.createElement('h3');
+          separatorTitle.className = 'inactive-list-title';
+          separatorTitle.textContent = translate('inactiveConfigsTitle', { defaultValue: 'Inactive Configurations'});
+          listFragment.appendChild(separatorTitle);
+      }
+      
+      inactiveCards.forEach(card => listFragment.appendChild(card));
+      listDiv.appendChild(listFragment);
   }
-
-  if (inactiveListDiv) {
-    setElementVisibility(inactiveListDiv, inactiveCount > 0, 'grid');
-  }
-
-  // Remove animation class after a short delay
-  requestAnimationFrame(() => {
-    setTimeout(() => {
-        [activeListDiv, inactiveListDiv].forEach(container => {
-            if (container) container.classList.remove('is-rebuilding');
-        });
-    }, 400); // Duration of the animation
-  });
 }

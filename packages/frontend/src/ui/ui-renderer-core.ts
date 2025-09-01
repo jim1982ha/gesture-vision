@@ -16,17 +16,13 @@ import {
 } from '#shared/index.js';
 import type { RoiConfig, RtspSourceConfig } from '#shared/index.js';
 import type { HistoryEntry } from '#frontend/types/index.js';
-import type { UIController } from './ui-controller-core.js';
+import type { UIController } from '#frontend/ui/ui-controller-core.js';
 
 export interface RendererElements {
-  outputCanvas: HTMLCanvasElement | null;
-  videoElement: HTMLVideoElement | null;
   configListDiv: HTMLElement | null;
   gestureHistoryDiv: HTMLElement | null;
   cameraList: HTMLElement | null;
   cameraListPlaceholder: HTMLElement | null;
-  themeList: HTMLElement | null;
-  cameraSelectButtonMobile: HTMLButtonElement | null;
   gestureProgressCircle: SVGCircleElement | null;
   cooldownProgressCircle: SVGCircleElement | null;
   currentGestureSpan: HTMLElement | null;
@@ -36,15 +32,6 @@ export interface RendererElements {
   holdTimeMetric: HTMLElement | null;
   progressTimersContainer: HTMLElement | null;
   topCenterStatus: HTMLElement | null;
-  gestureAlertDiv: HTMLElement | null;
-  gestureAlertTextSpan: HTMLElement | null;
-  gestureSettingsTitle: HTMLElement | null;
-  historyTitle: HTMLElement | null;
-  cameraModalTitleText: HTMLElement | null;
-  settingsModalTitle: HTMLElement | null;
-  rtspSourceListContainer: HTMLElement | null;
-  rtspListPlaceholder: HTMLElement | null;
-  inactiveConfigListDiv: HTMLElement | null;
 }
 
 interface GestureStatusData {
@@ -86,10 +73,25 @@ export class UIRenderer {
 
   constructor(uiControllerRef: UIController) {
     this._uiControllerRef = uiControllerRef;
+    this._queryElements();
   }
 
-  public updateElements(elements: Partial<RendererElements>): void {
-    this._elements = elements;
+  private _queryElements(): void {
+    this._elements = {
+        configListDiv: document.getElementById("configList"),
+        gestureHistoryDiv: document.getElementById("gestureHistory"),
+        cameraList: document.getElementById("cameraList"),
+        cameraListPlaceholder: document.getElementById("cameraListPlaceholder"),
+        gestureProgressCircle: document.querySelector(".gesture-progress") as SVGCircleElement | null,
+        cooldownProgressCircle: document.querySelector(".cooldown-progress") as SVGCircleElement | null,
+        currentGestureSpan: document.getElementById("currentGestureSpan"),
+        currentConfidenceSpan: document.getElementById("currentConfidenceSpan"),
+        confidenceBar: document.getElementById("confidenceBar"),
+        holdTimeDisplay: document.getElementById("holdTimeDisplay"),
+        holdTimeMetric: document.getElementById("holdTimeMetric"),
+        progressTimersContainer: document.querySelector(".progress-rings") as HTMLElement | null,
+        topCenterStatus: document.getElementById("topCenterStatus"),
+    };
   }
 
   public initializePubSubEventListeners(): void {
@@ -219,17 +221,6 @@ export class UIRenderer {
   }
 
   public async applyTranslations(): Promise<void> {
-    const { updateTranslationsForComponent } = await import(
-      './ui-translation-updater.js'
-    );
-    updateTranslationsForComponent([
-      { element: this._elements.gestureSettingsTitle, config: 'gestureSettings' },
-      { element: this._elements.historyTitle, config: 'history' },
-      {
-        element: this._elements.cameraModalTitleText,
-        config: 'selectCameraSource',
-      },
-    ]);
     await this.renderConfigList();
     await this.renderHistoryList();
     this.updateCameraListUI();

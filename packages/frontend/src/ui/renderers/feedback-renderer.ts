@@ -8,7 +8,7 @@ import { formatGestureNameForDisplay } from '#frontend/ui/helpers/index.js';
 
 interface GestureStatusData {
   gesture: string;
-  confidence: string;
+  // FIX: Removed redundant `confidence: string` property.
   realtimeConfidence: number;
   configuredThreshold: number | null;
   isCooldownActive?: boolean;
@@ -35,7 +35,6 @@ export function updateStatusDisplay(
   const {
     topCenterStatus,
     currentGestureSpan,
-    currentConfidenceSpan,
     confidenceBar,
     holdTimeDisplay,
     holdTimeMetric,
@@ -43,7 +42,6 @@ export function updateStatusDisplay(
   if (
     !topCenterStatus ||
     !currentGestureSpan ||
-    !currentConfidenceSpan ||
     !confidenceBar ||
     !holdTimeDisplay ||
     !holdTimeMetric
@@ -63,21 +61,23 @@ export function updateStatusDisplay(
   topCenterStatus.style.display = showGestureInfo ? 'flex' : 'none';
 
   currentGestureSpan.textContent = gestureTextToDisplay;
-  currentConfidenceSpan.textContent = showGestureInfo
-    ? status.confidence || '-'
-    : '-';
-
+  
   const realtimeConfidenceRatio = status.realtimeConfidence || 0;
   const realtimeConfidencePercent = Math.round(realtimeConfidenceRatio * 100);
   confidenceBar.style.width = `${realtimeConfidencePercent}%`;
-  confidenceBar.style.backgroundColor = `hsl(${
-    realtimeConfidenceRatio * 120
-  }, 90%, 55%)`;
+
+  // FIX: Display the real-time confidence percentage inside the bar.
   confidenceBar.textContent = `${realtimeConfidencePercent}%`;
 
-  const confidenceBarSeparator = document.getElementById('confidenceBarSeparator');
-  if (confidenceBarSeparator)
-    confidenceBarSeparator.style.display = showGestureInfo ? 'inline' : 'none';
+  const thresholdMarker = document.getElementById('confidenceThresholdMarker');
+  if (thresholdMarker) {
+    if (showGestureInfo && status.configuredThreshold !== null && status.configuredThreshold !== undefined) {
+        thresholdMarker.style.left = `${status.configuredThreshold * 100}%`;
+        thresholdMarker.style.display = 'block';
+    } else {
+        thresholdMarker.style.display = 'none';
+    }
+  }
 }
 
 export function updateProgressRings(
@@ -89,12 +89,14 @@ export function updateProgressRings(
     cooldownProgressCircle,
     holdTimeDisplay,
     holdTimeMetric,
+    progressTimersContainer,
   } = elements;
   if (
     !gestureProgressCircle ||
     !cooldownProgressCircle ||
     !holdTimeDisplay ||
-    !holdTimeMetric
+    !holdTimeMetric ||
+    !progressTimersContainer
   )
     return;
 
@@ -104,7 +106,10 @@ export function updateProgressRings(
     currentHoldMs = 0,
     requiredHoldMs = 0,
   } = progress;
-
+  
+  const areRingsVisible = holdPercent > 0 || cooldownPercent > 0;
+  progressTimersContainer.classList.toggle('visible', areRingsVisible);
+  
   const circGesture = 2 * Math.PI * 31.5;
   const circCooldown = 2 * Math.PI * 36.5;
 

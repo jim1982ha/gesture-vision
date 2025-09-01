@@ -33,9 +33,9 @@ interface ActionableRecognition {
   confidence: number;
 }
 
+// FIX: Removed redundant `confidence: string` property.
 interface DisplayStatus {
   gesture: string;
-  confidence: string;
   realtimeConfidence: number;
   configuredThreshold: number | null;
   isCooldownActive?: boolean;
@@ -118,6 +118,10 @@ export class GestureStateLogic {
     });
 
     this.#subscribeToEvents();
+  }
+
+  public getTimerManager(): GestureTimerManager {
+    return this.#timerManager;
   }
 
   destroy() {
@@ -428,7 +432,6 @@ export class GestureStateLogic {
     if (!this.#isInitialized) return;
     const displayStatus: DisplayStatus = {
       gesture: '-',
-      confidence: '-',
       realtimeConfidence: 0,
       configuredThreshold: null,
       isCooldownActive,
@@ -471,13 +474,6 @@ export class GestureStateLogic {
     }
 
     if (displayStatus.gesture === '-') this.#currentlyDisplayedGesture = null;
-
-    if (displayStatus.gesture === '-') displayStatus.confidence = '-';
-    else if (displayStatus.configuredThreshold !== null)
-      displayStatus.confidence = `${Math.round(
-        displayStatus.configuredThreshold * 100
-      )}%`;
-    else displayStatus.confidence = '--';
 
     pubsub.publish(GESTURE_EVENTS.UPDATE_STATUS, displayStatus);
     this.#publishProgress({

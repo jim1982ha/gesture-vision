@@ -2,14 +2,18 @@
 import { UI_EVENTS, pubsub, translate } from '#shared/index.js';
 import { setIcon, setElementVisibility } from '#frontend/ui/helpers/index.js';
 import type { UIController } from '#frontend/ui/ui-controller-core.js';
+import { secureStorage } from '#shared/services/security-utils.js';
+
+const VIDEO_SIZE_CONSTRAINED_KEY = "videoSizeConstrainedPreference";
 
 export interface ToolbarElements {
-  toolbarContainer: HTMLElement;
   videoSizeToggleButton: HTMLButtonElement;
+  streamActionsGroup: HTMLElement;
   mirrorBtn: HTMLButtonElement;
   flipCameraBtn: HTMLButtonElement;
   displayAdjustmentsBtn: HTMLButtonElement;
   aiTuningBtn: HTMLButtonElement;
+  videoStopBtn: HTMLButtonElement;
 }
 
 export class ToolbarManager {
@@ -26,16 +30,29 @@ export class ToolbarManager {
 
   #attachEventListeners(): void {
     const {
-      toolbarContainer,
+      videoSizeToggleButton,
+      streamActionsGroup,
       mirrorBtn,
       flipCameraBtn,
       displayAdjustmentsBtn,
       aiTuningBtn,
+      videoStopBtn,
     } = this.#elements;
 
-    toolbarContainer.addEventListener('mouseenter', this.clearVisibilityTimeout);
-    toolbarContainer.addEventListener('mouseleave', this.scheduleHide);
-    // FIX: The listener that was here is now correctly located in LayoutManager.
+    streamActionsGroup.addEventListener('mouseenter', this.clearVisibilityTimeout);
+    streamActionsGroup.addEventListener('mouseleave', this.scheduleHide);
+    
+    // The state management logic now lives here, where the event originates.
+    videoSizeToggleButton.addEventListener('click', () => {
+        if (this.#uiControllerRef.sidebarManager?.isMobile) {
+            this.#uiControllerRef.layoutManager.toggleVideoFullscreen();
+        } else {
+            const currentIsConstrained = (secureStorage.get(VIDEO_SIZE_CONSTRAINED_KEY) as boolean | null) ?? true;
+            secureStorage.set(VIDEO_SIZE_CONSTRAINED_KEY, !currentIsConstrained);
+            this.#uiControllerRef.layoutManager.applyVideoSizePreference();
+        }
+    });
+
     mirrorBtn.addEventListener('click', () =>
       this.#uiControllerRef.cameraManager.toggleMirroringForCurrentStream()
     );
@@ -48,17 +65,13 @@ export class ToolbarManager {
     aiTuningBtn.addEventListener('click', () =>
       pubsub.publish(UI_EVENTS.VIDEO_TOOLBAR_AI_CLICKED)
     );
-  }
-
-  public setContainerVisibility(isVisible: boolean): void {
-    setElementVisibility(this.#elements.toolbarContainer, isVisible, 'flex');
+    videoStopBtn.addEventListener('click', () => 
+        this.#uiControllerRef.cameraService.stopStream()
+    );
   }
 
   public scheduleHide = (): void => {
     this.clearVisibilityTimeout();
-    this.#visibilityTimeout = window.setTimeout(() => {
-        // Just let the hover state handle it. No JS action needed.
-    }, 2000);
   };
   
   public clearVisibilityTimeout = (): void => {
@@ -70,9 +83,8 @@ export class ToolbarManager {
     const isMobile = this.#uiControllerRef.sidebarManager.isMobile;
     const isStreamRunning = camManager.isStreaming();
 
-    setElementVisibility(this.#elements.aiTuningBtn, isStreamRunning, 'flex');
-    setElementVisibility(this.#elements.displayAdjustmentsBtn, isStreamRunning, 'flex');
-    setElementVisibility(this.#elements.mirrorBtn, isStreamRunning, 'flex');
+    // The stream actions group is only visible when a stream is running
+    setElementVisibility(this.#elements.streamActionsGroup, isStreamRunning, 'flex');
     
     const canFlip = camManager.canFlipCamera();
     const isRtsp = camManager.isStreamingRtsp();
@@ -92,10 +104,12 @@ export class ToolbarManager {
     setTooltip(this.#elements.flipCameraBtn, 'flipCamera');
     setTooltip(this.#elements.aiTuningBtn, 'toggleAITuningPanelTooltip');
     setTooltip(this.#elements.displayAdjustmentsBtn, 'displayAdjustments');
+    setTooltip(this.#elements.videoStopBtn, 'stop');
 
     setIcon(this.#elements.mirrorBtn, 'UI_VIDEO_MIRROR');
     setIcon(this.#elements.flipCameraBtn, 'UI_FLIP_CAMERA');
     setIcon(this.#elements.displayAdjustmentsBtn, 'UI_DISPLAY_ADJUSTMENTS');
     setIcon(this.#elements.aiTuningBtn, 'UI_AI_TUNING');
+    setIcon(this.#elements.videoStopBtn, 'UI_STOP_STREAM');
   }
 }

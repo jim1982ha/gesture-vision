@@ -1,0 +1,14 @@
+/* FILE: packages/frontend/src/index.css */
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
+
+@import './styles/_base.css';
+@import './styles/_buttons.css';
+@import './styles/_cards.css';
+@import './styles/_forms.css';
+@import './styles/_layout.css';
+@import './styles/_modals.css';
+@import './styles/_overlays.css';
+@import './styles/_sidebars.css';
+@import './styles/_utilities.css';

@@ -1,63 +1,89 @@
 <!-- FILE: packages/frontend/src/partials/_modal_settings_tab_custom_gestures.html -->
 <div class="settings-tab-content" data-tab-content="customGestures">
-    
-    <div class="form-section">
-        <div class="form-label" id="savedHandGesturesTitleElement">Saved Custom Hand Gestures</div>
-        <div id="customHandGestureListContainer" style="margin-top: var(--space-sm);">
-            <p id="customHandGestureListPlaceholder" class="list-placeholder">No custom hand gestures saved yet.
-            </p>
-        </div>
+  <div class="form-section">
+    <h4 id="savedHandGesturesTitleElement" class="form-label">
+      Saved Custom Hand Gestures
+    </h4>
+    <div
+      id="customHandGestureListContainer"
+      class="mt-2 grid grid-cols-1 gap-3"
+    >
+      <p id="customHandGestureListPlaceholder" class="list-placeholder"></p>
     </div>
-
-    <div class="form-section">
-        <div class="form-label" id="savedPoseGesturesTitleElement">Saved Custom Pose Gestures</div>
-        <div id="customPoseGestureListContainer" style="margin-top: var(--space-sm);">
-            <p id="customPoseGestureListPlaceholder" class="list-placeholder">No custom pose gestures saved yet.
-            </p>
-        </div>
+  </div>
+  <div class="form-section">
+    <h4 id="savedPoseGesturesTitleElement" class="form-label">
+      Saved Custom Pose Gestures
+    </h4>
+    <div
+      id="customPoseGestureListContainer"
+      class="mt-2 grid grid-cols-1 gap-3"
+    >
+      <p id="customPoseGestureListPlaceholder" class="list-placeholder"></p>
     </div>
-
-    <!-- Actions Area -->
-    <div class="form-section">
-        <form id="custom-gestures-actions-form" onsubmit="return false;" class="form-actions-group justify-end" style="margin-top: var(--space-md);">
-            <!-- Contribution slot for plugins like Gesture Studio -->
-            <div id="custom-gestures-actions-slot" class="button-group-row" style="gap: var(--space-sm);"></div>
-            
-            <!-- Standard file upload, now a secondary action -->
-            <input type="file" id="customGestureFile" class="form-control visually-hidden" accept=".js" />
-            <button id="upload-custom-gesture-file-btn" type="button" class="btn btn-secondary" title="Upload a custom .js gesture file">
-                <span class="material-icons"></span>
-                <span id="upload-custom-gesture-file-btn-text">Upload File...</span>
-            </button>
-        </form>
-
-        <!-- Hidden by default, shown when a file is selected for preview -->
-        <div id="custom-gesture-import-preview" class="hidden" style="margin-top: var(--space-md); border: 1px dashed var(--border-light); padding: var(--space-sm); border-radius: var(--radius);">
-            <h4 id="importPreviewTitle" style="font-size: var(--font-size-medium); margin-bottom: var(--space-sm);">Import Gesture</h4>
-            <div class="form-group">
-                <label id="importPreviewNameLabel" for="importPreviewNameInput">Name</label>
-                <input type="text" id="importPreviewNameInput" class="form-control" />
-            </div>
-            <div class="form-group">
-                <label id="importPreviewDescLabel" for="importPreviewDescTextarea">Description</label>
-                <textarea id="importPreviewDescTextarea" class="form-control" rows="2"></textarea>
-            </div>
-            <div class="form-group">
-                <label id="importPreviewTypeLabel">Type</label>
-                <p id="importPreviewTypeValue" class="form-control-static"></p>
-            </div>
-        </div>
-
-        <!-- Hidden by default, shown when a file is selected for upload -->
-        <div id="custom-gesture-import-actions" class="form-actions-group justify-end hidden" style="margin-top: var(--space-sm);">
-             <button id="cancelCustomGestureImportBtn" type="button" class="btn btn-secondary" title="Cancel file selection">
-                 <span class="material-icons"></span>
-                 <span>Cancel</span>
-             </button>
-             <button id="uploadCustomGestureBtn" type="button" class="btn btn-primary">
-                 <span class="material-icons"></span>
-                 <span id="uploadCustomGestureBtnText">Import File</span>
-             </button>
-        </div>
+  </div>
+  <div class="form-section">
+    <form
+      id="custom-gestures-actions-form"
+      onsubmit="return false;"
+      class="mt-6 flex justify-end items-center gap-4"
+    >
+      <div id="custom-gestures-actions-slot" class="flex gap-2"></div>
+      <input
+        type="file"
+        id="customGestureFile"
+        class="visually-hidden"
+        accept=".js"
+      />
+      <button
+        id="upload-custom-gesture-file-btn"
+        type="button"
+        class="btn btn-secondary"
+      >
+        <span class="material-icons"></span>
+        <span id="upload-custom-gesture-file-btn-text"></span>
+      </button>
+    </form>
+    <div
+      id="custom-gesture-import-preview"
+      class="hidden mt-4 border border-dashed border-border p-4 rounded-lg bg-background"
+    >
+      <h4 id="importPreviewTitle" class="text-base font-semibold mb-4"></h4>
+      <div class="form-group">
+        <label id="importPreviewNameLabel" for="importPreviewNameInput"></label
+        ><input type="text" id="importPreviewNameInput" class="form-control" />
+      </div>
+      <div class="form-group">
+        <label
+          id="importPreviewDescLabel"
+          for="importPreviewDescTextarea"
+        ></label
+        ><textarea
+          id="importPreviewDescTextarea"
+          class="form-control"
+          rows="2"
+        ></textarea>
+      </div>
+      <div class="form-group">
+        <label id="importPreviewTypeLabel" class="form-label"></label>
+        <p id="importPreviewTypeValue" class="px-3 py-2"></p>
+      </div>
     </div>
+    <div
+      id="custom-gesture-import-actions"
+      class="hidden mt-2 flex justify-end gap-2"
+    >
+      <button
+        id="cancelCustomGestureImportBtn"
+        type="button"
+        class="btn btn-secondary"
+      >
+        <span class="material-icons"></span><span></span>
+      </button>
+      <button id="uploadCustomGestureBtn" type="button" class="btn btn-primary">
+        <span class="material-icons"></span
+        ><span id="uploadCustomGestureBtnText"></span>
+      </button>
+    </div>
+  </div>
 </div>

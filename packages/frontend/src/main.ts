@@ -4,8 +4,8 @@ import { registerSW } from "virtual:pwa-register";
 
 import { App } from "./core/app.js";
 import { appStore } from "./core/state/app-store.js";
-import { getAllDOMElements, type AllDOMElements } from "./core/dom-elements.js";
 import { TranslationService } from "./services/translation.service.js";
+import './index.css'; // Import Tailwind CSS entry point
 
 declare global {
   // Allows for runtime-injected variables without hardcoding them.
@@ -23,10 +23,9 @@ async function initializeApplication() {
 
     const translationService = new TranslationService();
 
-    const elements: Partial<AllDOMElements> = getAllDOMElements();
-    console.info("[Init] DOM elements fetched.");
+    console.info("[Init] DOM elements will be queried by their components.");
 
-    appInstance = new App(elements, appStore, translationService);
+    appInstance = new App(appStore, translationService);
 
     await appInstance.initializeAppSequence();
 

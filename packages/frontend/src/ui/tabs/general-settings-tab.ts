@@ -1,6 +1,5 @@
 /* FILE: packages/frontend/src/ui/tabs/general-settings-tab.ts */
 import type { AppStore, FrontendFullState } from '#frontend/core/state/app-store.js';
-import { translate } from '#shared/index.js';
 import {
   BaseSettingsTab,
   type ButtonGroupOption,
@@ -32,13 +31,15 @@ const FPS_OPTIONS: Readonly<ButtonGroupOption[]> = [5, 10, 15, 20, 30].map(
   (v) => ({ value: String(v), text: `${v} FPS` })
 );
 const TELEMETRY_OPTIONS: Readonly<ButtonGroupOption[]> = [
-  { value: 'true', textKey: 'enableLabel', iconKey: 'UI_CHECK_CIRCLE' },
-  { value: 'false', textKey: 'disableLabel', iconKey: 'UI_HIGHLIGHT_OFF' },
+  { value: 'true', textKey: 'enableLabel', titleKey: 'enableLabel', iconKey: 'UI_CHECK_CIRCLE' },
+  { value: 'false', textKey: 'disableLabel', titleKey: 'disableLabel', iconKey: 'UI_HIGHLIGHT_OFF' },
 ];
 
 export class GeneralSettingsTab extends BaseSettingsTab<GeneralSettingsTabElements> {
-  constructor(elements: GeneralSettingsTabElements, appStore: AppStore) {
-    super(elements, appStore);
+  constructor(appStore: AppStore, elementQueries: { [K in keyof GeneralSettingsTabElements]: string }) {
+    super(appStore, elementQueries);
+    // Add specific classes to the FPS group for styling and responsive behavior
+    this._elements.targetFpsSelectGroup?.classList.add('btn-group-sm-text');
     this.#renderAllButtonGroups();
   }
 
@@ -50,21 +51,14 @@ export class GeneralSettingsTab extends BaseSettingsTab<GeneralSettingsTabElemen
       newState.globalCooldown !== oldState.globalCooldown ||
       newState.targetFpsPreference !== oldState.targetFpsPreference ||
       newState.telemetryEnabled !== oldState.telemetryEnabled ||
-      newState.processingResolutionWidthPreference !==
-        oldState.processingResolutionWidthPreference
+      newState.processingResolutionWidthPreference !== oldState.processingResolutionWidthPreference
     );
   }
 
   #renderAllButtonGroups = (): void => {
-    this._renderButtonGroup(
-      this._elements.resolutionSelectGroup,
-      RESOLUTION_OPTIONS
-    );
+    this._renderButtonGroup(this._elements.resolutionSelectGroup, RESOLUTION_OPTIONS);
     this._renderButtonGroup(this._elements.targetFpsSelectGroup, FPS_OPTIONS);
-    this._renderButtonGroup(
-      this._elements.telemetryToggleGroup,
-      TELEMETRY_OPTIONS.map((opt) => ({ ...opt, text: translate(opt.textKey!) }))
-    );
+    this._renderButtonGroup(this._elements.telemetryToggleGroup, TELEMETRY_OPTIONS);
   };
 
   protected _initializeSpecificEventListeners(): void {
@@ -72,26 +66,17 @@ export class GeneralSettingsTab extends BaseSettingsTab<GeneralSettingsTabElemen
     this._addEventListenerHelper('globalCooldownSlider', 'input', this.#handleSliderInput);
     this._addEventListenerHelper('resolutionSelectGroup', 'click', (e: Event) =>
       this.#handleButtonClick(e as MouseEvent, (value) =>
-        this._appStore
-          .getState()
-          .actions.setLocalPreference(
-            'processingResolutionWidthPreference',
-            parseInt(value, 10)
-          )
+        this._appStore.getState().actions.setLocalPreference('processingResolutionWidthPreference', parseInt(value, 10))
       )
     );
     this._addEventListenerHelper('targetFpsSelectGroup', 'click', (e: Event) =>
       this.#handleButtonClick(e as MouseEvent, (value) =>
-        this._appStore
-          .getState()
-          .actions.requestBackendPatch({ targetFpsPreference: parseInt(value, 10) })
+        this._appStore.getState().actions.requestBackendPatch({ targetFpsPreference: parseInt(value, 10) })
       )
     );
     this._addEventListenerHelper('telemetryToggleGroup', 'click', (e: Event) =>
       this.#handleButtonClick(e as MouseEvent, (value) =>
-        this._appStore
-          .getState()
-          .actions.requestBackendPatch({ telemetryEnabled: value === 'true' })
+        this._appStore.getState().actions.requestBackendPatch({ telemetryEnabled: value === 'true' })
       )
     );
   }
@@ -102,15 +87,9 @@ export class GeneralSettingsTab extends BaseSettingsTab<GeneralSettingsTabElemen
     event: MouseEvent,
     action: (value: string) => void
   ): void => {
-    const button = (event.target as HTMLElement).closest<HTMLButtonElement>(
-      'button[data-value]'
-    );
+    const button = (event.target as HTMLElement).closest<HTMLButtonElement>('button[data-value]');
     if (button?.dataset.value) {
       action(button.dataset.value);
-      this._updateButtonGroupState(
-        button.parentElement as HTMLElement | null,
-        button.dataset.value
-      );
     }
   };
 

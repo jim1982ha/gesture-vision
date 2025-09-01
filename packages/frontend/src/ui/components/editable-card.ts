@@ -53,7 +53,6 @@ export class EditableCard {
         "[EditableCard] Insufficient elements or missing onSave callback provided to constructor for card:",
         cardElement?.id
       );
-      // Don't throw, but prevent event listeners from being attached.
       return;
     }
 
@@ -107,9 +106,7 @@ export class EditableCard {
     this.#isEditing = true; 
     this.#cardElement.classList.add("is-editing-highlight");
     this.#viewElementsContainer.classList.add("hidden");
-    this.#viewElementsContainer.style.display = "none";
     this.#formElement.classList.remove("hidden");
-    this.#formElement.style.display = ""; // Or "" to revert to CSS default
 
     const firstInput = this.#formElement.querySelector<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(
       'input:not([type="hidden"]), select, textarea'
@@ -127,9 +124,7 @@ export class EditableCard {
     this.#isEditing = false;
     this.#cardElement.classList.remove("is-editing-highlight");
     this.#viewElementsContainer.classList.remove("hidden");
-    this.#viewElementsContainer.style.display = ""; 
     this.#formElement.classList.add("hidden");
-    this.#formElement.style.display = "none";
   }
 
   isEditing(): boolean {

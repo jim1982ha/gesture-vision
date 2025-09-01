@@ -2,8 +2,6 @@
 import { UI_EVENTS, pubsub, translate } from '#shared/index.js';
 import { setIcon } from './helpers/index.js';
 
-import type { UIController } from './ui-controller-core.js';
-
 interface ConfirmationModalOptions {
   titleKey?: string;
   messageKey: string;
@@ -26,14 +24,12 @@ export class ConfirmationModalManager {
 
   #onConfirmCallback: (() => void) | null = null;
   #onCancelCallback: (() => void) | null = null;
-  #uiControllerRef: UIController | null = null;
   #isReadyAndInitialized = false;
   #readyPromise: Promise<void>;
   #resolveReadyPromise?: (() => void) | null;
   #wasAnotherModalOpen = false;
 
-  constructor(uiControllerRef: UIController | null) {
-    this.#uiControllerRef = uiControllerRef;
+  constructor() {
     this.#readyPromise = new Promise((resolve) => {
       this.#resolveReadyPromise = resolve;
     });
@@ -72,33 +68,13 @@ export class ConfirmationModalManager {
   }
 
   #queryElements(): void {
-    const elements = this.#uiControllerRef?._elements;
-    if (!elements) {
-      console.error(
-        '[ConfirmationModalManager] UIController elements not available during query.'
-      );
-      return;
-    }
-    this.#modalElement =
-      (elements.confirmationModal as HTMLElement | null) ?? null;
-    this.#titleElement =
-      (elements.confirmationModalTitle as HTMLElement | null) ?? null;
-    this.#messageElement =
-      (elements.confirmationModalMessage as HTMLElement | null) ?? null;
-    this.#confirmButton =
-      (elements.confirmationModalConfirmBtn as HTMLButtonElement | null) ??
-      null;
-    this.#cancelButton =
-      (elements.confirmationModalCancelBtn as HTMLButtonElement | null) ?? null;
-
-    this.#confirmButtonTextSpan =
-      (elements.confirmationModalConfirmBtnText as HTMLElement | null) ??
-      this.#confirmButton?.querySelector('span:not(.material-icons)') ??
-      null;
-    this.#cancelButtonTextSpan =
-      (elements.confirmationModalCancelBtnText as HTMLElement | null) ??
-      this.#cancelButton?.querySelector('span:not(.material-icons)') ??
-      null;
+    this.#modalElement = document.getElementById("confirmationModal") as HTMLElement | null;
+    this.#titleElement = document.getElementById("confirmationModalTitle") as HTMLElement | null;
+    this.#messageElement = document.getElementById("confirmationModalMessage") as HTMLElement | null;
+    this.#confirmButton = document.getElementById("confirmationModalConfirmBtn") as HTMLButtonElement | null;
+    this.#cancelButton = document.getElementById("confirmationModalCancelBtn") as HTMLButtonElement | null;
+    this.#confirmButtonTextSpan = document.getElementById("confirmationModalConfirmBtnText") as HTMLElement | null;
+    this.#cancelButtonTextSpan = document.getElementById("confirmationModalCancelBtnText") as HTMLElement | null;
   }
 
   #attachEventListeners(): void {

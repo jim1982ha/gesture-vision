@@ -112,9 +112,15 @@ export class CanvasRenderer {
       } else return;
     }
 
-    // --- Draw Video (with mirroring) ---
+    // --- Draw Video (with mirroring and filters) ---
     this.#canvasCtx.save();
     this.#canvasCtx.clearRect(0, 0, displayWidth, displayHeight);
+
+    const state = this.#appStore.getState();
+    const brightness = state.lowLightBrightness ?? 100;
+    const contrast = state.lowLightContrast ?? 100;
+    this.#canvasCtx.filter = `brightness(${brightness}%) contrast(${contrast}%)`;
+
     if (this.#isMirrored) {
       this.#canvasCtx.translate(displayWidth, 0);
       this.#canvasCtx.scale(-1, 1);
@@ -128,7 +134,7 @@ export class CanvasRenderer {
     
     this.#canvasCtx.restore();
 
-    // --- Draw Overlays and Landmarks (on non-mirrored context) ---
+    // --- Draw Overlays and Landmarks (on non-mirrored, non-filtered context) ---
     this.#drawRoiOverlay(videoWidth, videoHeight, sx, sy, sWidth, sHeight, displayWidth, displayHeight);
     
     this.#drawAllLandmarks(displayWidth, displayHeight, videoWidth, videoHeight);
@@ -172,7 +178,11 @@ export class CanvasRenderer {
     const primaryColor = bodyStyles.getPropertyValue("--primary").trim() || "#1850d6";
     const secondaryColor = bodyStyles.getPropertyValue("--secondary").trim() || "#6c757d";
     const focusColor = bodyStyles.getPropertyValue("--warning").trim() || "#ffc107";
-    const targetRect = { x: 0, y: 0, width: displayWidth, height: displayHeight };
+    
+    const roiOnCanvasPx = this.#roiInteractionHandler.getLastRoiDisplayCoordinates();
+    const isRoiActive = !!(this.#currentAuthoritativeRoiConfig && roiOnCanvasPx);
+    
+    const targetRect = isRoiActive ? roiOnCanvasPx! : { x: 0, y: 0, width: displayWidth, height: displayHeight };
 
     if (showHand && this.#lastHandLandmarksData?.length > 0) {
       this.#landmarkDrawer.draw(this.#canvasCtx, this.#lastHandLandmarksData, targetRect.x, targetRect.y, targetRect.width, targetRect.height, { color: primaryColor, lineWidth: 2, radius: 4, connections: LandmarkDrawer.getHandConnections() }, videoWidth, videoHeight, this.#currentAuthoritativeRoiConfig, this.#isMirrored, this.#focusPointsForDrawing, focusColor);

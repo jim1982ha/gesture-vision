@@ -1,6 +1,4 @@
 /* FILE: packages/frontend/src/services/notification-manager.ts */
-import type { UIController } from "#frontend/ui/ui-controller-core.js";
- 
 import { UI_EVENTS, WEBSOCKET_EVENTS, WEBCAM_EVENTS, pubsub, translate } from "#shared/index.js";
 
  
@@ -22,51 +20,23 @@ interface ShowErrorPayload {
     type?: 'error'; 
 }
 
-export interface NotificationManagerElements { 
-    gestureAlertDiv: HTMLElement | null;
-    gestureAlertTextSpan: HTMLElement | null;
-}
-
-
 export class NotificationManager {
   #alertDiv: HTMLElement | null = null;
   #alertTextSpan: HTMLElement | null = null;
   #activeTimeout: number | null = null;
-  #uiControllerRef: UIController | null = null;
   #isInitialized = false;
 
-  constructor(uiControllerRef: UIController | null) { 
-    this.#uiControllerRef = uiControllerRef;
-
-    if (!this.#uiControllerRef) {
-      console.warn(
-        "[NotificationManager] UIController reference not provided initially. It should be set later."
-      );
-    }
-    this.#initialize();
-  }
-  
-  public setUIController(uiController: UIController): void {
-      this.#uiControllerRef = uiController;
-      this.#initialize();
-  }
-
-  async #initialize(): Promise<void> {
-    if (this.#isInitialized || !this.#uiControllerRef) return;
-
-    const allElements = this.#uiControllerRef._elements;
-    if (allElements) {
-      this.#alertDiv = allElements.gestureAlertDiv as HTMLElement | null ?? null;
-      this.#alertTextSpan = allElements.gestureAlertTextSpan as HTMLElement | null ?? null;
-    }
+  constructor() {
+    this.#alertDiv = document.getElementById("gestureAlert") as HTMLElement | null;
+    this.#alertTextSpan = document.getElementById("gestureAlertText") as HTMLElement | null;
 
     if (!this.#alertDiv || !this.#alertTextSpan) {
       console.warn(
         "[NotificationManager] Missing required alert elements. Notifications disabled."
       );
-      this.#isInitialized = true; 
       return;
     }
+    
     this.#attachEventListeners();
     this.#isInitialized = true;
   }
@@ -168,7 +138,7 @@ export class NotificationManager {
     this.#alertTextSpan.style.whiteSpace = msg.includes('\n') ? 'pre-wrap' : 'normal';
     this.#alertTextSpan.textContent = msg; 
     
-    this.#alertDiv.className = `alert visible ${type}`;
+    this.#alertDiv.className = `alert alert-${type} visible`;
     const effectiveDuration =
       type === "error" || type === "warning"
         ? Math.max(duration, 5000)

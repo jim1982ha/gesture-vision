@@ -3,6 +3,15 @@
 import { createFromTemplate } from "./template-renderer.js";
 import { setIcon } from '#frontend/ui/helpers/index.js';
 import { translate } from '#shared/services/translations.js';
+import { clsx } from '../helpers/ui-dom-helpers.js';
+
+export interface CardFooterConfig {
+    mainText?: string;
+    pillsHtml?: string;
+    statusIconKey?: string;
+    statusClass?: string;
+    statusText?: string;
+}
 
 export interface CardContent {
   iconName: string; 
@@ -10,7 +19,7 @@ export interface CardContent {
   title: string;
   actionButtonsHtml?: string;
   detailsHtml?: string;
-  footerHtml?: string;
+  footerConfig?: CardFooterConfig;
   itemClasses?: string; 
   datasetAttributes?: Record<string, string>;
   titleAttribute?: string; 
@@ -19,10 +28,13 @@ export interface CardContent {
 
 interface ActionButtonConfig {
     action: string;
-    titleKey: string;
+    title?: string;
+    titleKey?: string;
     iconKey: string;
     extraClasses?: string[];
     pluginId?: string;
+    text?: string;
+    textKey?: string;
 }
 
 /**
@@ -33,15 +45,62 @@ interface ActionButtonConfig {
 export function createCardActionButton(config: ActionButtonConfig): HTMLButtonElement {
     const button = document.createElement('button');
     button.type = 'button';
-    button.className = `btn btn-icon ${config.extraClasses?.join(' ') || ''}`;
+
+    const hasText = !!(config.text || config.textKey);
+    const finalClasses = clsx(
+        "btn",
+        !hasText && "btn-icon", // Only add btn-icon if there is no text
+        ...(config.extraClasses || [])
+    );
+    button.className = finalClasses;
+
     if (config.pluginId) button.dataset.pluginId = config.pluginId;
     button.dataset.action = config.action;
-    button.title = translate(config.titleKey);
-    button.setAttribute('aria-label', translate(config.titleKey));
-    button.innerHTML = `<span></span>`; // Ensure inner span for the icon
-    setIcon(button, config.iconKey);
+    
+    const title = config.title || (config.titleKey ? translate(config.titleKey) : '');
+    button.title = title;
+    button.setAttribute('aria-label', title);
+    
+    let innerHTML = `<span class="btn-icon-span"></span>`;
+    if (hasText) {
+        const textContent = config.text || (config.textKey ? translate(config.textKey) : '');
+        innerHTML += `<span class="btn-text-span">${textContent}</span>`;
+    }
+    button.innerHTML = innerHTML;
+
+    const iconSpan = button.querySelector('.btn-icon-span');
+    if (iconSpan) setIcon(iconSpan, config.iconKey);
+    
     return button;
 }
+
+function buildFooterHtml(config?: CardFooterConfig): string {
+    if (!config) return '';
+
+    const mainTextParts: string[] = [];
+
+    if (config.statusIconKey) {
+        const statusIconEl = document.createElement('span');
+        statusIconEl.className = `card-detail-icon history-status-icon status-${config.statusClass || 'info'}`;
+        setIcon(statusIconEl, config.statusIconKey);
+        mainTextParts.push(statusIconEl.outerHTML);
+    }
+
+    if (config.mainText) {
+      mainTextParts.push(`<span class="truncate">${config.mainText}</span>`);
+    }
+    
+    if (config.statusText) {
+      mainTextParts.push(`<span class="card-footer-separator">|</span><span class="footer-status-text ${config.statusClass || ''}-text">${config.statusText}</span>`);
+    }
+    
+    const mainContentHtml = `<div class="flex items-center gap-1 min-w-0">${mainTextParts.join('')}</div>`;
+    
+    const pillsHtml = config.pillsHtml ? `<div class="footer-pills-wrapper flex items-center gap-1">${config.pillsHtml}</div>` : '';
+    
+    return `${mainContentHtml}${pillsHtml}`;
+}
+
 
 export function createCardElement(content: CardContent): HTMLDivElement {
     const template = `
@@ -52,30 +111,31 @@ export function createCardElement(content: CardContent): HTMLDivElement {
         data-attributes-placeholder
       >
         <div class="card-header">
-          <div class="card-header-info">
-            <div class="card-title-actions-wrapper">
-              <span class="{iconClasses}">{iconContent}</span>
+            <div class="flex items-center gap-3 w-full">
+              <span class="{iconClasses} card-icon">{iconContent}</span>
               <span class="card-title">{title}</span>
               <div class="card-item-actions" data-if="hasActionButtons" data-html-key="actionButtonsHtml"></div>
             </div>
-          </div>
         </div>
         <div class="card-details" data-if="hasDetails" data-html-key="detailsHtml"></div>
-        <div data-if="hasFooter" data-html-key="footerHtml"></div>
+        <div class="card-footer" data-if="hasFooter" data-html-key="footerHtml"></div>
       </div>
     `;
 
     const isMdi = content.iconType === 'mdi' || content.iconName.startsWith('mdi-');
     const data = {
-        ...content,
         itemClasses: content.itemClasses || '',
         titleAttribute: content.titleAttribute || '',
         ariaLabel: content.ariaLabel || '',
-        iconClasses: `card-icon ${isMdi ? `mdi ${content.iconName}` : 'material-icons'}`,
+        iconClasses: isMdi ? `mdi ${content.iconName}` : 'material-icons',
         iconContent: isMdi ? '' : content.iconName,
+        title: content.title,
         hasActionButtons: !!content.actionButtonsHtml,
+        actionButtonsHtml: content.actionButtonsHtml || '',
         hasDetails: !!content.detailsHtml,
-        hasFooter: !!content.footerHtml
+        detailsHtml: content.detailsHtml || '',
+        hasFooter: !!content.footerConfig,
+        footerHtml: buildFooterHtml(content.footerConfig)
     };
     
     const element = createFromTemplate(template, data);

@@ -1,55 +1,62 @@
 <!-- FILE: packages/frontend/src/partials/_header.html -->
-<header class="top-nav">
-  <div class="header-left-section">
-    <div id="wsStatusIndicator" class="status-indicator" title="WebSocket Disconnected">
+<header
+  class="relative z-header flex h-14 flex-shrink-0 items-center justify-between border-b border-border bg-surface px-3 shadow-sm"
+>
+  <!-- Left Section -->
+  <div class="flex flex-shrink-0 items-center gap-2">
+    <div
+      id="wsStatusIndicator"
+      class="status-indicator"
+      title="WebSocket Disconnected"
+    ></div>
+    <div id="appBrand" class="hidden items-center overflow-hidden desktop:flex cursor-pointer">
+      <h1
+        id="appTitle"
+        class="truncate text-xl font-semibold text-text-primary"
+      >
+        GestureVision
+      </h1>
+    </div>
+  </div>
+
+  <!-- Center Section: In-flow for mobile, absolute for desktop -->
+  <div
+    class="flex-1 flex justify-center items-center min-w-0 desktop:absolute desktop:left-1/2 desktop:top-1/2 desktop:-translate-x-1/2 desktop:-translate-y-1/2"
+  >
+    <!-- Inner container for the actual icon groups -->
+    <div class="flex items-center gap-2">
+      <!-- Container for all toggles -->
+      <div id="header-toggles-container" class="flex items-center gap-1">
+        <!-- Landmarks Dropdown will be injected here by JS -->
+        <!-- Feature Toggles will be injected here by JS -->
+      </div>
+      <!-- The single slot for plugin contributions -->
+      <div
+        id="header-plugin-contribution-slot"
+        class="flex items-center gap-1"
+      ></div>
+    </div>
+  </div>
+
+  <!-- Right Section -->
+  <div
+    class="nav-controls relative flex h-full min-w-0 flex-grow-0 items-center justify-end gap-1 flex-shrink-0"
+  >
+    <!-- Language selector is dynamically inserted here by LanguageManager -->
+    <button
+      id="headerHistoryToggle"
+      class="btn btn-secondary btn-icon"
+      title="History"
+      aria-label="History"
+    >
       <span class="material-icons"></span>
-    </div>
-    <div class="nav-brand" id="appBrand">
-      <h1 id="appTitle">GestureVision</h1>
-    </div>
-  </div>
-
-  <div class="header-toggle-groups-container">
-    <div class="desktop-only-flex" style="gap: var(--space-md); align-items: center;">
-      <div class="button-toggle-group header-feature-toggles">
-        <button type="button" class="btn btn-secondary" id="headerToggleBuiltInHand"
-          data-config-key="enableBuiltInHandGestures">
-          <span class="material-icons"></span> <!-- JS sets icon & title -->
-        </button>
-        <button type="button" class="btn btn-secondary" id="headerToggleCustomHandGestures"
-          data-config-key="enableCustomHandGestures">
-          <span class="material-icons"></span> <!-- JS sets icon & title -->
-        </button>
-        <button type="button" class="btn btn-secondary" id="headerTogglePoseDetection"
-          data-config-key="enablePoseProcessing">
-          <span class="material-icons"></span> <!-- JS sets icon & title -->
-        </button>
-      </div>
-      <div class="button-toggle-group header-hands-and-landmarks-toggles">
-        <button type="button" class="btn btn-secondary" id="headerToggleHandLandmarks" data-value="0">
-          <span class="material-icons"></span> <!-- JS sets icon & title -->
-        </button>
-        <button type="button" class="btn btn-secondary" id="headerToggleNumHands1" data-value="1">
-          <span class="material-icons"></span> <!-- JS sets icon & title -->
-        </button>
-        <button type="button" class="btn btn-secondary" id="headerToggleNumHands2" data-value="2">
-          <span class="material-icons"></span> <!-- JS sets icon & title -->
-        </button>
-        <button type="button" class="btn btn-secondary" id="headerTogglePoseLandmarks" data-landmark-type="pose">
-            <span class="material-icons"></span> <!-- JS sets icon & title -->
-        </button>
-      </div>
-      <!-- MODIFICATION: Desktop plugin slot moved here -->
-      <div id="header-plugin-contribution-slot-desktop" class="header-plugin-controls"></div>
-    </div>
-    <!-- The mobile controls container will be injected here by ui-header-toggles-controller.ts -->
-  </div>
-
-  <div class="nav-controls">
-    <!-- MODIFICATION: Original plugin slot removed from here -->
-    <div id="languageSelectGroupHeader" class="button-toggle-group desktop-only-inline-flex">
-    </div>
-    <button id="mainSettingsToggle" class="btn btn-secondary btn-icon" title="Settings" aria-label="Settings">
+    </button>
+    <button
+      id="mainSettingsToggle"
+      class="btn btn-secondary btn-icon"
+      title="Settings"
+      aria-label="Settings"
+    >
       <span class="material-icons"></span>
     </button>
   </div>

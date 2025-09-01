@@ -1,18 +1,33 @@
 <!-- FILE: packages/frontend/src/partials/_modal_settings_head.html -->
-<!-- Settings Modal - Part 1 -->
-<h3 id="settingsModalTitle">
-    <span class="material-icons header-icon"></span>
-    <span class="header-title">Configuration</span>
-    <button id="mainSettingsCloseButton" class="btn btn-icon header-close-btn" aria-label="Close Settings">
-        <span class="mdi" aria-hidden="true"></span>
-    </button>
-</h3>
-<div class="modal-tabs" id="settingsTabs">
-    <button id="generalSettingsTabButton" class="modal-tab-button active" data-tab="general">General</button>
-    <button class="modal-tab-button" data-tab="customGestures" id="customGesturesTabButton">
-        Advanced Features
-    </button>
-    <button class="modal-tab-button" data-tab="plugins">Plugins</button>
-    <button class="modal-tab-button" data-tab="rtsp">RTSP Sources</button>
-    <button class="modal-tab-button" data-tab="appearance" id="appearanceSettingsTabButton">Appearance</button>
+<div id="settingsModalTitle" class="modal-header">
+  <span class="material-icons header-icon"></span>
+  <span class="header-title">Configuration</span>
+  <button
+    id="mainSettingsCloseButton"
+    class="btn btn-icon header-close-btn"
+    aria-label="Close Settings"
+  >
+    <span class="mdi" aria-hidden="true"></span>
+  </button>
+</div>
+
+<!-- Responsive Tab Navigation -->
+<div class="flex-grow min-h-0 flex flex-col lg:flex-row">
+  <!-- Mobile-only Select Dropdown -->
+  <div class="lg:hidden p-4 border-b border-border">
+    <select id="settingsTabsMobileSelect" class="form-control"></select>
+  </div>
+
+  <!-- Desktop Sidebar Navigation -->
+  <nav
+    id="settingsTabsDesktopNav"
+    class="hidden lg:flex flex-col gap-1 w-52 p-4 border-r border-border bg-background"
+  >
+    <!-- Buttons will be dynamically inserted by JS -->
+  </nav>
+
+  <!-- Tab Content Area - This container will now manage the scrolling child -->
+  <div id="settingsTabContentContainer" class="flex-1 min-h-0 flex flex-col">
+    <!-- The modal-scrollable-content will be appended here by JS and will become scrollable -->
+  </div>
 </div>

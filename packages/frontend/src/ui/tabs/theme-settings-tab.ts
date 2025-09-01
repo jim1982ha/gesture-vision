@@ -20,59 +20,30 @@ export interface ThemeSettingsTabElements extends TabElements {
 }
 
 const COLOR_MODE_OPTIONS: Readonly<ButtonGroupOption[]> = [
-  {
-    value: 'light',
-    iconKey: 'UI_LIGHT_MODE',
-    titleKey: 'colorModeLight',
-    textKey: 'colorModeLight',
-  },
-  {
-    value: 'system',
-    iconKey: 'UI_SYSTEM_MODE',
-    titleKey: 'colorModeSystemLabel',
-    textKey: 'colorModeSystemLabel',
-  },
-  {
-    value: 'dark',
-    iconKey: 'UI_DARK_MODE',
-    titleKey: 'colorModeDark',
-    textKey: 'colorModeDark',
-  },
+  { value: 'light', iconKey: 'UI_LIGHT_MODE', titleKey: 'colorModeLight', textKey: 'colorModeLight' },
+  { value: 'system', iconKey: 'UI_SYSTEM_MODE', titleKey: 'colorModeSystemLabel', textKey: 'colorModeSystemLabel' },
+  { value: 'dark', iconKey: 'UI_DARK_MODE', titleKey: 'colorModeDark', textKey: 'colorModeDark' },
 ];
 
 export class ThemeSettingsTab extends BaseSettingsTab<ThemeSettingsTabElements> {
   #uiControllerRef: UIController;
 
   constructor(
-    elements: ThemeSettingsTabElements,
-    uiControllerRef: UIController
+    uiControllerRef: UIController,
+    elementQueries: { [K in keyof ThemeSettingsTabElements]: string }
   ) {
-    super(elements, uiControllerRef.appStore);
+    super(uiControllerRef.appStore, elementQueries);
     this.#uiControllerRef = uiControllerRef;
-    this._renderButtonGroup(
-      this._elements.colorModeToggleGroup,
-      COLOR_MODE_OPTIONS
-    );
+    this._renderButtonGroup(this._elements.colorModeToggleGroup, COLOR_MODE_OPTIONS);
   }
 
-  protected _doesConfigUpdateAffectThisTab(
-    newState: FrontendFullState,
-    oldState: FrontendFullState
-  ): boolean {
+  protected _doesConfigUpdateAffectThisTab(newState: FrontendFullState, oldState: FrontendFullState): boolean {
     return newState.themePreference !== oldState.themePreference;
   }
 
   protected _initializeSpecificEventListeners(): void {
-    this._addEventListenerHelper(
-      'colorModeToggleGroup',
-      'click',
-      this.#handleModeButtonClick
-    );
-    this._addEventListenerHelper(
-      'themeToggleGroup',
-      'click',
-      this.#handleBaseThemeSelection
-    );
+    this._addEventListenerHelper('colorModeToggleGroup', 'click', this.#handleModeButtonClick);
+    this._addEventListenerHelper('themeToggleGroup', 'click', this.#handleBaseThemeSelection);
   }
 
   public getSettingsToSave(): Partial<FullConfiguration> {
@@ -80,12 +51,8 @@ export class ThemeSettingsTab extends BaseSettingsTab<ThemeSettingsTabElements> 
   }
 
   #handleModeButtonClick = (event: MouseEvent): void => {
-    const button = (event.target as HTMLElement).closest<HTMLButtonElement>(
-      'button[data-value]'
-    );
-    const newPreference = button?.dataset.value as
-      | ThemePreference['mode']
-      | undefined;
+    const button = (event.target as HTMLElement).closest<HTMLButtonElement>('button[data-value]');
+    const newPreference = button?.dataset.value as ThemePreference['mode'] | undefined;
     if (newPreference) {
       this._appStore.getState().actions.setLocalPreference('themePreference', {
         base: this._appStore.getState().themePreference.base,
@@ -95,9 +62,7 @@ export class ThemeSettingsTab extends BaseSettingsTab<ThemeSettingsTabElements> 
   };
 
   #handleBaseThemeSelection = (event: MouseEvent): void => {
-    const themeButton = (event.target as HTMLElement).closest<HTMLButtonElement>(
-      'button.btn[data-theme-id]'
-    );
+    const themeButton = (event.target as HTMLElement).closest<HTMLButtonElement>('button.btn[data-theme-id]');
     const baseThemeId = themeButton?.dataset.themeId;
     if (baseThemeId) {
       this._appStore.getState().actions.setLocalPreference('themePreference', {
@@ -108,12 +73,15 @@ export class ThemeSettingsTab extends BaseSettingsTab<ThemeSettingsTabElements> 
   };
 
   public loadSettings(): void {
-    if (!this.#uiControllerRef._themeManager) return;
-    this._updateButtonGroupState(
-      this._elements.colorModeToggleGroup,
-      this._appStore.getState().themePreference?.mode
-    );
+    const themeMgr = this.#uiControllerRef._themeManager;
+    if (!themeMgr) return;
+    
+    // Render the buttons first
     renderThemeList(this._elements, this.#uiControllerRef);
+    
+    // Then apply the active state using the helpers
+    this._updateButtonGroupState(this._elements.colorModeToggleGroup, themeMgr.getColorModePreference());
+    this._updateButtonGroupState(this._elements.themeToggleGroup, themeMgr.getBaseTheme());
   }
 
   public applyTranslations(): void {
@@ -122,10 +90,7 @@ export class ThemeSettingsTab extends BaseSettingsTab<ThemeSettingsTabElements> 
       { element: this._elements.themeSelectionLabel, config: 'themeSelectionLabel' },
     ];
     this._applyTranslationsHelper(itemsToTranslate);
-    this._renderButtonGroup(
-      this._elements.colorModeToggleGroup,
-      COLOR_MODE_OPTIONS
-    );
+    this._renderButtonGroup(this._elements.colorModeToggleGroup, COLOR_MODE_OPTIONS);
     this.loadSettings();
   }
 }

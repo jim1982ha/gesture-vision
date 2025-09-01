@@ -2,6 +2,15 @@
 // General UI utility functions for DOM manipulation, class toggling, and button state management.
 
 /**
+ * A tiny utility for conditionally joining class names together.
+ * @param {...(string | boolean | undefined | null)} classes - The classes to join.
+ * @returns {string} The final class string.
+ */
+export function clsx(...classes: (string | boolean | undefined | null)[]): string {
+  return classes.filter(Boolean).join(' ');
+}
+
+/**
  * Toggles a CSS class on an HTML element.
  * @param element The HTML element.
  * @param className The CSS class name to toggle.
@@ -47,7 +56,7 @@ export function updateButtonToggleActiveState(
 ): void {
   if (!buttonElement) return;
 
-  buttonElement.classList.toggle('active', isActive && !isDisabled);
+  buttonElement.classList.toggle('btn-toggled', isActive && !isDisabled);
   buttonElement.disabled = isDisabled;
 
   const role = buttonElement.getAttribute('role');

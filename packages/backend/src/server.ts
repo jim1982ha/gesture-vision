@@ -1,7 +1,6 @@
 /* FILE: packages/backend/src/server.ts */
 import { spawn, type ChildProcess } from 'child_process';
 import http from 'http';
-import path from 'path';
 
 import cors from 'cors';
 import express, { type Request, type Response, type NextFunction, type Express } from 'express';
@@ -76,7 +75,6 @@ async function startServer() {
     const app: Express = express();
     app.use(cors({ origin: '*', methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'] }));
     app.use(express.json());
-    app.use('/api/plugins/assets', express.static(path.resolve(process.cwd(), 'extensions', 'plugins')));
 
     server = http.createServer(app);
     server.on('error', (e: NodeJS.ErrnoException) => {

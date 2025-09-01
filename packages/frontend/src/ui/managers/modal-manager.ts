@@ -1,44 +1,59 @@
 /* FILE: packages/frontend/src/ui/managers/modal-manager.ts */
-import { UI_EVENTS, pubsub } from '#shared/index.js';
-import { toggleElementClass } from '#frontend/ui/helpers/index.js';
+import { UI_EVENTS, pubsub, translate } from '#shared/index.js';
+import { toggleElementClass, setIcon } from '#frontend/ui/helpers/index.js';
 import type { UIController } from '#frontend/ui/ui-controller-core.js';
 
-export interface ModalManagerElements {
-  mainSettingsModal: HTMLElement | null;
-  cameraSelectModal: HTMLElement | null;
-  docsModal: HTMLElement | null;
-  mainSettingsToggle: HTMLButtonElement | null;
-  docsCloseButton: HTMLButtonElement | null;
-  cameraSelectCloseButton: HTMLButtonElement | null;
-}
-
 export class ModalManager {
-  #elements: Partial<ModalManagerElements>;
+  #mainSettingsModal: HTMLElement | null;
+  #cameraSelectModal: HTMLElement | null;
+  #docsModal: HTMLElement | null;
+  #mainSettingsToggle: HTMLButtonElement | null;
+  #docsCloseButton: HTMLButtonElement | null;
+  #cameraSelectCloseButton: HTMLButtonElement | null;
+  
   #uiControllerRef: UIController;
   #activeModalId: string | null = null;
+  #isInitialized = false;
 
-  constructor(elements: Partial<ModalManagerElements>, uiController: UIController) {
-    this.#elements = elements;
+  constructor(uiController: UIController) {
     this.#uiControllerRef = uiController;
-    this.#attachEventListeners();
+    this.#mainSettingsModal = document.getElementById("mainSettingsModal");
+    this.#cameraSelectModal = document.getElementById("cameraSelectModal");
+    this.#docsModal = document.getElementById("docsModal");
+    this.#mainSettingsToggle = document.getElementById("mainSettingsToggle") as HTMLButtonElement | null;
+    this.#docsCloseButton = document.getElementById("docsCloseButton") as HTMLButtonElement | null;
+    this.#cameraSelectCloseButton = document.getElementById("cameraSelectCloseButton") as HTMLButtonElement | null;
+  }
+  
+  public initialize(): void {
+      if (this.#isInitialized) return;
+      this.#attachEventListeners();
+      this.applyTranslations();
+      this.#isInitialized = true;
   }
 
   #attachEventListeners(): void {
-    this.#elements.mainSettingsToggle?.addEventListener('click', () =>
+    this.#mainSettingsToggle?.addEventListener('click', () =>
       this.toggleSettingsModal()
     );
-    this.#elements.docsCloseButton?.addEventListener('click', () =>
+    this.#docsCloseButton?.addEventListener('click', () =>
       this.closeDocsModal()
     );
-    this.#elements.cameraSelectCloseButton?.addEventListener('click', () =>
+    this.#cameraSelectCloseButton?.addEventListener('click', () =>
       this.closeCameraSelectModal()
     );
   }
 
+  public applyTranslations(): void {
+    const cameraModalTitle = document.getElementById("cameraModalTitleText");
+    if (cameraModalTitle) cameraModalTitle.textContent = translate('selectCameraSource');
+    setIcon(document.getElementById("cameraModalHeader")?.querySelector('.header-icon'), 'UI_WEBCAM');
+  }
+
   #getModalElementById = (id: string): HTMLElement | null => {
-    if (id === 'main-settings') return this.#elements.mainSettingsModal ?? null;
-    if (id === 'camera') return this.#elements.cameraSelectModal ?? null;
-    if (id === 'docs') return this.#elements.docsModal ?? null;
+    if (id === 'main-settings') return this.#mainSettingsModal ?? null;
+    if (id === 'camera') return this.#cameraSelectModal ?? null;
+    if (id === 'docs') return this.#docsModal ?? null;
     return null;
   };
 

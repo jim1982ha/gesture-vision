@@ -22,6 +22,8 @@ export default [
       "packages/frontend/ios/",
       "extensions/custom_gestures/**/*.js",
       "packages/frontend/vite.config.umd.js",
+      "packages/frontend/tailwind.config.js",
+      "packages/frontend/postcss.config.cjs",
       "*.config.js",
       "dev-dist/workbox-*.js",
       "android/",
@@ -59,13 +61,6 @@ export default [
       ],
     },
     languageOptions: { globals: { ...globals.browser, ...globals.node } },
-  },
-  {
-    files: ["packages/frontend/postcss.config.js"],
-    languageOptions: {
-      sourceType: "module",
-      globals: { ...globals.node, process: "readonly" },
-    },
   },
 
   // 2. TypeScript configuration

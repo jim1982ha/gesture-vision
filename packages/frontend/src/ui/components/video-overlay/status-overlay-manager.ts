@@ -1,6 +1,6 @@
 /* FILE: packages/frontend/src/ui/components/video-overlay/status-overlay-manager.ts */
 import { translate } from '#shared/index.js';
-import { setIcon } from '#frontend/ui/helpers/index.js';
+import { setIcon, setElementVisibility } from '#frontend/ui/helpers/index.js';
 import type { UIController } from '#frontend/ui/ui-controller-core.js';
 
 export type VideoOverlayState =
@@ -15,7 +15,7 @@ export class StatusOverlayManager {
   #iconContainer: HTMLElement;
   #iconElement: HTMLElement;
   #textElement: HTMLElement;
-  #currentState: VideoOverlayState = 'OFFLINE_IDLE';
+  #currentState: VideoOverlayState | null = null;
   #uiControllerRef: UIController;
 
   constructor(overlayElement: HTMLElement, uiController: UIController) {
@@ -30,6 +30,10 @@ export class StatusOverlayManager {
     this.#iconElement = this.#iconContainer.querySelector('.material-icons')!;
     this.#textElement = this.#textContainer.querySelector('#connectingText')!;
     this.#attachEventListeners();
+  }
+
+  public initialize(): void {
+    this.setState('OFFLINE_IDLE');
   }
 
   #attachEventListeners(): void {
@@ -48,11 +52,6 @@ export class StatusOverlayManager {
           this.#uiControllerRef.modalManager?.toggleCameraSelectModal(true);
         }
         break;
-      case 'STREAM_ACTIVE':
-        if ((event.target as HTMLElement).closest('.overlay-icon-container')) {
-          this.#uiControllerRef.cameraService?.stopStream();
-        }
-        break;
     }
   };
 
@@ -60,35 +59,36 @@ export class StatusOverlayManager {
     if (this.#currentState === newState) return;
     this.#currentState = newState;
 
-    // CLEANUP: The .visible class is no longer needed as visibility is handled
-    // directly by the state-specific classes in the CSS.
-    this.#overlayElement.classList.remove(
-      'state-initial-connecting',
-      'state-offline-idle',
-      'state-stream-active'
-    );
-
+    const isOverlayVisibleAndActive = newState === 'OFFLINE_IDLE' || newState === 'INITIAL_CONNECTING';
+    
+    this.#overlayElement.classList.toggle('overlay-active', isOverlayVisibleAndActive);
+    this.#overlayElement.classList.toggle('hidden', !isOverlayVisibleAndActive);
+    
     let iconKey: Parameters<typeof setIcon>[1] | null = null;
     let textContent = '';
+    let showText = false;
+    let showIcon = false;
 
     switch (newState) {
       case 'INITIAL_CONNECTING':
-        this.#overlayElement.classList.add('state-initial-connecting');
         textContent = translate('connecting');
+        showText = true;
+        showIcon = false;
         break;
       case 'OFFLINE_IDLE':
-        this.#overlayElement.classList.add('state-offline-idle');
         iconKey = 'UI_PLAY';
+        showText = false;
+        showIcon = true;
         break;
       case 'STREAM_ACTIVE':
-        this.#overlayElement.classList.add('state-stream-active');
-        iconKey = 'UI_STOP_STREAM';
-        break;
       case 'hidden':
-        // No class added, will default to hidden.
+        showIcon = false;
+        showText = false;
         break;
     }
 
+    setElementVisibility(this.#textContainer, showText, 'flex');
+    setElementVisibility(this.#iconContainer, showIcon, 'flex');
     if (this.#iconElement && iconKey) setIcon(this.#iconElement, iconKey);
     if (this.#textElement) this.#textElement.textContent = textContent;
   }

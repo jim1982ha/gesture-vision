@@ -1,11 +1,11 @@
 /* FILE: packages/frontend/src/ui/tabs/rtsp-settings-tab.ts */
-// Manages the UI and logic for configuring RTSP camera sources.
 import type { AppStore, FrontendFullState } from '#frontend/core/state/app-store.js';
 import type { UIController } from '#frontend/ui/ui-controller-core.js';
 import { type TranslationConfigItem, type MultiTranslationConfigItem } from '#frontend/ui/ui-translation-updater.js';
 import { createCardElement, createCardActionButton } from '#frontend/ui/utils/card-utils.js';
 import { setIcon } from '#frontend/ui/helpers/index.js';
 import { BaseSettingsTab, type TabElements } from "#frontend/ui/base-settings-tab.js";
+import { SharedFormManager } from '../components/shared-form-manager.js';
 
 import { UI_EVENTS, pubsub, translate } from "#shared/index.js";
 import { normalizeNameForMtx } from "#shared/utils/index.js";
@@ -18,7 +18,7 @@ export interface RtspSettingsTabElements extends TabElements {
     rtspListPlaceholder?: HTMLElementOrNull;
     rtspAddNewButton?: HTMLButtonElement | null;
     rtspAddNewButtonLabel?: HTMLElementOrNull;
-    rtspAddEditFormContainer?: HTMLElement | null;
+    rtspAddEditFormContainer?: HTMLElementOrNull;
     rtspFormTitle?: HTMLElementOrNull;
     rtspEditIndex?: HTMLInputElement | null;
     rtspSourceName?: HTMLInputElement | null;
@@ -48,33 +48,38 @@ const DEFAULT_ROI_FORM_VALUES: RoiConfig = { x: 0, y: 0, width: 100, height: 100
 
 export class RtspSettingsTab extends BaseSettingsTab<RtspSettingsTabElements> {
   #uiControllerRef: UIController;
+  #formManager: SharedFormManager | null = null;
 
-  constructor(elements: RtspSettingsTabElements, appStore: AppStore, uiControllerRef: UIController) {
-    super(elements, appStore);
+  constructor(appStore: AppStore, uiControllerRef: UIController, elementQueries: { [K in keyof RtspSettingsTabElements]: string }) {
+    super(appStore, elementQueries);
     if (!uiControllerRef) throw new Error("RtspSettingsTab requires a UIController reference.");
     this.#uiControllerRef = uiControllerRef;
   }
 
+  protected async _additionalInitializationChecks(): Promise<void> {
+    this.#formManager = new SharedFormManager({
+      formContainer: this._elements.rtspAddEditFormContainer!,
+      listContainer: this._elements.rtspSourceListContainer!,
+      addNewButton: this._elements.rtspListActionsContainer!,
+      onEnterAddMode: () => this.#populateRtspForm(null),
+      onEnterEditMode: (index) => this.#populateRtspForm(this._appStore.getState().rtspSources[index]),
+      onSave: this.#handleSaveSource,
+      onCancel: () => this.#uiControllerRef.setEditingRtspSourceIndex(null),
+    });
+  }
+  
   protected _doesConfigUpdateAffectThisTab(newState: FrontendFullState, oldState: FrontendFullState): boolean {
     return newState.rtspSources !== oldState.rtspSources;
   }
   
   protected _initializeSpecificEventListeners(): void {
-    this._addEventListenerHelper("rtspAddNewButton", "click", this.#handleAddNewSourceClick);
+    this._addEventListenerHelper("rtspAddNewButton", "click", () => this.#formManager?.startNew());
     this._addEventListenerHelper("rtspSourceListContainer", "click", this.#handleSourceListClick);
-    this._addEventListenerHelper("rtspSaveSourceButton", "click", this.#handleSaveSourceClick);
-    this._addEventListenerHelper("rtspCancelEditButton", "click", this.#handleCancelEditClick);
+    this._addEventListenerHelper("rtspSaveSourceButton", "click", () => this.#formManager?.save());
+    this._addEventListenerHelper("rtspCancelEditButton", "click", () => this.#formManager?.cancel());
   }
 
-  public getSettingsToSave(): Partial<FullConfiguration> {
-    return {};
-  }
-
-  #handleAddNewSourceClick = (): void => {
-    this.#uiControllerRef.setEditingRtspSourceIndex(null); 
-    this.#populateRtspForm(null);
-    this.#toggleRtspFormVisibility(true);
-  };
+  public getSettingsToSave(): Partial<FullConfiguration> { return {}; }
 
   #handleSourceListClick = (event: MouseEvent): void => {
     const target = event.target as HTMLElement;
@@ -87,16 +92,7 @@ export class RtspSettingsTab extends BaseSettingsTab<RtspSettingsTabElements> {
     if (target.closest('.delete-rtsp-btn')) {
         this.#handleDeleteSourceClick(index);
     } else if (cardItem.classList.contains('card-item-clickable')) {
-        this.#handleEditSourceClick(index);
-    }
-  };
-
-  #handleEditSourceClick = (index: number): void => {
-    const sources = this._appStore.getState().rtspSources;
-    if (index >= 0 && index < sources.length) {
-      this.#uiControllerRef.setEditingRtspSourceIndex(index);
-      this.#populateRtspForm(sources[index]);
-      this.#toggleRtspFormVisibility(true);
+        this.#formManager?.startEdit(index);
     }
   };
 
@@ -117,42 +113,32 @@ export class RtspSettingsTab extends BaseSettingsTab<RtspSettingsTabElements> {
     this._appStore.getState().actions.requestBackendPatch({ rtspSources: updatedSources });
   };
 
-  #handleSaveSourceClick = (): void => {
+  #handleSaveSource = async (): Promise<boolean> => {
     const newSource = this.#getRtspFormData();
-    if (!newSource) return;
+    if (!newSource) return false;
+
     const sources = this._appStore.getState().rtspSources;
-    const editingIndex = this.#uiControllerRef.getEditingRtspSourceIndex();
+    const editingIndex = this.#formManager?.getEditingIndex() ?? null;
+    
     const isNameDuplicate = sources.some((source: RtspSourceConfig, index: number) => normalizeNameForMtx(source.name) === normalizeNameForMtx(newSource.name) && index !== editingIndex);
     if (isNameDuplicate) {
         pubsub.publish(UI_EVENTS.SHOW_ERROR, { messageKey: "configExists", substitutions: { name: newSource.name } }); 
-        this._getElement<HTMLInputElement>("rtspSourceName")?.setAttribute("aria-invalid", "true"); return;
+        this._getElement<HTMLInputElement>("rtspSourceName")?.setAttribute("aria-invalid", "true"); 
+        return false;
     }
     this._getElement<HTMLInputElement>("rtspSourceName")?.removeAttribute("aria-invalid");
+
     const updatedSources = editingIndex !== null ? sources.map((s: RtspSourceConfig, i: number) => (i === editingIndex ? newSource : s)) : [...sources, newSource];
-    this._appStore.getState().actions.requestBackendPatch({ rtspSources: updatedSources })
-      .then(() => {
-          this.#toggleRtspFormVisibility(false); 
-          this.#uiControllerRef.setEditingRtspSourceIndex(null); 
-      });
+    await this._appStore.getState().actions.requestBackendPatch({ rtspSources: updatedSources });
+    return true;
   };
-
-  #handleCancelEditClick = (): void => {
-    this.#toggleRtspFormVisibility(false);
-    this.#uiControllerRef.setEditingRtspSourceIndex(null);
-  };
-
-  #toggleRtspFormVisibility(show: boolean): void {
-    const { rtspAddEditFormContainer, rtspSourceListContainer, rtspListActionsContainer, rtspCancelEditButton } = this._elements;
-    if (rtspAddEditFormContainer) rtspAddEditFormContainer.classList.toggle('hidden', !show);
-    if (rtspSourceListContainer) rtspSourceListContainer.style.display = show ? 'none' : 'grid';
-    if (rtspListActionsContainer) rtspListActionsContainer.style.display = show ? 'none' : 'flex';
-    if (rtspCancelEditButton) rtspCancelEditButton.style.display = show ? 'inline-flex' : 'none';
-  }
 
   #populateRtspForm(source: RtspSourceConfig | null): void {
-    const el = this._elements;
-    const editingIndex = this.#uiControllerRef.getEditingRtspSourceIndex();
+    const editingIndex = this.#formManager?.getEditingIndex() ?? null;
+    this.#uiControllerRef.setEditingRtspSourceIndex(editingIndex);
     const isEditing = editingIndex !== null;
+
+    const el = this._elements;
     if (el.rtspFormTitle) el.rtspFormTitle.textContent = translate(isEditing ? "editXTitle" : "addXTitle", { item: "RTSP Source" });
     if (el.rtspSourceName) el.rtspSourceName.value = source?.name || "";
     if (el.rtspSourceUrl) el.rtspSourceUrl.value = source?.url || ""; 
@@ -164,7 +150,6 @@ export class RtspSettingsTab extends BaseSettingsTab<RtspSettingsTabElements> {
     if (el.rtspRoiHeight) el.rtspRoiHeight.value = String(roi.height);
     if (el.rtspSaveButtonLabel) el.rtspSaveButtonLabel.textContent = translate(isEditing ? "update" : "add");
     setIcon(el.rtspSaveSourceButton, isEditing ? "UI_SAVE" : "UI_ADD");
-    if (el.rtspCancelEditButton) el.rtspCancelEditButton.style.display = 'inline-flex';
   }
 
   #getRtspFormData(): RtspSourceConfig | null {
@@ -201,8 +186,8 @@ export class RtspSettingsTab extends BaseSettingsTab<RtspSettingsTabElements> {
       placeholder.style.display = "none";
       sources.forEach((s: RtspSourceConfig, i: number) => container.appendChild(this.#createRtspListItem(s, i)));
     }
-    if (this.#uiControllerRef.getEditingRtspSourceIndex() === null) {
-      this.#toggleRtspFormVisibility(false);
+    if (this.#uiControllerRef.getEditingRtspSourceIndex() === null && this.#formManager?.isEditing()) {
+      this.#formManager.cancel();
     }
   }
 
@@ -226,7 +211,7 @@ export class RtspSettingsTab extends BaseSettingsTab<RtspSettingsTabElements> {
 
     const deleteButton = createCardActionButton({
         action: 'delete',
-        titleKey: 'deleteTooltip',
+        title: translate('deleteTooltip', { item: source.name }),
         iconKey: 'UI_DELETE',
         extraClasses: ['btn-icon-danger', 'delete-rtsp-btn']
     });

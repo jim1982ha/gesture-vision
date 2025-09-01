@@ -1,24 +1,34 @@
 <!-- FILE: packages/frontend/src/partials/_history_sidebar.html -->
-<aside id="historySidebar" class="sidebar">
+<aside id="historySidebar" class="absolute top-0 h-full w-80 max-w-[90vw] z-sidebar bg-surface shadow-xl flex flex-col transition-transform duration-300 ease-in-out right-0 translate-x-full [.history-sidebar-active_&]:translate-x-0">
   <div class="sidebar-header">
-    <div class="sidebar-header-main">
-      <span class="material-icons header-icon"></span>
-      <span class="header-title" id="historyTitle">History</span>
+    <div class="flex items-center gap-2 min-w-0 flex-grow">
+      <span class="material-icons header-icon text-primary text-2xl flex-shrink-0"></span>
+      <span
+        class="header-title text-lg font-semibold text-text-primary truncate"
+        id="historyTitle"
+        >History</span
+      >
     </div>
-    <div class="sidebar-header-actions">
-      <button id="clearHistoryButton" class="btn btn-icon btn-icon-danger clear-history-btn" title="Clear History"
-        aria-label="Clear History">
+    <div class="sidebar-header-actions flex items-center flex-shrink-0">
+      <button
+        id="clearHistoryButton"
+        class="btn btn-icon btn-icon-danger"
+        title="Clear History"
+        aria-label="Clear History"
+      >
         <span class="material-icons"></span>
       </button>
-      <button id="historySidebarHeaderCloseBtn" class="btn btn-icon header-close-btn"
-        aria-label="Close History Sidebar" title="Close History">
+      <button
+        id="historySidebarHeaderCloseBtn"
+        class="btn btn-icon"
+        aria-label="Close History Sidebar"
+        title="Close History"
+      >
         <span class="mdi" aria-hidden="true"></span>
       </button>
     </div>
   </div>
-  <div class="sidebar-scrollable-content">
-    <div id="gestureHistory" class="history-list">
-      <!-- History items are rendered here by UIRenderer -->
-    </div>
+  <div class="p-4 flex-1 overflow-y-auto">
+    <div id="gestureHistory" class="flex flex-col gap-3"></div>
   </div>
 </aside>

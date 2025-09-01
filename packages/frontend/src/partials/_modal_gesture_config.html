@@ -1,0 +1,91 @@
+<!-- FILE: packages/frontend/src/partials/_modal_gesture_config.html -->
+<div id="gestureConfigModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <span class="material-icons header-icon"></span>
+      <span id="gestureConfigModalTitle" class="header-title"
+        >Configure Action</span
+      >
+      <button
+        id="gestureConfigModalCloseBtn"
+        class="btn btn-icon header-close-btn"
+        aria-label="Close Configuration"
+        title="Close Configuration"
+      >
+        <span class="mdi" aria-hidden="true"></span>
+      </button>
+    </div>
+    <div class="modal-scrollable-content">
+      <form id="gestureConfigForm" onsubmit="return false;">
+        <!-- Gesture selection -->
+        <div class="form-group">
+          <label for="gestureSelect" id="gestureLabel" class="form-label"
+            >Gesture</label
+          >
+          <select id="gestureSelect" class="form-control">
+            <option value="NONE" disabled selected>Select Gesture...</option>
+          </select>
+        </div>
+
+        <!-- Confidence and Duration -->
+        <div class="form-row">
+          <div class="form-group">
+            <label
+              for="configConfidenceInput"
+              id="confidenceLabel"
+              class="form-label"
+              >Confidence (%)</label
+            >
+            <input
+              type="number"
+              id="configConfidenceInput"
+              class="form-control"
+              min="0"
+              max="100"
+              step="1"
+              title="Confidence Threshold"
+            />
+          </div>
+          <div class="form-group">
+            <label
+              for="configDurationInput"
+              id="durationLabel"
+              class="form-label"
+              >Hold Duration (s)</label
+            >
+            <input
+              type="number"
+              id="configDurationInput"
+              class="form-control"
+              min="0.1"
+              max="10"
+              step="0.1"
+              title="Hold Duration"
+            />
+          </div>
+        </div>
+
+        <!-- Action Type Selection -->
+        <div class="form-group">
+          <label for="actionTypeSelect" id="actionTypeLabel" class="form-label"
+            >Action Type</label
+          >
+          <select id="actionTypeSelect" class="form-control"></select>
+        </div>
+
+        <!-- Dynamic Action Fields -->
+        <div id="actionFieldsContainer"></div>
+      </form>
+    </div>
+    <div class="modal-actions">
+      <button id="cancelEditButton" class="btn btn-secondary">
+        <span class="material-icons"></span>
+        <span class="btn-text-span"></span>
+      </button>
+      <button id="addGestureConfig" class="btn btn-primary">
+        <span class="material-icons"></span>
+        <span class="btn-text-span"></span>
+      </button>
+    </div>
+  </div>
+</div>

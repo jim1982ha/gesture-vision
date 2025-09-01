@@ -1,162 +1,144 @@
 /* FILE: packages/frontend/src/ui/managers/layout-manager.ts */
-import { setElementVisibility } from '#frontend/ui/helpers/index.js';
-import { secureStorage } from '#shared/services/security-utils.js';
-import { pubsub } from '#shared/core/pubsub.js';
-import { UI_EVENTS } from '#shared/index.js';
-import { translate } from '#shared/services/translations.js';
-import { setIcon } from '#frontend/ui/helpers/index.js';
-import type { UIController } from '#frontend/ui/ui-controller-core.js';
+import { secureStorage } from "#shared/services/security-utils.js";
+import { pubsub } from "#shared/core/pubsub.js";
+import { UI_EVENTS, type GestureCategoryIconType } from "#shared/index.js";
+import { translate } from "#shared/services/translations.js";
+import { setIcon } from "#frontend/ui/helpers/index.js";
+import type { UIController } from "#frontend/ui/ui-controller-core.js";
 
-export interface LayoutManagerElements {
-  toggleVideoButton?: HTMLElement | null;
-  toggleConfigListButton?: HTMLElement | null;
-  videoContainer?: HTMLElement | null;
-  configListContainer?: HTMLElement | null;
-  videoSizeToggleButton?: HTMLElement | null;
-  desktopConfigListTitle?: HTMLElement | null;
-}
-
-const VIDEO_VISIBILITY_KEY = 'videoVisibilityPreference';
-const CONFIG_LIST_VISIBILITY_KEY = 'configListVisibilityPreference';
-const VIDEO_SIZE_CONSTRAINED_KEY = 'videoSizeConstrainedPreference';
+const VIDEO_VISIBILITY_KEY = "videoVisibilityPreference";
+const VIDEO_SIZE_CONSTRAINED_KEY = "videoSizeConstrainedPreference";
 
 export class LayoutManager {
-  #elements: Partial<LayoutManagerElements>;
+  #toggleVideoButton: HTMLElement | null;
+  #videoContainer: HTMLElement | null;
+  #videoSizeToggleButton: HTMLElement | null;
+
   #uiControllerRef: UIController;
 
-  _isVideoVisible = true;
-  _isConfigListVisible = true;
-  _isVideoFullscreen = false;
-  public isVideoSizeConstrained = true;
-
-  constructor(
-    elements: Partial<LayoutManagerElements>,
-    uiController: UIController
-  ) {
-    this.#elements = elements;
+  constructor(uiController: UIController) {
     this.#uiControllerRef = uiController;
+    this.#toggleVideoButton = document.getElementById("toggleVideoButton");
+    this.#videoContainer = document.querySelector(
+      ".video-container"
+    ) as HTMLElement | null;
+    this.#videoSizeToggleButton = document.getElementById(
+      "videoSizeToggleButton"
+    );
     this.#initialize();
   }
 
   #initialize(): void {
-    this.#loadVisibilityPreferences();
-    this.applyAllVisibilities(false);
+    this.applyVideoVisibility();
+    this.applyVideoSizePreference();
     this.#attachEventListeners();
   }
 
   #attachEventListeners(): void {
-    this.#elements.toggleVideoButton?.addEventListener('click', this.toggleVideoVisibility.bind(this));
-    this.#elements.toggleConfigListButton?.addEventListener('click', this.toggleConfigListVisibility.bind(this));
-    this.#elements.videoSizeToggleButton?.addEventListener('click', this.toggleVideoSize.bind(this));
-    window.addEventListener('storage', this.#handleStorageChange);
+    this.#toggleVideoButton?.addEventListener(
+      "click",
+      this.toggleVideoVisibility.bind(this)
+    );
   }
 
-  #handleStorageChange = (event: StorageEvent): void => {
-    if (event.key === VIDEO_SIZE_CONSTRAINED_KEY) {
-      this.#loadVisibilityPreferences();
-      this.applyVideoSizePreference();
-    }
-  };
+  public getIsVideoVisible = (): boolean => (secureStorage.get(VIDEO_VISIBILITY_KEY) as boolean | null) ?? true;
 
-  #loadVisibilityPreferences(): void {
-    this._isVideoVisible = (secureStorage.get(VIDEO_VISIBILITY_KEY) as boolean | null) ?? true;
-    this._isConfigListVisible = (secureStorage.get(CONFIG_LIST_VISIBILITY_KEY) as boolean | null) ?? true;
-    
-    // Enforce default state on every load for desktop.
-    this.isVideoSizeConstrained = true;
-    secureStorage.set(VIDEO_SIZE_CONSTRAINED_KEY, this.isVideoSizeConstrained);
+  public applyTranslations(): void {
+    const liveFeedTitle = document.getElementById("liveFeedTitle")?.querySelector<HTMLElement>('[data-translate-text]');
+    if (liveFeedTitle) liveFeedTitle.textContent = translate('liveFeedTitle');
+    setIcon(document.getElementById("liveFeedTitle")?.querySelector('.config-title-icon'), 'UI_CAMERA_OUTLINE');
+
+    const configListTitle = document.getElementById("desktopConfigListTitle")?.querySelector<HTMLElement>('[data-translate-text]');
+    if (configListTitle) configListTitle.textContent = translate('configuredActionsTitle');
+    setIcon(document.getElementById("desktopConfigListTitle")?.querySelector('.config-title-icon'), 'UI_LIST_CHECK');
+
+    const addNewActionButtonLabel = document.getElementById("addNewActionButtonLabel");
+    if (addNewActionButtonLabel) addNewActionButtonLabel.textContent = translate('addNewAction');
+    setIcon(document.getElementById("addNewActionButton"), 'UI_ADD');
+
+    this._updateVideoVisibilityUI();
+    this._updateVideoSizePreferenceUI();
   }
-
-  public applyAllVisibilities(save = true): void {
-    this.applyVideoVisibility(save);
-    this.applyConfigListVisibility(save);
-    this.applyVideoSizePreference();
-  }
-
-  public applyVideoVisibility(save = true): void {
-    const c = document.querySelector('.main-content'),
-      t = this.#elements.toggleVideoButton as HTMLButtonElement;
-    if (!c || !t) return;
-    c.classList.toggle('video-hidden', !this._isVideoVisible);
-    setIcon(t, this._isVideoVisible ? 'UI_VISIBILITY_OFF' : 'UI_VISIBILITY_ON');
-    const k = this._isVideoVisible ? 'hideVideo' : 'showVideo',
-      l = translate(k);
+  
+  _updateVideoVisibilityUI(): void {
+    const t = this.#toggleVideoButton as HTMLButtonElement;
+    if (!t) return;
+    const isVisible = this.getIsVideoVisible();
+    setIcon(t, isVisible ? "UI_VISIBILITY_OFF" : "UI_VISIBILITY_ON");
+    const k = isVisible ? "hideVideo" : "showVideo";
+    const l = translate(k);
     t.title = l;
-    t.setAttribute('aria-label', l);
-    if (save) secureStorage.set(VIDEO_VISIBILITY_KEY, this._isVideoVisible);
-    pubsub.publish(UI_EVENTS.VIDEO_VISIBILITY_CHANGED, {
-      isVisible: this._isVideoVisible,
-    });
+    t.setAttribute("aria-label", l);
+  }
+  
+  public applyVideoVisibility(): void {
+    const isVisible = this.getIsVideoVisible();
+    const c = document.querySelector(".main-content");
+    if (c) c.classList.toggle("video-hidden", !isVisible);
+    this._updateVideoVisibilityUI();
+    pubsub.publish(UI_EVENTS.VIDEO_VISIBILITY_CHANGED, { isVisible });
   }
 
   public toggleVideoVisibility(): void {
-    this._isVideoVisible = !this._isVideoVisible;
+    const newVisibility = !this.getIsVideoVisible();
+    secureStorage.set(VIDEO_VISIBILITY_KEY, newVisibility);
     this.applyVideoVisibility();
   }
 
-  public applyConfigListVisibility(save = true): void {
-    const c = this.#elements.configListContainer,
-      t = this.#elements.toggleConfigListButton as HTMLButtonElement;
-    if (!c || !t) return;
-    setElementVisibility(c, this._isConfigListVisible, 'flex');
-    setIcon(t, this._isConfigListVisible ? 'UI_VISIBILITY_OFF' : 'UI_VISIBILITY_ON');
-    const k = this._isConfigListVisible ? 'hideConfigList' : 'showConfigList',
-      l = translate(k);
-    t.title = l;
-    t.setAttribute('aria-label', l);
-    if (save)
-      secureStorage.set(CONFIG_LIST_VISIBILITY_KEY, this._isConfigListVisible);
-  }
+  _updateVideoSizePreferenceUI(): void {
+    const button = this.#videoSizeToggleButton as HTMLButtonElement;
+    if (!button) return;
 
-  public toggleConfigListVisibility(): void {
-    this._isConfigListVisible = !this._isConfigListVisible;
-    this.applyConfigListVisibility();
+    const isMobile = this.#uiControllerRef.sidebarManager?.isMobile;
+    const isFullscreen = document.body.classList.contains("video-fullscreen-active");
+    const isConstrained = (secureStorage.get(VIDEO_SIZE_CONSTRAINED_KEY) as boolean | null) ?? true;
+
+    let titleKey: string;
+    let iconKey: GestureCategoryIconType;
+
+    if (isMobile) {
+        titleKey = isFullscreen ? "exitFullscreen" : "enterFullscreen";
+        iconKey = isFullscreen ? "UI_VIDEO_FULLSCREEN_EXIT" : "UI_VIDEO_FULLSCREEN";
+    } else {
+        titleKey = isConstrained ? "expandVideo" : "constrainVideo";
+        iconKey = isConstrained ? "UI_VIDEO_FULLSCREEN" : "UI_VIDEO_FULLSCREEN_EXIT";
+    }
+
+    const titleText = translate(titleKey);
+    button.title = titleText;
+    button.setAttribute("aria-label", titleText);
+    setIcon(button, iconKey);
   }
 
   public applyVideoSizePreference(): void {
-    const c = this.#elements.videoContainer,
-      t = this.#elements.videoSizeToggleButton as HTMLButtonElement;
-    if (!c || !t) return;
-    const isFull = this.#uiControllerRef.sidebarManager?.isMobile
-      ? this._isVideoFullscreen
-      : !this.isVideoSizeConstrained;
-    c.classList.toggle('size-constrained', !isFull);
-    const titleKey = isFull
-      ? this.#uiControllerRef.sidebarManager?.isMobile
-        ? 'exitFullscreen'
-        : 'constrainVideo'
-      : this.#uiControllerRef.sidebarManager?.isMobile
-      ? 'enterFullscreen'
-      : 'expandVideo';
-    const iconKey = isFull
-      ? 'UI_VIDEO_FULLSCREEN_EXIT'
-      : 'UI_VIDEO_FULLSCREEN';
-    t.title = translate(titleKey);
-    setIcon(t, iconKey);
+    const container = this.#videoContainer;
+    if (!container) return;
+    const isMobile = this.#uiControllerRef.sidebarManager?.isMobile;
+    const isFullscreen = document.body.classList.contains("video-fullscreen-active");
+    const isConstrained = (secureStorage.get(VIDEO_SIZE_CONSTRAINED_KEY) as boolean | null) ?? true;
+    
+    const shouldBeExpanded = isMobile ? isFullscreen : !isConstrained;
+    container.classList.toggle("size-constrained", !shouldBeExpanded);
+    this._updateVideoSizePreferenceUI();
   }
 
-  public setVideoSizeConstrained(isConstrained: boolean): void {
-    this.isVideoSizeConstrained = isConstrained;
-    secureStorage.set(VIDEO_SIZE_CONSTRAINED_KEY, this.isVideoSizeConstrained);
-    this.applyVideoSizePreference();
-  }
-
-  public toggleVideoSize(): void {
-    if (this.#uiControllerRef.sidebarManager?.isMobile) {
-      this.toggleVideoFullscreen();
-    } else {
-      this.setVideoSizeConstrained(!this.isVideoSizeConstrained);
-    }
+  public setVideoSizeOverride(isConstrained: boolean): void {
+    this.#videoContainer?.classList.toggle("size-constrained", isConstrained);
   }
 
   public toggleVideoFullscreen(): void {
-    this._isVideoFullscreen = !this._isVideoFullscreen;
+    const shouldBeFullscreen = !document.body.classList.contains(
+      "video-fullscreen-active"
+    );
     document.body.classList.toggle(
-      'video-fullscreen-active',
-      this._isVideoFullscreen
+      "video-fullscreen-active",
+      shouldBeFullscreen
     );
     this.applyVideoSizePreference();
-    if (!this._isVideoFullscreen && this.#uiControllerRef._videoOverlayControlsManager) {
+    if (
+      !shouldBeFullscreen &&
+      this.#uiControllerRef._videoOverlayControlsManager
+    ) {
       this.#uiControllerRef._videoOverlayControlsManager.closeAllOverlayPanels();
     }
     this.applyOrientationLock();
@@ -164,14 +146,18 @@ export class LayoutManager {
 
   public applyOrientationLock(): void {
     if (this.#uiControllerRef.sidebarManager?.isMobile) {
-      if (this._isVideoFullscreen) this.#unlockOrientation();
+      const isFullscreen = document.body.classList.contains(
+        "video-fullscreen-active"
+      );
+      if (isFullscreen) this.#unlockOrientation();
       else this.#lockToPortrait();
     } else this.#unlockOrientation();
   }
 
   #lockToPortrait = async (): Promise<void> => {
     try {
-      if (screen.orientation?.lock) await screen.orientation.lock('portrait-primary');
+      if (screen.orientation?.lock)
+        await screen.orientation.lock("portrait-primary");
     } catch (_error) {
       /* Lock fails are expected */
     }
@@ -181,6 +167,6 @@ export class LayoutManager {
   };
 
   destroy(): void {
-    window.removeEventListener('storage', this.#handleStorageChange);
+    // No-op
   }
 }

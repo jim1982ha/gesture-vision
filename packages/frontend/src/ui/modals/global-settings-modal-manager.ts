@@ -6,41 +6,16 @@ import { UI_EVENTS, pubsub, translate } from '#shared/index.js';
 import { setIcon } from '#frontend/ui/helpers/index.js';
 
 import { type TabElements, BaseSettingsTab } from "../base-settings-tab.js"; 
-import { CustomGesturesTab, type CustomGesturesTabElements } from "../tabs/custom-gestures-tab.js";
-import { GeneralSettingsTab, type GeneralSettingsTabElements } from "../tabs/general-settings-tab.js";
-import { RtspSettingsTab, type RtspSettingsTabElements } from "../tabs/rtsp-settings-tab.js";
-import { ThemeSettingsTab, type ThemeSettingsTabElements } from "../tabs/theme-settings-tab.js";
-import { PluginsTab, type PluginsTabElements } from "../tabs/plugins-tab.js"; 
+import { CustomGesturesTab } from "../tabs/custom-gestures-tab.js";
+import { GeneralSettingsTab } from "../tabs/general-settings-tab.js";
+import { RtspSettingsTab } from "../tabs/rtsp-settings-tab.js";
+import { ThemeSettingsTab } from "../tabs/theme-settings-tab.js";
+import { PluginsTab } from "../tabs/plugins-tab.js"; 
 
 import type { FullConfiguration } from '#shared/index.js';
 import type { ModalManager } from "#frontend/ui/managers/modal-manager.js"; 
 
-type HTMLElementOrNull = HTMLElement | null;
-
-export interface GlobalSettingsFormElementGroups {
-    core: {
-        mainSettingsModal: HTMLElementOrNull;
-        mainSettingsCloseButton: HTMLButtonElement | null;
-        settingsTabs: HTMLElementOrNull;
-        settingsTabContentContainer?: HTMLElementOrNull;
-        appVersionDisplaySettings?: HTMLElementOrNull;
-        customGesturesTabButton?: HTMLButtonElement | null;
-        settingsModalTitle?: HTMLElementOrNull;
-        settingsModalIcon?: HTMLElementOrNull;
-        settingsModalTitleText?: HTMLElementOrNull;
-        appearanceSettingsTabButton?: HTMLButtonElement | null; 
-        modalActionsFooter: HTMLElement | null;
-    };
-    generalTab: GeneralSettingsTabElements;
-    pluginsTab: PluginsTabElements;
-    rtspTab: RtspSettingsTabElements;
-    themeTab: ThemeSettingsTabElements; 
-    customGesturesTab: CustomGesturesTabElements;
-}
-
 export class GlobalSettingsModalManager {
-    _elements: GlobalSettingsFormElementGroups['core'];
-    _tabElements: Omit<GlobalSettingsFormElementGroups, 'core' | 'integrationsTab'>;
     _uiControllerRef: UIController;
     _modalManagerRef: ModalManager;
     _appStore: AppStore;
@@ -51,26 +26,52 @@ export class GlobalSettingsModalManager {
     #originalContentCache: Node[] = [];
     #unsubscribeStore: () => void;
     #unsubscribeLang: () => void;
+    
+    // Core Elements
+    #mainSettingsModal: HTMLElement | null;
+    #mainSettingsCloseButton: HTMLButtonElement | null;
+    #settingsTabsDesktopNav: HTMLElement | null;
+    #settingsTabsMobileSelect: HTMLSelectElement | null;
+    #settingsModalTitle: HTMLElement | null;
 
-    constructor(elementGroups: GlobalSettingsFormElementGroups, uiControllerRef: UIController, modalManagerRef: ModalManager) {
-        this._elements = elementGroups.core;
-        this._tabElements = elementGroups;
-        this.#contentContainer = this._elements.settingsTabContentContainer ?? null;
-
+    constructor(uiControllerRef: UIController, modalManagerRef: ModalManager) {
         this._uiControllerRef = uiControllerRef;
         this._modalManagerRef = modalManagerRef;
         this._appStore = this._uiControllerRef.appStore;
 
+        this.#mainSettingsModal = document.getElementById("mainSettingsModal");
+        this.#mainSettingsCloseButton = document.getElementById("mainSettingsCloseButton") as HTMLButtonElement | null;
+        this.#settingsTabsDesktopNav = document.getElementById("settingsTabsDesktopNav");
+        this.#settingsTabsMobileSelect = document.getElementById("settingsTabsMobileSelect") as HTMLSelectElement | null;
+        this.#settingsModalTitle = document.getElementById("settingsModalTitle");
+        
+        // This logic moves the original scrollable content into our new layout container
+        const scrollableContent = this.#mainSettingsModal?.querySelector('.modal-scrollable-content');
+        this.#contentContainer = document.getElementById("settingsTabContentContainer");
+        if (this.#contentContainer && scrollableContent) {
+            this.#contentContainer.appendChild(scrollableContent);
+        }
+        
         this.#tabs = {
-            general: new GeneralSettingsTab(this._tabElements.generalTab, this._appStore),
-            plugins: new PluginsTab(this._tabElements.pluginsTab, this._appStore, this._uiControllerRef), 
-            rtsp: new RtspSettingsTab(this._tabElements.rtspTab, this._appStore, this._uiControllerRef),
-            appearance: new ThemeSettingsTab(this._tabElements.themeTab, this._uiControllerRef),
-            customGestures: new CustomGesturesTab(this._tabElements.customGesturesTab, this._appStore, this._uiControllerRef)
+            general: new GeneralSettingsTab(this._appStore, {
+                globalCooldownSlider: "#globalCooldownSlider", globalCooldownValue: "#globalCooldownValue", resolutionSelectGroup: "#resolutionSelectGroup", targetFpsSelectGroup: "#targetFpsSelectGroup", telemetryToggleGroup: "#telemetryToggleGroup", globalCooldownLabel: "#globalCooldownLabel", resolutionPrefLabel: "#resolutionPrefLabel", resolutionHelp: "#resolutionHelp", targetFpsLabel: "#targetFpsLabel", telemetryEnabledLabel: "#telemetryEnabledLabel", targetFpsHelp: "#targetFpsHelp", telemetryEnabledHelp: "#telemetryEnabledHelp", featureToggleGroup: "#featureToggleGroup", detectionFeaturesHelp: "#detectionFeaturesHelp", detectionFeaturesTitle: "#detectionFeaturesTitle",
+            }),
+            plugins: new PluginsTab(this._appStore, this._uiControllerRef, {
+                pluginsListContainer: '#pluginsListContainer', pluginsListPlaceholder: '#pluginsListPlaceholder', pluginInstallUrl: '#pluginInstallUrl', pluginInstallBtn: '#pluginInstallBtn', pluginInstallUrlLabel: '#pluginInstallUrlLabel', pluginDevInfoText: '#pluginDevInfoText', openPluginDevDocsBtn: '#openPluginDevDocsBtn'
+            }), 
+            rtsp: new RtspSettingsTab(this._appStore, this._uiControllerRef, {
+                rtspSourceListContainer: "#rtspSourceListContainer", rtspListPlaceholder: "#rtspListPlaceholder", rtspAddNewButton: "#rtspAddNewButton", rtspAddNewButtonLabel: "#rtspAddNewButtonLabel", rtspAddEditFormContainer: "#rtspAddEditFormContainer", rtspFormTitle: "#rtspFormTitle", rtspEditIndex: "#rtspEditIndex", rtspSourceName: "#rtspSourceName", rtspSourceUrl: "#rtspSourceUrl", rtspNameLabel: "#rtspNameLabel", rtspUrlLabel: "#rtspUrlLabel", rtspUrlHelp: "#rtspUrlHelp", rtspSaveSourceButton: "#rtspSaveSourceButton", rtspSaveButtonLabel: "#rtspSaveButtonLabel", rtspCancelEditButton: "#rtspCancelEditButton", rtspSourceOnDemand: "#rtspSourceOnDemand", rtspSourceOnDemandLabel: "#rtspSourceOnDemandLabel", rtspRoiSettingsLabel: "#rtspRoiSettingsLabel", rtspRoiX: "#rtspRoiX", rtspRoiY: "#rtspRoiY", rtspRoiWidth: "#rtspRoiWidth", rtspRoiHeight: "#rtspRoiHeight", rtspRoiXLabel: "#rtspRoiXLabel", rtspRoiYLabel: "#rtspRoiYLabel", rtspRoiWidthLabel: "#rtspRoiWidthLabel", rtspRoiHeightLabel: "#rtspRoiHeightLabel", rtspRoiHelp: "#rtspRoiHelp", rtspListActionsContainer: "#rtspListActionsContainer",
+            }),
+            appearance: new ThemeSettingsTab(this._uiControllerRef, {
+                colorModeSelectionLabel: "#colorModeSelectionLabel", colorModeToggleGroup: "#colorModeToggleGroup", themeToggleGroup: "#themeToggleGroup", themeSelectionLabel: "#themeSelectionLabel"
+            }),
+            customGestures: new CustomGesturesTab(this._appStore, this._uiControllerRef, {
+                uploadCustomGestureFileBtn: "#upload-custom-gesture-file-btn", customGestureFile: "#customGestureFile", uploadCustomGestureBtn: "#uploadCustomGestureBtn", cancelCustomGestureImportBtn: "#cancelCustomGestureImportBtn", customHandGestureListContainer: "#customHandGestureListContainer", customHandGestureListPlaceholder: "#customHandGestureListPlaceholder", customPoseGestureListContainer: "#customPoseGestureListContainer", customPoseGestureListPlaceholder: "#customPoseGestureListPlaceholder", savedHandGesturesTitleElement: "#savedHandGesturesTitleElement", savedPoseGesturesTitleElement: "#savedPoseGesturesTitleElement", customGestureImportActions: "#custom-gesture-import-actions", customGestureImportPreview: "#custom-gesture-import-preview", importPreviewTitle: "#importPreviewTitle", importPreviewNameInput: "#importPreviewNameInput", importPreviewNameLabel: "#importPreviewNameLabel", importPreviewDescTextarea: "#importPreviewDescTextarea", importPreviewDescLabel: "#importPreviewDescLabel", importPreviewTypeLabel: "#importPreviewTypeLabel", importPreviewTypeValue: "#importPreviewTypeValue", actionsSlot: "#custom-gestures-actions-slot", openPluginDevDocsBtn: "#openPluginDevDocsBtn"
+            })
         };
         
         this.#unsubscribeStore = this._appStore.subscribe((state) => {
-            if (state.isInitialConfigLoaded && this._elements.mainSettingsModal?.classList.contains('visible')) {
+            if (state.isInitialConfigLoaded && this.#mainSettingsModal?.classList.contains('visible')) {
                 const activeTabKey = this._tabManagerApi?.getCurrentTab();
                 if (activeTabKey) this._loadContentForTab(activeTabKey);
             }
@@ -82,6 +83,7 @@ export class GlobalSettingsModalManager {
             }
         });
 
+        this.#renderNavigation();
         this._initializeEventListeners();
         this._initializeTabManager();
     }
@@ -92,7 +94,8 @@ export class GlobalSettingsModalManager {
     }
 
     _initializeEventListeners() {
-        this._elements.mainSettingsCloseButton?.addEventListener('click', this._handleCloseClick);
+        this.#mainSettingsCloseButton?.addEventListener('click', this._handleCloseClick);
+        this.#settingsTabsMobileSelect?.addEventListener('change', this._handleMobileTabChange);
         pubsub.subscribe(UI_EVENTS.MODAL_VISIBILITY_CHANGED, (data?: unknown) => {
             const eventData = data as { modalId?: string; isVisible?: boolean } | undefined;
             if (eventData?.modalId === 'main-settings' && eventData.isVisible) {
@@ -105,14 +108,15 @@ export class GlobalSettingsModalManager {
     }
 
     _initializeTabManager() {
-        const tabsContainer = this._elements.settingsTabs;
+        const tabsContainer = this.#settingsTabsDesktopNav;
         if (tabsContainer && this.#contentContainer) {
+            // The content container for the tab manager is now the one that holds the scrollable area
             this._tabManagerApi = initializeTabs({ tabsContainer, contentContainer: this.#contentContainer, defaultTabKey: 'general', onTabChange: this._handleTabChange });
         } else console.error("[GlobalSettingsModalManager] Tab manager init failed: containers not found.");
     }
     
     public swapContent(newContentElement: HTMLElement): void {
-        const modalHost = this._elements.mainSettingsModal;
+        const modalHost = this.#mainSettingsModal;
         const originalContent = modalHost?.querySelector('.modal-content');
         
         if (!modalHost || !originalContent) return;
@@ -125,7 +129,7 @@ export class GlobalSettingsModalManager {
     }
     
     public restoreOriginalContent(): void {
-        const modalHost = this._elements.mainSettingsModal;
+        const modalHost = this.#mainSettingsModal;
         const currentContent = modalHost?.querySelector('.modal-content');
         
         if (!modalHost || !currentContent || this.#originalContentCache.length === 0) {
@@ -142,8 +146,14 @@ export class GlobalSettingsModalManager {
         this.#originalContentCache = [];
     }
 
+    _handleMobileTabChange = (event: Event): void => {
+        const selectedTab = (event.target as HTMLSelectElement).value;
+        this._tabManagerApi?.activateTab(selectedTab);
+    };
+
     _handleTabChange = async (activeTabKey: string): Promise<void> => {
         if (!activeTabKey) return;
+        if (this.#settingsTabsMobileSelect) this.#settingsTabsMobileSelect.value = activeTabKey;
         await this._loadContentForTab(activeTabKey);
     };
 
@@ -187,32 +197,57 @@ export class GlobalSettingsModalManager {
     applyTranslations = async () => {
         if (this._isApplyingTranslations) return; this._isApplyingTranslations = true;
         try {
-            const titleSpan = this._elements.settingsModalTitleText;
+            const titleSpan = this.#settingsModalTitle?.querySelector(".header-title");
             if (titleSpan) titleSpan.textContent = translate("configurationTitle");
-            setIcon(this._elements.settingsModalIcon, 'UI_SETTINGS');
-            const closeBtn = this._elements.mainSettingsCloseButton;
+            setIcon(this.#settingsModalTitle?.querySelector(".header-icon"), 'UI_SETTINGS');
+            const closeBtn = this.#mainSettingsCloseButton;
             if (closeBtn) { const closeLabel = translate("close"); closeBtn.title = closeLabel; closeBtn.setAttribute("aria-label", `${closeLabel} ${translate("configurationTitle")}`); }
             
-            if (this._elements.appVersionDisplaySettings) {
-                this._elements.appVersionDisplaySettings.title = translate('viewDocsTooltip');
-            }
+            const appVersionDisplay = document.getElementById("appVersionDisplaySettings");
+            if (appVersionDisplay) appVersionDisplay.title = translate('viewDocsTooltip');
             
-            this._elements.settingsTabs?.querySelectorAll<HTMLButtonElement>('.modal-tab-button[data-tab]').forEach((tab: HTMLButtonElement) => {
-                const key = tab.dataset.tab; let transKey = '';
-                switch (key) {
-                    case 'general': transKey = 'generalSettingsTitle'; break;
-                    case 'plugins': transKey = 'pluginsTabTitle'; break;
-                    case 'rtsp': transKey = 'rtspSourcesTitle'; break;
-                    case 'appearance': transKey = 'appearanceSettingsTab'; break; 
-                    case 'customGestures': transKey = 'customGesturesTabButton'; break;
-                }
-                if (transKey) tab.textContent = translate(transKey, {defaultValue: key || 'Tab'});
-            });
+            this.#renderNavigation();
+
             for (const tabKey in this.#tabs) {
                 const tabInstance = this.#tabs[tabKey];
                 if (tabInstance && tabInstance['_isInitialized']) await tabInstance.applyTranslations();
             }
         } catch (e) { console.error("[GlobalSettingsModalManager applyTranslations] Error:", e); }
         finally { this._isApplyingTranslations = false; }
+    }
+
+    #renderNavigation() {
+        const tabsInfo = [
+            { key: 'general', titleKey: 'generalSettingsTitle', iconKey: 'UI_SETTINGS' },
+            { key: 'customGestures', titleKey: 'customGesturesTabButton', iconKey: 'UI_GESTURE' },
+            { key: 'plugins', titleKey: 'pluginsTabTitle', iconKey: 'UI_EXTENSION' },
+            { key: 'rtsp', titleKey: 'rtspSourcesTitle', iconKey: 'UI_RTSP_STREAM' },
+            { key: 'appearance', titleKey: 'appearanceSettingsTab', iconKey: 'UI_DARK_MODE' }
+        ];
+
+        if (this.#settingsTabsDesktopNav) {
+            this.#settingsTabsDesktopNav.innerHTML = '';
+            tabsInfo.forEach(tab => {
+                const button = document.createElement('button');
+                button.className = 'btn settings-tab-nav-button';
+                button.dataset.tab = tab.key;
+                const icon = document.createElement('span');
+                setIcon(icon, tab.iconKey);
+                const text = document.createElement('span');
+                text.textContent = translate(tab.titleKey, { defaultValue: tab.key });
+                button.append(icon, text);
+                this.#settingsTabsDesktopNav?.appendChild(button);
+            });
+        }
+        
+        if (this.#settingsTabsMobileSelect) {
+            this.#settingsTabsMobileSelect.innerHTML = '';
+            tabsInfo.forEach(tab => {
+                const option = document.createElement('option');
+                option.value = tab.key;
+                option.textContent = translate(tab.titleKey, { defaultValue: tab.key });
+                this.#settingsTabsMobileSelect?.appendChild(option);
+            });
+        }
     }
 }

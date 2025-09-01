@@ -1,5 +1,5 @@
 /* FILE: packages/frontend/src/ui/renderers/theme-tab-renderer.ts */
-import type { ThemeSettingsTabElements } from "#frontend/ui/tabs/theme-settings-tab.js";
+import type { ThemeSettingsTabElements } from '#frontend/ui/tabs/theme-settings-tab.js';
  
 import { translate } from "#shared/services/translations.js"; 
 import { setIcon } from "../helpers/index.js";
@@ -37,8 +37,7 @@ export function renderThemeSelectionTab(
   }
 
   const availableBaseThemes = themeMgr.getAvailableBaseThemes();
-  const currentBaseThemeId = themeMgr.getBaseTheme();
-
+  
   themeListContainer.innerHTML = ""; 
 
   if (!availableBaseThemes || availableBaseThemes.length === 0) {
@@ -49,10 +48,10 @@ export function renderThemeSelectionTab(
   availableBaseThemes.forEach((theme: ThemeInfo) => {
     const button = document.createElement("button");
     button.classList.add("btn", "btn-secondary", "theme-item-btn"); 
+    button.dataset.value = theme.id; // Use data-value for the helper
     button.dataset.themeId = theme.id;
     button.setAttribute("role", "radio"); 
-    button.setAttribute("aria-checked", String(theme.id === currentBaseThemeId));
-
+    
     const iconSpan = document.createElement("span");
     iconSpan.classList.add("material-icons");
     iconSpan.setAttribute("aria-hidden", "true"); 
@@ -65,12 +64,6 @@ export function renderThemeSelectionTab(
     button.appendChild(iconSpan);
     button.appendChild(nameSpan);
 
-    if (theme.id === currentBaseThemeId) {
-      button.classList.add("active", "btn-primary");
-      button.classList.remove("btn-secondary");
-    } else {
-      button.classList.remove("btn-primary", "active");
-    }
     themeListContainer.appendChild(button);
   });
 }

@@ -97,11 +97,23 @@
     # Copy the fully bundled frontend application from the builder stage
     COPY --from=builder /app/packages/frontend/dist /usr/share/nginx/html/
     
-    # OPTIMIZATION: Copy plugin frontend assets to be served by Nginx
-    COPY --from=builder /app/extensions/plugins /usr/share/nginx/html/plugins/
+    # FIX: Correctly copy plugin assets into an 'assets' subdirectory for each plugin
+    # This aligns the file structure with the URLs requested by the frontend and expected by Nginx.
+    RUN mkdir -p /usr/share/nginx/html/plugins/ && \
+        cd /app/extensions/plugins && \
+        for plugin_dir in */; do \
+          if [ -d "$plugin_dir" ]; then \
+            plugin_id=$(basename "$plugin_dir"); \
+            dest_dir="/usr/share/nginx/html/plugins/$plugin_id/assets/"; \
+            mkdir -p "$dest_dir"; \
+            if [ -d "${plugin_dir}frontend" ]; then cp -r "${plugin_dir}frontend" "$dest_dir"; fi; \
+            if [ -d "${plugin_dir}locales" ]; then cp -r "${plugin_dir}locales" "$dest_dir"; fi; \
+            if [ -f "${plugin_dir}plugin.json" ]; then cp "${plugin_dir}plugin.json" "$dest_dir"; fi; \
+          fi; \
+        done
 
-    # Ensure Nginx base directory exists
-    RUN mkdir -p /usr/share/nginx/html && chmod -R 755 /usr/share/nginx/html/*
+    # Ensure Nginx base directory has correct permissions
+    RUN chmod -R 755 /usr/share/nginx/html/*
 
     COPY config/nginx.conf /etc/nginx/nginx.conf
     COPY --from=base /usr/local/bin/mediamtx /usr/local/bin/mediamtx

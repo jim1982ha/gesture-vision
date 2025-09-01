@@ -124,7 +124,7 @@ export class PluginManagerService {
     this.#plugins.delete(pluginId);
   }
 
-  async getAllPluginManifestsWithCapabilities(): Promise<PluginManifest[]> {
+  public async getAllPluginManifestsWithCapabilities(): Promise<PluginManifest[]> {
     await this.#initializationPromise;
     const manifests = Array.from(this.#plugins.values()).map((p) => p.manifest);
     for (const manifest of manifests) {
@@ -133,6 +133,10 @@ export class PluginManagerService {
     return manifests;
   }
   
+  public getAllPluginManifestsSync(): PluginManifest[] {
+    return Array.from(this.#plugins.values()).map((p) => p.manifest);
+  }
+
   public getPlugin = (id: string): LoadedPlugin | undefined => this.#plugins.get(id);
   public getPluginInstance = (id: string): BackendPlugin | undefined => this.#plugins.get(id)?.instance;
   public getPluginManifest = (id: string): PluginManifest | undefined => this.#plugins.get(id)?.manifest;
