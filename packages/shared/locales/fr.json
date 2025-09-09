@@ -139,6 +139,8 @@
     "noSectionsFound": "Aucune section trouvée.",
     "Not Set": "Non Défini",
     "notificationActionCancelled": "Modification de {{item}} annulée.",
+    "notificationActionSuccess": "Action '{{actionType}}' pour '{{gestureName}}' réussie. {{message}}",
+    "notificationActionFailed": "Action '{{actionType}}' pour '{{gestureName}}' échouée. {{message}}",
     "notificationChangesDiscarded": "Modifications annulées.",
     "notificationItemAdded": "{{item}} ajouté.",
     "notificationItemDeleted": "{{item}} supprimé.",

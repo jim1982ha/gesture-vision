@@ -138,6 +138,8 @@
   "noSectionsFound": "未找到任何部分。",
   "Not Set": "未设置",
   "notificationActionCancelled": "{{item}} 编辑已取消。",
+  "notificationActionSuccess": "'{{gestureName}}' 的 '{{actionType}}' 动作成功。 {{message}}",
+  "notificationActionFailed": "'{{gestureName}}' 的 '{{actionType}}' 动作失败。 {{message}}",
   "notificationChangesDiscarded": "更改已舍弃。",
   "notificationItemAdded": "{{item}} 已添加。",
   "notificationItemDeleted": "{{item}} 已删除。",

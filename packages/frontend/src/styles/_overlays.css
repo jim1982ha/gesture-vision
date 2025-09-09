@@ -119,4 +119,28 @@
       @apply animate-pulse;
     }
   }
+
+  /* --- FIX: Notification Alert Component Styles --- */
+  .alert {
+    @apply fixed bottom-4 right-4 z-alert flex items-center gap-3 rounded-lg border p-4 text-sm font-medium shadow-lg;
+    @apply opacity-0 invisible translate-y-4 transition-all duration-300 ease-out;
+  }
+  .alert.visible {
+    /* FIX: Replace @apply with raw CSS to prevent circular dependency */
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+  }
+  .alert-info {
+    @apply bg-info/10 border-info/20 text-info;
+  }
+  .alert-success {
+    @apply bg-success/10 border-success/20 text-success;
+  }
+  .alert-warning {
+    @apply bg-warning/10 border-warning/20 text-warning;
+  }
+  .alert-error {
+    @apply bg-error/10 border-error/20 text-error;
+  }
 }

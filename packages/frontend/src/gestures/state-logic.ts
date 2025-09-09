@@ -10,7 +10,6 @@ import {
   UI_EVENTS,
   BUILT_IN_HAND_GESTURES,
   pubsub,
-  translate,
   normalizeNameForMtx,
   type GestureConfig,
   type PoseConfig,
@@ -20,10 +19,7 @@ import {
   type RoiConfig,
 } from '#shared/index.js';
 
-import {
-  formatGestureNameForDisplay,
-  getGestureDisplayInfo,
-} from '#frontend/ui/helpers/index.js';
+import { getGestureDisplayInfo, } from '#frontend/ui/helpers/index.js';
 
 import { GestureTimerManager } from './logic/gesture-timer-manager.js';
 import { webSocketService } from '../services/websocket-service.js';
@@ -33,7 +29,6 @@ interface ActionableRecognition {
   confidence: number;
 }
 
-// FIX: Removed redundant `confidence: string` property.
 interface DisplayStatus {
   gesture: string;
   realtimeConfidence: number;
@@ -381,10 +376,6 @@ export class GestureStateLogic {
   ): void {
     if (!this.#isInitialized || this.#isActionDispatchSuppressed) return;
 
-    const displayGestureName = translate(
-      formatGestureNameForDisplay(gestureName),
-      { defaultValue: formatGestureNameForDisplay(gestureName) }
-    );
     const actionConfig = config.actionConfig as ActionConfig | null;
     const pluginId = actionConfig?.pluginId || 'none';
     const { category: gestureCategory } = getGestureDisplayInfo(
@@ -406,11 +397,6 @@ export class GestureStateLogic {
       };
       webSocketService.sendDispatchAction(config, actionDetails);
     }
-
-    pubsub.publish(GESTURE_EVENTS.DETECTED_ALERT, {
-      gesture: displayGestureName,
-      actionType: pluginId,
-    });
 
     const historyEntryPayload: Partial<HistoryEntry> = {
       gesture: gestureName,

@@ -25,6 +25,13 @@ import * as actionDisplayUtils from '#frontend/ui/helpers/display-helpers.js';
 import * as utils from '#shared/utils/index.js';
 import { ActionPluginUIManager } from '#frontend/ui/components/gesture-form/action-plugin-ui-manager.js';
 
+// Global plugin registry, populated by individual plugin scripts
+declare global {
+  interface Window {
+    GestureVisionPlugins: Record<string, FrontendPluginModule>;
+  }
+}
+
 export class PluginUIService {
   #pluginManifests = new Map<string, PluginManifest>();
   #loadedFrontendModules = new Map<string, FrontendPluginModule>();
@@ -33,7 +40,7 @@ export class PluginUIService {
     string,
     Promise<FrontendPluginModule | undefined>
   >();
-  #pluginSettingsComponents = new Map<string, IPluginGlobalSettingsComponent>(); // New: Manages component instances
+  #pluginSettingsComponents = new Map<string, IPluginGlobalSettingsComponent>();
   #appStore: AppStore;
   #translationService: TranslationService;
   #cameraServiceRef: CameraService | null = null;
@@ -44,7 +51,6 @@ export class PluginUIService {
   >();
   #uiControllerRef: UIController | null = null;
   #unsubscribeStore: () => void;
-  #manifestUpdateDebounceTimer: number | null = null;
 
   constructor(
     appStore: AppStore,
@@ -53,8 +59,10 @@ export class PluginUIService {
     this.#appStore = appStore;
     this.#translationService = translationService;
 
+    // FIX: Remove debounce to prevent race condition on initial load.
+    // Manifests should be processed immediately when the store updates.
     this.#unsubscribeStore = this.#appStore.subscribe((state) =>
-      this.#debounceManifestUpdate(state.pluginManifests)
+      this.#handleManifestUpdate(state.pluginManifests).catch((e) => console.error(e))
     );
 
     this.#handleManifestUpdate(
@@ -74,15 +82,6 @@ export class PluginUIService {
     this.#unsubscribeStore();
     this.#pluginSettingsComponents.forEach(component => component.destroy?.());
     this.#pluginSettingsComponents.clear();
-  }
-
-  #debounceManifestUpdate(manifests?: PluginManifest[]): void {
-    if (this.#manifestUpdateDebounceTimer) {
-      clearTimeout(this.#manifestUpdateDebounceTimer);
-    }
-    this.#manifestUpdateDebounceTimer = window.setTimeout(() => {
-      this.#handleManifestUpdate(manifests).catch((e) => console.error(e));
-    }, 100);
   }
 
   async #handleManifestUpdate(manifests?: PluginManifest[]): Promise<void> {
@@ -116,7 +115,6 @@ export class PluginUIService {
         }
     }
     
-    // If any plugins were enabled or disabled, trigger a UI update for contributions.
     if (pluginsToDeregister.length > 0 || pluginsToInitialize.length > 0) {
       this.#uiControllerRef?.applyTranslations();
       pubsub.publish(UI_EVENTS.RECEIVE_UI_CONTRIBUTION, {
@@ -144,7 +142,6 @@ export class PluginUIService {
     component?.destroy?.();
     this.#pluginSettingsComponents.delete(pluginId);
     
-    // Only remove the contribution from the internal list. The UIController will handle the DOM.
     for (const slotId of this.#uiContributions.keys()) {
         const contributions = (this.#uiContributions.get(slotId) || []).filter(c => c.pluginId !== pluginId);
         this.#uiContributions.set(slotId, contributions);
@@ -188,39 +185,60 @@ export class PluginUIService {
   }
 
   public async loadPluginFrontendModule(pluginId: string): Promise<FrontendPluginModule | undefined> {
-    if (this.#loadedFrontendModules.has(pluginId)) return this.#loadedFrontendModules.get(pluginId);
-    if (this.#moduleLoadPromises.has(pluginId)) return this.#moduleLoadPromises.get(pluginId)!;
-
-    const manifest = this.getPluginManifest(pluginId);
-    if (!manifest) return undefined;
-
-    if (manifest.frontendStyle && !document.head.querySelector<HTMLLinkElement>(`link[data-plugin-id="${pluginId}"]`)) {
-      const link = document.createElement('link');
-      link.rel = 'stylesheet'; link.type = 'text/css';
-      link.href = `/api/plugins/${pluginId}/assets/${manifest.frontendStyle}`;
-      link.dataset.pluginId = pluginId;
-      document.head.appendChild(link);
+    if (this.#loadedFrontendModules.has(pluginId)) {
+        return this.#loadedFrontendModules.get(pluginId);
+    }
+    if (this.#moduleLoadPromises.has(pluginId)) {
+        return this.#moduleLoadPromises.get(pluginId)!;
     }
 
-    if (!manifest.frontendEntry) return undefined;
-    const moduleUrl = `/api/plugins/${pluginId}/assets/${manifest.frontendEntry}`;
-    const loadPromise = (async () => {
-      try {
-        const module = (await import(/* @vite-ignore */ `${moduleUrl}?v=${Date.now()}`)).default as FrontendPluginModule;
-        module.manifest = manifest;
-        if (typeof module.getActionDisplayDetails === 'function') this.#actionDisplayRenderers.set(pluginId, module.getActionDisplayDetails);
-        if (typeof module.init === 'function') await module.init(this.getPluginUIContext(pluginId));
-        this.#loadedFrontendModules.set(pluginId, module);
-        return module;
-      } catch (error) {
-        console.error(`[PluginUIService] Error loading module for '${pluginId}':`, error);
+    const manifest = this.getPluginManifest(pluginId);
+    if (!manifest) {
+        console.error(`[PluginLoader] ERROR: Manifest not found for plugin '${pluginId}'. Cannot load.`);
         return undefined;
-      } finally {
-        this.#moduleLoadPromises.delete(pluginId);
-      }
-    })();
+    }
+    
+    if (!manifest.frontendEntry) {
+        return undefined;
+    }
+
+    const loadPromise = new Promise<FrontendPluginModule | undefined>((resolve, reject) => {
+        const scriptId = `plugin-script-${pluginId}`;
+        document.getElementById(scriptId)?.remove();
+
+        const script = document.createElement('script');
+        script.id = scriptId;
+        script.type = 'module';
+        script.async = true;
+
+        const versionQuery = `v=${manifest.version || Date.now()}`;
+        
+        const entryFile = manifest.frontendEntry;
+        const finalUrl = `/plugins/${pluginId}/${entryFile}?${versionQuery}`;
+        
+        script.src = finalUrl;
+
+        script.onload = async () => {
+            const module = window.GestureVisionPlugins[pluginId];
+            if (module) {
+                module.manifest = manifest;
+                if (typeof module.getActionDisplayDetails === 'function') this.#actionDisplayRenderers.set(pluginId, module.getActionDisplayDetails);
+                if (typeof module.init === 'function') await module.init(this.getPluginUIContext(pluginId));
+                this.#loadedFrontendModules.set(pluginId, module);
+                resolve(module);
+            } else {
+                reject(new Error(`Plugin '${pluginId}' script loaded but did not register itself correctly.`));
+            }
+        };
+        script.onerror = (event) => {
+            reject(new Error(`Failed to load script for plugin '${pluginId}'. Details: ${event}`));
+        };
+        
+        document.head.appendChild(script);
+    });
+
     this.#moduleLoadPromises.set(pluginId, loadPromise);
-    return loadPromise;
+    return loadPromise.finally(() => { this.#moduleLoadPromises.delete(pluginId); });
   }
 
   public getPluginManifest = (pluginId: string): PluginManifest | undefined => this.#pluginManifests.get(pluginId);
@@ -274,12 +292,9 @@ export class PluginUIService {
       this.#uiContributions.set(slotId, []);
     }
     const slotContributions = this.#uiContributions.get(slotId)!;
-    // Prevent duplicate registrations
     if (!slotContributions.some(c => c.pluginId === pluginId)) {
         slotContributions.push({ element, pluginId });
     }
-    
-    // FIX: Publish an event to notify the UIController that a new contribution is ready.
     pubsub.publish(UI_EVENTS.RECEIVE_UI_CONTRIBUTION, { slotId, pluginId });
   }
   public getContributionsForSlot = (slotId: string): HTMLElement[] => (this.#uiContributions.get(slotId) || []).map((c) => c.element);

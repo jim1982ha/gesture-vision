@@ -1,14 +1,10 @@
 /* FILE: packages/frontend/src/ui/renderers/feedback-renderer.ts */
 import type { AppStore } from '#frontend/core/state/app-store.js';
-import type { PluginUIService } from '#frontend/services/plugin-ui.service.js';
-import type { RendererElements } from '#frontend/ui/ui-renderer-core.js';
-
-import { UI_EVENTS, pubsub, translate } from '#shared/index.js';
+import { translate } from '#shared/index.js';
 import { formatGestureNameForDisplay } from '#frontend/ui/helpers/index.js';
 
 interface GestureStatusData {
   gesture: string;
-  // FIX: Removed redundant `confidence: string` property.
   realtimeConfidence: number;
   configuredThreshold: number | null;
   isCooldownActive?: boolean;
@@ -22,13 +18,14 @@ interface GestureProgressData {
   remainingCooldownMs?: number;
 }
 
-interface GestureAlertData {
-  gesture: string;
-  actionType: string;
-}
-
 export function updateStatusDisplay(
-  elements: Partial<RendererElements>,
+  elements: Partial<{
+    topCenterStatus: HTMLElement | null;
+    currentGestureSpan: HTMLElement | null;
+    confidenceBar: HTMLElement | null;
+    holdTimeDisplay: HTMLElement | null;
+    holdTimeMetric: HTMLElement | null;
+  }>,
   status: Partial<GestureStatusData> = {},
   _appStore?: AppStore | null
 ): void {
@@ -36,15 +33,11 @@ export function updateStatusDisplay(
     topCenterStatus,
     currentGestureSpan,
     confidenceBar,
-    holdTimeDisplay,
-    holdTimeMetric,
   } = elements;
   if (
     !topCenterStatus ||
     !currentGestureSpan ||
-    !confidenceBar ||
-    !holdTimeDisplay ||
-    !holdTimeMetric
+    !confidenceBar
   )
     return;
 
@@ -66,7 +59,6 @@ export function updateStatusDisplay(
   const realtimeConfidencePercent = Math.round(realtimeConfidenceRatio * 100);
   confidenceBar.style.width = `${realtimeConfidencePercent}%`;
 
-  // FIX: Display the real-time confidence percentage inside the bar.
   confidenceBar.textContent = `${realtimeConfidencePercent}%`;
 
   const thresholdMarker = document.getElementById('confidenceThresholdMarker');
@@ -81,7 +73,13 @@ export function updateStatusDisplay(
 }
 
 export function updateProgressRings(
-  elements: Partial<RendererElements>,
+  elements: Partial<{
+    gestureProgressCircle: SVGCircleElement | null;
+    cooldownProgressCircle: SVGCircleElement | null;
+    holdTimeDisplay: HTMLElement | null;
+    holdTimeMetric: HTMLElement | null;
+    progressTimersContainer: HTMLElement | null;
+  }>,
   progress: Partial<GestureProgressData> = {}
 ): void {
   const {
@@ -130,45 +128,4 @@ export function updateProgressRings(
       (requiredHoldMs || 0) / 1000
     ).toFixed(1)}s`;
   }
-}
-
-export function showGestureAlert(
-  _elements: Partial<RendererElements>,
-  alertData: Partial<GestureAlertData> = {},
-  pluginUIService?: PluginUIService | null
-): void {
-  const formattedName = formatGestureNameForDisplay(alertData.gesture || 'UNKNOWN');
-  const gestureName = translate(formattedName, { defaultValue: formattedName });
-
-  const actionPluginId = alertData.actionType || 'none';
-  let messageKey: string;
-  let type: 'info' | 'success' | 'warning' | 'error' = 'info';
-  let actionDisplayName = actionPluginId;
-
-  if (actionPluginId !== 'none' && pluginUIService) {
-    const manifest = pluginUIService.getPluginManifest(actionPluginId);
-    if (manifest?.nameKey) {
-      actionDisplayName = translate(manifest.nameKey, {
-        defaultValue: manifest.id,
-      });
-    }
-  }
-
-  if (actionPluginId !== 'none') {
-    messageKey = 'alertActionDispatched';
-    type = 'success';
-  } else {
-    messageKey = 'alertNoActionConfigured';
-    type = 'info';
-  }
-
-  pubsub.publish(UI_EVENTS.SHOW_NOTIFICATION, {
-    messageKey: messageKey,
-    substitutions: {
-      gestureName: gestureName,
-      actionType: actionDisplayName,
-    },
-    type: type,
-    duration: 3000,
-  });
 }

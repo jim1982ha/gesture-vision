@@ -91,12 +91,14 @@ export class UIController {
   }
 
   #initializeManagers(): void {
+    console.log("\x1b[36m[UIController] 🚀 Initializing managers...\x1b[0m");
     this.pluginUIService = new PluginUIService(
       this.appStore,
       this.translationService,
     );
+    console.log(`\x1b[32m[UIController] ✅ PluginUIService instantiated.\x1b[0m`);
     this._renderer = new UIRenderer(this);
-    this._notificationManager = new NotificationManager();
+    this._notificationManager = new NotificationManager(this.appStore);
     this.sidebarManager = new SidebarManager(this);
     this.modalManager = new ModalManager(this);
     this.layoutManager = new LayoutManager(this);
@@ -106,9 +108,11 @@ export class UIController {
     this._videoOverlayControlsManager = new VideoOverlayControlsManager(this);
     this._gestureConfigModalManager = new GestureConfigModalManager(this);
     this._globalSettingsForm = new GlobalSettingsModalManager(this, this.modalManager);
+    console.log(`\x1b[32m[UIController] ✅ All managers initialized.\x1b[0m`);
   }
 
   public async initialize(): Promise<void> {
+    console.log("\x1b[36m[UIController] 🚀 Starting main initialization sequence...\x1b[0m");
     this.pluginUIService.setUIController(this);
     this.modalManager.initialize();
     this._gestureConfigModalManager.initialize();
@@ -130,9 +134,11 @@ export class UIController {
     });
 
     this.#renderContributions();
+    console.log("\x1b[32m[UIController] ✅ Main initialization sequence complete.\x1b[0m");
   }
 
   #initializeCoreSubscriptions = (): void => {
+    console.log("\x1b[36m[UIController] 👂 Initializing core event subscriptions...\x1b[0m");
     this.appStore.subscribe((state, prevState) => {
       if (state.languagePreference !== prevState.languagePreference) {
         this.applyTranslations();
@@ -205,6 +211,7 @@ export class UIController {
     setIcon(document.getElementById("docsCloseButton"), 'UI_CLOSE');
     setIcon(document.getElementById("cameraSelectCloseButton"), 'UI_CLOSE');
     setIcon(document.getElementById("historySidebarHeaderCloseBtn"), 'UI_CLOSE');
+    console.log("\x1b[32m[UIController] ✅ Core subscriptions attached.\x1b[0m");
   };
 
   #handleDeleteGestureConfig = (gestureName: string): void => {

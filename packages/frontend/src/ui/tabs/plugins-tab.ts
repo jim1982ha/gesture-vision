@@ -182,8 +182,15 @@ export class PluginsTab extends BaseSettingsTab<PluginsTabElements> {
             return;
         }
         
+        // FIX: Sort manifests alphabetically by translated name before rendering.
+        const sortedManifests = [...manifests].sort((a, b) => {
+            const nameA = translate(a.nameKey, { defaultValue: a.id });
+            const nameB = translate(b.nameKey, { defaultValue: b.id });
+            return nameA.localeCompare(nameB);
+        });
+
         const pluginComponents = this.#uiControllerRef.pluginUIService.getGlobalSettingsComponents();
-        const cardElements = manifests.map(manifest => {
+        const cardElements = sortedManifests.map(manifest => {
             const component = pluginComponents.get(manifest.id);
             if (component) {
                 return component.getElement();

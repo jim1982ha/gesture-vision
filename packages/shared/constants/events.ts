@@ -51,7 +51,6 @@ export const GESTURE_EVENTS = {
   MODEL_LOADED: "gesture:model-loaded",
   UPDATE_STATUS: "gesture:update-status",
   UPDATE_PROGRESS: "gesture:update-progress",
-  DETECTED_ALERT: "gesture:detected-alert",
   CONFIDENCE_THRESHOLD_MET: "gesture:confidence-threshold-met",
   TIMERS_RESET: "gesture:timersReset",
   RECORDED: "gesture:recorded",

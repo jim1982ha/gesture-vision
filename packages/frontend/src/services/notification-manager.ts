@@ -1,7 +1,7 @@
 /* FILE: packages/frontend/src/services/notification-manager.ts */
 import { UI_EVENTS, WEBSOCKET_EVENTS, WEBCAM_EVENTS, pubsub, translate } from "#shared/index.js";
-
  
+import type { AppStore } from "#frontend/core/state/app-store.js";
 import type { ActionResultPayload, UploadCustomGestureAckPayload, ValidationErrorDetail } from "#shared/index.js"; 
 
 interface NotificationData {
@@ -25,8 +25,10 @@ export class NotificationManager {
   #alertTextSpan: HTMLElement | null = null;
   #activeTimeout: number | null = null;
   #isInitialized = false;
+  #appStore: AppStore;
 
-  constructor() {
+  constructor(appStore: AppStore) {
+    this.#appStore = appStore;
     this.#alertDiv = document.getElementById("gestureAlert") as HTMLElement | null;
     this.#alertTextSpan = document.getElementById("gestureAlertText") as HTMLElement | null;
 
@@ -51,6 +53,7 @@ export class NotificationManager {
         : data.message || "Notification";
       this.showNotification(msg, data.type, data.duration);
     });
+
     pubsub.subscribe(UI_EVENTS.SHOW_ERROR, (dataUnknown?: unknown) => { 
       if (!this.#isInitialized) return;
       const data = dataUnknown as ShowErrorPayload | undefined;
@@ -67,20 +70,28 @@ export class NotificationManager {
 
       this.showNotification(msg, "error");
     });
+
+    // FIX: This handler is now the single source for action result notifications, showing for both success and failure.
     pubsub.subscribe(WEBSOCKET_EVENTS.BACKEND_ACTION_RESULT, (dataUnknown?: unknown) => { 
       if (!this.#isInitialized) return;
       const result = dataUnknown as ActionResultPayload | undefined;
-      if (!result || result.pluginId === "none")
-        return;
-      if (!result.success) {
-        this.showNotification(
-          `${translate("historyActionFailed", {
-            actionType: result.pluginId || "?",
-            reason: "",
-          })} ${result.message || ""}`.trim(),
-          "error"
-        );
-      }
+      if (!result || result.pluginId === "none") return;
+
+      const manifest = this.#appStore.getState().pluginManifests.find(m => m.id === result.pluginId);
+      const actionType = translate(manifest?.nameKey || 'unknownPlugin', { defaultValue: result.pluginId });
+      const gestureName = translate(result.gestureName, { defaultValue: result.gestureName });
+      
+      const messageKey = result.success ? 'notificationActionSuccess' : 'notificationActionFailed';
+      const notificationType = result.success ? 'success' : 'error';
+      
+      this.showNotification(
+        translate(messageKey, {
+          actionType: actionType,
+          gestureName: gestureName,
+          message: result.message || ''
+        }),
+        notificationType
+      );
     });
     
     pubsub.subscribe(WEBCAM_EVENTS.STREAM_CONNECTION_CANCELLED, () => {
@@ -128,8 +139,8 @@ export class NotificationManager {
   }
 
   showNotification(msg: string, type: NotificationData['type'] = "info", duration = 3000): void {
-    if (!this.#isInitialized || !this.#alertDiv || !this.#alertTextSpan || !msg)
-      return;
+    if (!this.#isInitialized || !this.#alertDiv || !this.#alertTextSpan || !msg) return;
+
     if (this.#activeTimeout) {
       clearTimeout(this.#activeTimeout);
       this.#activeTimeout = null;
@@ -138,11 +149,12 @@ export class NotificationManager {
     this.#alertTextSpan.style.whiteSpace = msg.includes('\n') ? 'pre-wrap' : 'normal';
     this.#alertTextSpan.textContent = msg; 
     
-    this.#alertDiv.className = `alert alert-${type} visible`;
-    const effectiveDuration =
-      type === "error" || type === "warning"
-        ? Math.max(duration, 5000)
-        : duration;
+    // FIX: Use classList to add/remove classes instead of overwriting className.
+    this.#alertDiv.classList.remove('alert-info', 'alert-success', 'alert-warning', 'alert-error');
+    this.#alertDiv.classList.add(`alert-${type}`, 'visible');
+
+    const effectiveDuration = type === "error" || type === "warning" ? Math.max(duration, 5000) : duration;
+
     this.#activeTimeout = window.setTimeout(() => { 
       this.hideNotification();
     }, effectiveDuration);

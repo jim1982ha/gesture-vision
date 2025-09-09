@@ -4,7 +4,6 @@ import type { CanvasRenderer } from '#frontend/camera/canvas-renderer.js';
 import {
   updateStatusDisplay,
   updateProgressRings,
-  showGestureAlert,
 } from './renderers/feedback-renderer.js';
 import {
   GESTURE_EVENTS,
@@ -47,10 +46,6 @@ interface GestureProgressData {
   currentHoldMs?: number;
   requiredHoldMs?: number;
   remainingCooldownMs?: number;
-}
-interface GestureAlertData {
-  gesture: string;
-  actionType: string;
 }
 interface StreamStartData {
   deviceId?: string | null;
@@ -136,12 +131,13 @@ export class UIRenderer {
         }
       })
     );
-    pubsub.subscribe(
-      GESTURE_EVENTS.DETECTED_ALERT,
-      createReadyHandler<GestureAlertData>((d) =>
-        showGestureAlert(this._elements, d, this._uiControllerRef?.pluginUIService)
-      )
-    );
+    // FIX: Remove the old, redundant alert handler. This is now handled by NotificationManager.
+    // pubsub.subscribe(
+    //   GESTURE_EVENTS.DETECTED_ALERT,
+    //   createReadyHandler<GestureAlertData>((d) =>
+    //     showGestureAlert(this._elements, d, this._uiControllerRef?.pluginUIService)
+    //   )
+    // );
     pubsub.subscribe(
       GESTURE_EVENTS.REQUEST_LANDMARK_VISIBILITY_OVERRIDE,
       createReadyHandler<LandmarkVisibilityOverridePayload>((payload) =>

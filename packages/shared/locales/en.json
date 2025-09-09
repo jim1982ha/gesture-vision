@@ -138,6 +138,8 @@
   "noSectionsFound": "No sections found.",
   "Not Set": "Not Set",
   "notificationActionCancelled": "{{item}} edit cancelled.",
+  "notificationActionSuccess": "'{{actionType}}' action for '{{gestureName}}' succeeded. {{message}}",
+  "notificationActionFailed": "'{{actionType}}' action for '{{gestureName}}' failed. {{message}}",
   "notificationChangesDiscarded": "Changes discarded.",
   "notificationItemAdded": "{{item}} added.",
   "notificationItemDeleted": "{{item}} deleted.",

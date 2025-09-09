@@ -1,11 +1,7 @@
 /* FILE: packages/backend/src/api/routes/plugins.router.ts */
 import { Router, type Request, type Response, type NextFunction } from 'express';
-import express from 'express';
-import path from 'path';
 
 import type { PluginManagerService } from '../../services/plugin-manager.service.js';
-
-const PLUGINS_DIR = path.resolve(process.cwd(), 'extensions', 'plugins');
 
 const asyncHandler = (fn: (req: Request, res: Response, next: NextFunction) => Promise<unknown>) =>
     (req: Request, res: Response, next: NextFunction) => { Promise.resolve(fn(req, res, next)).catch(next); };
@@ -43,32 +39,15 @@ export default function createPluginsRouter(pluginManager: PluginManagerService)
         res.status(result.success ? 200 : 400).json(result);
     }));
 
-    // --- Dynamic Routes for each enabled plugin ---
+    // --- Dynamic API Routes for each enabled plugin ---
     const allManifests = pluginManager.getAllPluginManifestsSync();
     allManifests.forEach(manifest => {
         if (manifest.status === 'enabled') {
-            const pluginSubRouter = Router({ mergeParams: true });
-            const pluginAssetPath = path.join(PLUGINS_DIR, manifest.id);
-
-            // 1. REFACTORED: Serve static frontend assets more securely and consistently.
-            const assetsRouter = Router();
-            assetsRouter.use('/frontend', express.static(path.join(pluginAssetPath, 'frontend')));
-            assetsRouter.use('/locales', express.static(path.join(pluginAssetPath, 'locales')));
-            assetsRouter.get('/plugin.json', (req, res) => {
-                res.sendFile(path.join(pluginAssetPath, 'plugin.json'), (err) => {
-                    if (err) res.status(404).send('Not Found');
-                });
-            });
-            pluginSubRouter.use('/assets', assetsRouter);
-
-            // 2. Mount the plugin's own API router (if it exists)
             const pluginInstance = pluginManager.getPluginInstance(manifest.id);
             const pluginApiRouter = pluginInstance?.getApiRouter?.();
             if (pluginApiRouter) {
-                pluginSubRouter.use('/', pluginApiRouter);
+                router.use(`/${manifest.id}`, pluginApiRouter);
             }
-            
-            router.use(`/${manifest.id}`, pluginSubRouter);
         }
     });
 
