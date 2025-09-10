@@ -1,6 +1,8 @@
 /* FILE: packages/backend/src/server.ts */
 import { spawn, type ChildProcess } from 'child_process';
 import http from 'http';
+import path from 'path';
+import fs from 'fs/promises';
 
 import cors from 'cors';
 import express, { type Request, type Response, type NextFunction, type Express } from 'express';
@@ -30,6 +32,27 @@ const pluginManagementLimiter = rateLimit({
   message: { error: 'TOO_MANY_REQUESTS', message: 'Too many plugin management requests from this IP, please try again after 15 minutes.' },
 });
 
+// Function to generate the import map
+async function generateImportMap() {
+    const sharedPackagePath = path.resolve('/app/packages/shared');
+    const sharedFiles = await fs.readdir(sharedPackagePath);
+    const imports: Record<string, string> = {};
+
+    // Map the main entry point
+    imports["#shared/index.js"] = "/packages/shared/index.js";
+
+    // Map all other files in the shared directory
+    for (const file of sharedFiles) {
+        if (file.endsWith('.js')) {
+            imports[`#shared/${file}`] = `/packages/shared/${file}`;
+        } else if ((await fs.stat(path.join(sharedPackagePath, file))).isDirectory()) {
+            imports[`#shared/${file}/`] = `/packages/shared/${file}/`;
+        }
+    }
+
+    return JSON.stringify({ imports });
+}
+
 async function startServer() {
   let server: http.Server | null = null;
   const childProcesses: ChildProcess[] = [];
@@ -53,6 +76,9 @@ async function startServer() {
 
   try {
     if (process.env.NODE_ENV !== 'development') {
+      const importMapJson = await generateImportMap();
+      process.env.VITE_IMPORT_MAP = importMapJson;
+
       const runProdService = (command: string, args: string[]) => {
         const proc = spawn(command, args, { stdio: 'inherit' });
         childProcesses.push(proc);
@@ -73,11 +99,7 @@ async function startServer() {
     await services.mtxMonitor.start();
 
     const app: Express = express();
-
-    // Trust the first proxy in front of the app (e.g., Nginx Proxy Manager).
-    // This is crucial for rate limiting to work correctly.
     app.set('trust proxy', 1);
-
     app.use(cors({ origin: '*', methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'] }));
     app.use(express.json());
 
