@@ -66,13 +66,14 @@ export class CustomGesturesTab extends BaseSettingsTab<CustomGesturesTabElements
         await super.finishInitialization();
         this.#renderContributions();
     }
-
+    
     #renderContributions = (): void => {
         const slot = this._elements.actionsSlot;
         if (!slot || !this._uiControllerRef.pluginUIService) return;
 
         slot.innerHTML = '';
-        const contributions = this._uiControllerRef.pluginUIService.getContributionsForSlot('custom-gestures-actions');
+        // FIX: Corrected the slot ID to match what the UI controller uses.
+        const contributions = this._uiControllerRef.pluginUIService.getContributionsForSlot('custom-gestures-actions-slot');
         contributions.forEach((element: HTMLElement) => {
             slot.appendChild(element);
         });

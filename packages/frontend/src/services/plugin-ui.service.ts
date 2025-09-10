@@ -123,17 +123,23 @@ export class PluginUIService {
             }
         }
     }
+    
+    const hasStructuralChanges = changes.uninstalled.length > 0 || changes.installed.length > 0 || changes.enabled.length > 0 || changes.disabled.length > 0;
 
     for (const pluginId of [...changes.uninstalled, ...changes.disabled]) {
         const wasUninstalled = changes.uninstalled.includes(pluginId);
         this.#deregisterPlugin(pluginId, wasUninstalled);
     }
-    for (const pluginId of [...changes.installed, ...changes.enabled]) {
+    
+    // FIX: Await initialization of all new/enabled plugins BEFORE broadcasting the UI update.
+    const initializationPromises = [...changes.installed, ...changes.enabled].map(pluginId => {
         if (changes.enabled.includes(pluginId)) {
             this.#deregisterPlugin(pluginId, false);
         }
-        await this.#initializePlugin(newManifests.get(pluginId)!);
-    }
+        return this.#initializePlugin(newManifests.get(pluginId)!);
+    });
+    await Promise.all(initializationPromises);
+
     for (const pluginId of changes.updated) {
         const component = this.#pluginSettingsComponents.get(pluginId);
         if (component) {
@@ -142,7 +148,6 @@ export class PluginUIService {
         }
     }
     
-    const hasStructuralChanges = changes.uninstalled.length > 0 || changes.installed.length > 0 || changes.enabled.length > 0 || changes.disabled.length > 0;
     if (hasStructuralChanges) {
       this.#uiControllerRef?.applyTranslations();
       pubsub.publish(UI_EVENTS.RECEIVE_UI_CONTRIBUTION, {
