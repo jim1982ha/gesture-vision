@@ -1,7 +1,7 @@
 /* FILE: packages/frontend/src/ui/modals/gesture-config-modal-manager.ts */
 import type { UIController } from '#frontend/ui/ui-controller-core.js';
 import { GestureConfigForm } from '#frontend/ui/components/gesture-form/gesture-config-form.js';
-import { pubsub, UI_EVENTS } from '#shared/index.js';
+import { pubsub, UI_EVENTS, type GestureConfig, type PoseConfig } from '#shared/index.js';
 
 /**
  * Manages the lifecycle and state of the gesture configuration modal.
@@ -37,7 +37,7 @@ export class GestureConfigModalManager {
 
         pubsub.subscribe(UI_EVENTS.REQUEST_EDIT_CONFIG, (gestureName?: unknown) => {
             const index = this.#uiControllerRef.getGestureConfigsSnapshot().findIndex(
-                c => ('gesture' in c ? c.gesture : c.pose) === (gestureName as string)
+                (c: GestureConfig | PoseConfig) => ('gesture' in c ? c.gesture : c.pose) === (gestureName as string)
             );
             if (index > -1) {
                 this.startEdit(index);
@@ -89,7 +89,7 @@ export class GestureConfigModalManager {
         
         const currentConfigs = this.#uiControllerRef.getGestureConfigsSnapshot();
         const updatedConfigs = editingIndex !== null
-            ? currentConfigs.map((c, i) => i === editingIndex ? configData : c)
+            ? currentConfigs.map((c: GestureConfig | PoseConfig, i: number) => i === editingIndex ? configData : c)
             : [...currentConfigs, configData];
             
         await this.#uiControllerRef.updateGestureConfigs(updatedConfigs);

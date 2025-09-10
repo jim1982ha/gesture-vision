@@ -12,9 +12,7 @@ import {
   UI_EVENTS,
   CAMERA_SOURCE_EVENTS,
   DOCS_MODAL_EVENTS,
-  normalizeNameForMtx,
 } from '#shared/index.js';
-import type { RtspSourceConfig } from '#shared/index.js';
 import { CameraManager } from '#frontend/camera/camera-manager.js';
 
 export class App {
@@ -140,26 +138,10 @@ export class App {
     const safeTargetId = targetDeviceId || '';
     pubsub.publish(CAMERA_SOURCE_EVENTS.REQUESTING_STREAM_START, safeTargetId);
 
-    let rtspConfig: RtspSourceConfig | null = null;
-    if (safeTargetId.startsWith('rtsp:')) {
-      const rtspSources = this.appStore.getState().rtspSources || [];
-      rtspConfig =
-        rtspSources.find(
-          (s) => `rtsp:${normalizeNameForMtx(s.name)}` === safeTargetId
-        ) || null;
-      if (!rtspConfig) {
-        pubsub.publish(UI_EVENTS.SHOW_ERROR, {
-          message: `Config not found for ${safeTargetId}`,
-        });
-        return;
-      }
-    }
-
     try {
-      await this.cameraService.startStream({
-        cameraId: safeTargetId,
-        rtspSourceConfig: rtspConfig,
-      });
+      // The CameraService is now responsible for finding the RTSP config if needed,
+      // simplifying the controller's logic.
+      await this.cameraService.startStream({ cameraId: safeTargetId });
     } catch (e) {
       console.error(`[App] Error starting stream for '${safeTargetId}':`, e);
     }

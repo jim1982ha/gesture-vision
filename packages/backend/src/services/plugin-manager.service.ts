@@ -1,5 +1,5 @@
 /* FILE: packages/backend/src/services/plugin-manager.service.ts */
-import { watchFile, unwatchFile, type StatWatcher } from 'fs';
+import { watchFile, unwatchFile, watch, type FSWatcher, type StatWatcher } from 'fs';
 import path from 'path';
 import type { Router } from 'express';
 import type { ZodType } from 'zod';
@@ -17,6 +17,7 @@ import type { BackendPlugin, BackendPluginContext } from '#backend/types/index.j
 
 const execAsync = promisify(exec);
 const PLUGINS_DIR = '/app/extensions/plugins';
+const NGINX_PLUGIN_WEBROOT = '/usr/share/nginx/html/plugins';
 
 interface LoadedPlugin {
   manifest: PluginManifest;
@@ -33,9 +34,12 @@ interface LoadedPlugin {
 export class PluginManagerService {
   #plugins = new Map<string, LoadedPlugin>();
   #disabledPluginIds = new Set<string>();
+  #pluginsPendingDeletion = new Set<string>();
   #configRepository: ConfigRepository;
   #loaderService: PluginLoaderService;
   #initializationPromise: Promise<void>;
+  #pluginsDirWatcher: FSWatcher | null = null;
+  #resyncDebounceTimer: NodeJS.Timeout | null = null;
 
   constructor(configRepository: ConfigRepository) {
     this.#configRepository = configRepository;
@@ -49,6 +53,76 @@ export class PluginManagerService {
     this.#disabledPluginIds = await this.#loaderService.loadDisabledPluginIds();
     const manifests = await this.#loaderService.discoverPlugins();
     await Promise.all(manifests.map(m => this.#loadAndRegisterPlugin(m)));
+    this.#initializePluginsDirWatcher();
+  }
+
+  #triggerResync(): void {
+    if (this.#resyncDebounceTimer) clearTimeout(this.#resyncDebounceTimer);
+    this.#resyncDebounceTimer = setTimeout(() => {
+      console.log(`[PluginManager Watcher] Filesystem change detected. Resyncing...`);
+      this.#resyncPlugins().catch(err => console.error("[PluginManager] Error during plugin resync:", err));
+    }, 500);
+  }
+
+  #initializePluginsDirWatcher(): void {
+    try {
+      this.#pluginsDirWatcher = watch(PLUGINS_DIR, { recursive: true, persistent: false }, (eventType, filename) => {
+        // Trigger on any change, the debounced resync will handle the storm of events from git clone.
+        if (!filename) {
+          return;
+        }
+        this.#triggerResync();
+      });
+      this.#pluginsDirWatcher.on('error', (err) => console.error("[PluginManager] Directory watcher error:", err));
+    } catch (error) {
+      console.error("[PluginManager] Failed to initialize plugins directory watcher:", error);
+    }
+  }
+
+  async #resyncPlugins(): Promise<void> {
+    const previousPluginIds = new Set(this.#plugins.keys());
+    this.#disabledPluginIds = await this.#loaderService.loadDisabledPluginIds();
+    const manifestsOnDisk = await this.#loaderService.discoverPlugins();
+    const currentPluginIdsOnDisk = new Set(manifestsOnDisk.map(m => m.id));
+
+    // Unload plugins that are no longer on disk
+    for (const pluginId of previousPluginIds) {
+      if (!currentPluginIdsOnDisk.has(pluginId)) {
+        await this.#unloadAndDeregisterPlugin(pluginId);
+      }
+    }
+
+    // Load new plugins or update existing ones (e.g., status change)
+    await Promise.all(manifestsOnDisk.map(async manifest => {
+      const existingPlugin = this.#plugins.get(manifest.id);
+      const newStatus = this.#disabledPluginIds.has(manifest.id) ? 'disabled' : 'enabled';
+      if (!existingPlugin || existingPlugin.manifest.status !== newStatus) {
+        await this.#unloadAndDeregisterPlugin(manifest.id);
+        await this.#loadAndRegisterPlugin(manifest);
+      }
+    }));
+
+    console.log('[PluginManager Watcher] Resync complete.');
+    pubsub.publish(BACKEND_INTERNAL_EVENTS.REQUEST_MANIFESTS_BROADCAST);
+  }
+
+  async #copyPluginAssetsToWebroot(pluginId: string): Promise<void> {
+    const sourceDir = path.join(PLUGINS_DIR, pluginId);
+    const destDir = path.join(NGINX_PLUGIN_WEBROOT, pluginId);
+    try {
+      await fs.cp(sourceDir, destDir, { recursive: true });
+    } catch (error) {
+      console.error(`[PluginManager] Failed to copy assets for plugin '${pluginId}':`, error);
+    }
+  }
+
+  async #removePluginAssetsFromWebroot(pluginId: string): Promise<void> {
+    const destDir = path.join(NGINX_PLUGIN_WEBROOT, pluginId);
+    try {
+      await fs.rm(destDir, { recursive: true, force: true });
+    } catch (error) {
+      console.warn(`[PluginManager] Could not remove assets for plugin '${pluginId}' (this is often normal):`, error);
+    }
   }
 
   async #loadAndRegisterPlugin(manifest: PluginManifest): Promise<void> {
@@ -67,6 +141,7 @@ export class PluginManagerService {
     try {
       const backendEntryPath = manifest.backendEntry ? path.resolve(PLUGINS_DIR, manifest.id, manifest.backendEntry.replace('.js', '.ts')) : null;
       if (backendEntryPath) {
+        // Bust the import cache for dynamic loading/reloading
         const module = await import(`file://${backendEntryPath}?v=${Date.now()}`);
         instance = new module.default();
         instance.manifest = manifest;
@@ -126,7 +201,9 @@ export class PluginManagerService {
 
   public async getAllPluginManifestsWithCapabilities(): Promise<PluginManifest[]> {
     await this.#initializationPromise;
-    const manifests = Array.from(this.#plugins.values()).map((p) => p.manifest);
+    const manifests = Array.from(this.#plugins.values())
+      .filter(p => !this.#pluginsPendingDeletion.has(p.manifest.id))
+      .map((p) => p.manifest);
     for (const manifest of manifests) {
       manifest.locales = await this.#loaderService.getPluginLocales(manifest.id);
     }
@@ -184,9 +261,8 @@ export class PluginManagerService {
     try { await fs.access(targetDir); return { success: false, message: `Plugin '${pluginId}' already exists.` }; } catch { /* Continue */ }
     try {
       await execAsync(`git clone --depth 1 ${repoUrl} ${targetDir}`);
-      const manifest: PluginManifest = JSON.parse(await fs.readFile(path.join(targetDir, 'plugin.json'), 'utf-8'));
-      await this.#loadAndRegisterPlugin(manifest);
-      pubsub.publish(BACKEND_INTERNAL_EVENTS.REQUEST_MANIFESTS_BROADCAST);
+      await this.#copyPluginAssetsToWebroot(pluginId);
+      // No pubsub needed, watcher will trigger resync
       return { success: true, message: `Plugin '${pluginId}' installed successfully.` };
     } catch (e) {
       console.error(`[PluginManager] Failed to install plugin from ${repoUrl}:`, e);
@@ -195,38 +271,80 @@ export class PluginManagerService {
     }
   }
 
-  public async uninstallPlugin(pluginId: string): Promise<{success:boolean; message:string}> {
+  public async initiatePluginUninstall(pluginId: string): Promise<{success: boolean, message: string}> {
+    if (!this.#plugins.has(pluginId)) {
+        return { success: false, message: `Plugin '${pluginId}' not found.` };
+    }
+    this.#pluginsPendingDeletion.add(pluginId);
+    pubsub.publish(BACKEND_INTERNAL_EVENTS.REQUEST_MANIFESTS_BROADCAST);
+    
+    setTimeout(() => {
+        if (this.#pluginsPendingDeletion.has(pluginId)) {
+            console.warn(`[PluginManager] Finalize uninstall for '${pluginId}' not triggered by frontend within 5s. Forcing cleanup.`);
+            this.finalizePluginUninstall(pluginId);
+        }
+    }, 5000).unref();
+
+    return { success: true, message: `Uninstall initiated for '${pluginId}'.` };
+  }
+  
+  public async finalizePluginUninstall(pluginId: string): Promise<{success: boolean, message: string}> {
+      if (!this.#pluginsPendingDeletion.has(pluginId)) {
+          // This is now expected in a multi-container setup, so we just log it and proceed.
+          console.log(`[PluginManager] Finalize request for '${pluginId}' received, but it was not pending deletion in this instance. Proceeding with deletion check.`);
+      }
+      console.log(`[PluginManager] Finalizing uninstall for ${pluginId}, deleting files...`);
+      const result = await this._performPluginDeletion(pluginId);
+      this.#pluginsPendingDeletion.delete(pluginId);
+      // No pubsub needed, watcher will trigger resync
+      return result;
+  }
+  
+  private async _performPluginDeletion(pluginId: string): Promise<{success:boolean; message:string}> {
     const pluginDir = path.join(PLUGINS_DIR, pluginId);
     try {
       await fs.access(pluginDir);
-      await this.#unloadAndDeregisterPlugin(pluginId);
+      await this.#removePluginAssetsFromWebroot(pluginId);
       await fs.rm(pluginDir, { recursive: true, force: true });
-      this.#disabledPluginIds.delete(pluginId);
-      await this.#loaderService.saveDisabledPluginIds(this.#disabledPluginIds);
-      pubsub.publish(BACKEND_INTERNAL_EVENTS.REQUEST_MANIFESTS_BROADCAST);
+      
+      if (this.#disabledPluginIds.has(pluginId)) {
+        this.#disabledPluginIds.delete(pluginId);
+        await this.#loaderService.saveDisabledPluginIds(this.#disabledPluginIds);
+      }
+      
       return { success: true, message: `Plugin '${pluginId}' uninstalled successfully.` };
     } catch (e) {
-      if ((e as NodeJS.ErrnoException).code === 'ENOENT') return { success: false, message: `Plugin '${pluginId}' not found.` };
-      return { success: false, message: `Failed to uninstall plugin: ${(e as Error).message}` };
+      if ((e as NodeJS.ErrnoException).code === 'ENOENT') {
+        return { success: true, message: `Plugin '${pluginId}' already removed.` };
+      }
+      return { success: false, message: `Failed to perform plugin deletion: ${(e as Error).message}` };
     }
   }
 
   public async setPluginState(pluginId: string, state: 'enabled' | 'disabled'): Promise<{success:boolean; message:string}> {
     if (!this.#plugins.has(pluginId)) return { success: false, message: `Plugin '${pluginId}' not found.` };
-    if (state === 'enabled') this.#disabledPluginIds.delete(pluginId);
-    else this.#disabledPluginIds.add(pluginId);
+    
+    if (state === 'enabled') {
+      this.#disabledPluginIds.delete(pluginId);
+      await this.#copyPluginAssetsToWebroot(pluginId);
+    } else {
+      this.#disabledPluginIds.add(pluginId);
+      await this.#removePluginAssetsFromWebroot(pluginId);
+    }
+
     await this.#loaderService.saveDisabledPluginIds(this.#disabledPluginIds);
-    await this.#unloadAndDeregisterPlugin(pluginId);
-    const manifestPath = path.join(PLUGINS_DIR, pluginId, 'plugin.json');
-    try {
-      const manifest: PluginManifest = JSON.parse(await fs.readFile(manifestPath, 'utf-8'));
-      await this.#loadAndRegisterPlugin(manifest);
-      pubsub.publish(BACKEND_INTERNAL_EVENTS.REQUEST_MANIFESTS_BROADCAST);
-      return { success: true, message: `Plugin '${pluginId}' has been ${state}.` };
-    } catch (e) { return { success: false, message: `Failed to reload plugin after state change: ${(e as Error).message}` }; }
+    // No pubsub needed, watcher will trigger resync
+    return { success: true, message: `Plugin '${pluginId}' has been ${state}.` };
   }
 
   public async destroy(): Promise<void> {
+    if (this.#pluginsDirWatcher) {
+      this.#pluginsDirWatcher.close();
+      this.#pluginsDirWatcher = null;
+    }
+    if (this.#resyncDebounceTimer) {
+        clearTimeout(this.#resyncDebounceTimer);
+    }
     await Promise.all(Array.from(this.#plugins.keys()).map(id => this.#unloadAndDeregisterPlugin(id)));
   }
 }

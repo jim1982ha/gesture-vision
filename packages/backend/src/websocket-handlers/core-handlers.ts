@@ -66,3 +66,21 @@ export async function rtspDisconnectRequestHandler(
   const { pathName } = (message as WebSocketMessage<{ pathName: string }>).payload;
   if (pathName) await mtxMonitorService.disconnectOnDemandStream(pathName);
 }
+
+export async function finalizePluginUninstallHandler(
+  ws: WebSocket,
+  message: WebSocketMessage<unknown>,
+  dependencies: HandlerDependencies
+): Promise<void> {
+  const { pluginManagerService } = dependencies;
+  if (!pluginManagerService) {
+    await sendErrorMessageToClient(ws, 'SERVER_ERROR', 'PluginManagerService not ready.');
+    return;
+  }
+  const { pluginId } = (message as WebSocketMessage<{ pluginId: string }>).payload;
+  if (!pluginId) {
+    await sendErrorMessageToClient(ws, 'INVALID_PAYLOAD', 'FINALIZE_UNINSTALL requires a pluginId.');
+    return;
+  }
+  await pluginManagerService.finalizePluginUninstall(pluginId);
+}

@@ -25,7 +25,7 @@ export default function createPluginsRouter(pluginManager: PluginManagerService)
 
     router.post('/manage/:pluginId/uninstall', asyncHandler(async (req, res) => {
         const { pluginId } = req.params;
-        const result = await pluginManager.uninstallPlugin(pluginId);
+        const result = await pluginManager.initiatePluginUninstall(pluginId);
         res.status(result.success ? 200 : 400).json(result);
     }));
 

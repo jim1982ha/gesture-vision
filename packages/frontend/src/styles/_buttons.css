@@ -2,23 +2,26 @@
 @layer components {
   .btn {
     @apply inline-flex items-center justify-center gap-2 font-medium leading-normal whitespace-nowrap flex-shrink-0 text-center no-underline rounded-md border transition-all duration-200 ease-in-out cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 px-4 py-2 h-10 text-sm;
-    &.active {
-      @apply bg-primary text-on-primary border-primary;
-      & .material-icons,
-      & .mdi {
-        @apply text-on-primary;
-      }
-    }
+  }
+  .btn.active {
+    background-color: theme('colors.primary');
+    color: theme('colors.on-primary');
+    border-color: theme('colors.primary');
+  }
+  .btn.active .material-icons,
+  .btn.active .mdi {
+    color: theme('colors.on-primary');
   }
   .btn-primary {
     @apply bg-primary text-on-primary border-primary hover:bg-primary-hover hover:border-primary-hover;
   }
   .btn-secondary {
     @apply bg-surface text-text-secondary border-border hover:bg-background hover:text-text-primary hover:border-text-secondary;
-    /* New style for a persistently toggled/selected state */
-    &.btn-toggled {
-      @apply bg-primary/20 text-primary border-primary/30;
-    }
+  }
+  .btn-secondary.btn-toggled {
+    background-color: theme('colors.primary / 20%');
+    color: theme('colors.primary');
+    border-color: theme('colors.primary / 30%');
   }
   .btn-danger {
     @apply bg-error text-white border-error hover:bg-error-hover hover:border-error-hover;

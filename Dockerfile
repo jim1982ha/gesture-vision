@@ -49,7 +49,7 @@ RUN npm run build:app
 
 # Prune devDependencies for final production image
 ENV NODE_ENV=production
-RUN npm prune --production
+RUN npm prune --omit=dev
 
 # ---- Stage 2: Development ----
 # Sets up the environment for live-reloading.

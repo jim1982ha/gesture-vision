@@ -4,9 +4,9 @@ import type { UIController } from '#frontend/ui/ui-controller-core.js';
 import { createCardElement, createCardActionButton, type CardFooterConfig } from '#frontend/ui/utils/card-utils.js';
 import { setIcon } from '#frontend/ui/helpers/index.js';
 import { BaseSettingsTab, type TabElements } from '../base-settings-tab.js';
-
 import { UI_EVENTS, pubsub, translate } from '#shared/index.js';
 import type { FullConfiguration, PluginManifest } from '#shared/index.js';
+import type { DocsModalManager } from '../ui-docs-modal-manager.js';
 
 export interface PluginsTabElements extends TabElements {
     pluginsListContainer?: HTMLElement | null;
@@ -38,7 +38,7 @@ export class PluginsTab extends BaseSettingsTab<PluginsTabElements> {
     }
     
     #renderContributions = (): void => {
-        const slot = document.getElementById('custom-gestures-actions-slot');
+        const slot = this._elements.actionsSlot;
         if (!slot || !this.#uiControllerRef.pluginUIService) return;
 
         slot.innerHTML = '';
@@ -112,8 +112,8 @@ export class PluginsTab extends BaseSettingsTab<PluginsTabElements> {
 
     #handleOpenDocsClick = (): void => {
         this.#uiControllerRef.getDocsModalManager()
-            .then(manager => manager?.openModal("PLUGIN_DEV"))
-            .catch(error => console.error("[PluginsTab] Failed to open docs modal:", error));
+            .then((manager: DocsModalManager | undefined) => manager?.openModal("PLUGIN_DEV"))
+            .catch((error: unknown) => console.error("[PluginsTab] Failed to open docs modal:", error));
     };
 
     #setPluginState = async (pluginId: string, state: 'enabled' | 'disabled'): Promise<void> => {
@@ -182,7 +182,6 @@ export class PluginsTab extends BaseSettingsTab<PluginsTabElements> {
             return;
         }
         
-        // FIX: Sort manifests alphabetically by translated name before rendering.
         const sortedManifests = [...manifests].sort((a, b) => {
             const nameA = translate(a.nameKey, { defaultValue: a.id });
             const nameB = translate(b.nameKey, { defaultValue: b.id });

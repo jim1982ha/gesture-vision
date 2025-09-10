@@ -2,31 +2,33 @@
 @layer components {
   .modal {
     @apply fixed inset-0 z-modal-overlay bg-black/50 backdrop-blur-sm flex items-start justify-center p-4 opacity-0 invisible transition-opacity duration-300;
-    &.visible {
-      visibility: visible;
-      @apply opacity-100;
-    }
+  }
+  .modal.visible {
+    visibility: visible;
+    opacity: 1;
   }
   .modal-content {
     @apply bg-surface rounded-lg shadow-2xl w-full max-w-lg flex flex-col max-h-[90vh] scale-95 opacity-0 transition-all duration-300 ease-out;
-    .modal.visible & {
-      @apply scale-100 opacity-100;
-    }
+  }
+  .modal.visible .modal-content {
+    transform: scale(1);
+    opacity: 1;
   }
   #mainSettingsModal .modal-content {
     @apply lg:max-w-4xl lg:h-[80vh];
   }
   .modal-header {
     @apply flex-shrink-0 flex items-center gap-3 p-4 border-b border-border;
-    & .header-icon {
-      @apply text-primary text-2xl;
-    }
-    & .header-title {
-      @apply text-lg font-semibold text-text-primary flex-grow;
-    }
-    & .header-close-btn {
-      @apply ml-auto;
-    }
+  }
+  .modal-header .header-icon {
+    color: theme('colors.primary');
+    font-size: theme('fontSize.2xl');
+  }
+  .modal-header .header-title {
+    @apply text-lg font-semibold text-text-primary flex-grow;
+  }
+  .modal-header .header-close-btn {
+    @apply ml-auto;
   }
   .modal-scrollable-content {
     @apply flex-1 p-4 overflow-y-auto;
@@ -37,9 +39,10 @@
 
   .settings-tab-nav-button {
     @apply justify-start font-medium text-text-secondary border-none hover:bg-primary/10 hover:text-primary;
-    &.active {
-      @apply bg-primary/20 text-primary;
-    }
+  }
+  .settings-tab-nav-button.active {
+    background-color: theme('colors.primary / 20%');
+    color: theme('colors.primary');
   }
 
   #modalTocControls .btn {
@@ -51,8 +54,8 @@
 
   .settings-tab-content {
     @apply hidden;
-    &.active {
-      @apply block;
-    }
+  }
+  .settings-tab-content.active {
+    @apply block;
   }
 }

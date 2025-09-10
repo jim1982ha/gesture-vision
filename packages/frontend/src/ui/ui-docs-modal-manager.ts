@@ -5,7 +5,6 @@ import {
 } from "#shared/index.js";
 import { pubsub } from "#shared/core/pubsub.js";
 import { type LanguageCode } from '#shared/services/translations.js';
-
 import { DocsContentLoader } from "./docs/docs-content-loader.js";
 import { DocsTocManager } from "./docs/docs-toc-manager.js";
 import {
@@ -13,9 +12,9 @@ import {
   type TranslationConfigItem,
 } from "./ui-translation-updater.js";
 import { setIcon } from "./helpers/index.js";
-
 import type { UIController } from "./ui-controller-core.js";
 import { translate } from "#shared/services/translations.js";
+import type { FrontendFullState } from '#frontend/core/state/app-store.js';
 
 export interface DocsModalElements {
   docsModal: HTMLElement | null;
@@ -61,7 +60,7 @@ export class DocsModalManager {
     this.#attachEventListeners();
     
     this.#unsubscribeStore = this.#uiControllerRef.appStore.subscribe(
-      (state, prevState) => {
+      (state: FrontendFullState, prevState: FrontendFullState) => {
         if (state.languagePreference !== prevState.languagePreference) {
           this.handleLanguageChangeForDocs();
         }

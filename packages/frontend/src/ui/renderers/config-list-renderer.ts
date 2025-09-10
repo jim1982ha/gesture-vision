@@ -27,7 +27,13 @@ async function getDetailsHtml(
 
     if (!pluginId || pluginId === 'none') return "";
 
-    await pluginUIServiceRef.loadPluginFrontendModule(pluginId);
+    const manifest = pluginUIServiceRef.getPluginManifest(pluginId);
+    
+    // Attempt to load the module only if it's available and enabled.
+    if (manifest && manifest.status === 'enabled') {
+        await pluginUIServiceRef.loadPluginFrontendModule(pluginId);
+    }
+    
     const detailRenderer = pluginUIServiceRef.getActionDisplayDetailsRenderer(pluginId);
 
     if (detailRenderer) {
@@ -42,14 +48,15 @@ async function getDetailsHtml(
                     const iconContent = isMdi ? '' : detail.icon;
                     iconHtml = `<span class="${iconClass}">${iconContent}</span>`;
                 }
-                return `<div class="card-detail-line">${iconHtml}<span class="card-detail-value ${detail.allowWrap ? 'allow-wrap' : ''}">${detail.value}</span></div>`;
+                const valueClasses = `card-detail-value ${detail.allowWrap ? 'allow-wrap' : 'truncate'}`;
+                return `<div class="card-detail-line">${iconHtml}<span class="${valueClasses}">${detail.value}</span></div>`;
             }).join('');
         } catch (renderError) {
             console.warn(`[ConfigListRenderer] Error rendering details for plugin '${pluginId}':`, renderError);
         }
     } else if (actionConfig?.settings && typeof actionConfig.settings === 'object' && Object.keys(actionConfig.settings).length > 0) {
-        const manifest = pluginUIServiceRef.getPluginManifest(pluginId);
-        const pluginIconDetails = getActionIconDetails(manifest);
+        // Fallback renderer for when a plugin's frontend module isn't available (e.g., disabled/missing)
+        const pluginIconDetails = getActionIconDetails(manifest); // Gracefully handles missing manifest
         return Object.values(actionConfig.settings).slice(0, 2).map((value, index) => {
             const displayValue = (typeof value === 'object' ? JSON.stringify(value) : String(value)) || 'N/A';
             const iconDetails = index === 0 ? pluginIconDetails : getActionIconDetails(null);
@@ -57,7 +64,7 @@ async function getDetailsHtml(
             const iconClass = `card-detail-icon ${isMdi ? `mdi ${iconDetails.iconName}` : 'material-icons'}`;
             const iconContent = isMdi ? '' : iconDetails.iconName;
             const iconHtml = `<span class="${iconClass}" title="${Object.keys(actionConfig.settings as Record<string, unknown>)[index]}">${iconContent}</span>`;
-            return `<div class="card-detail-line">${iconHtml}<span class="card-detail-value">${displayValue}</span></div>`;
+            return `<div class="card-detail-line">${iconHtml}<span class="card-detail-value truncate">${displayValue}</span></div>`;
         }).join('');
     }
     return "";
@@ -141,6 +148,10 @@ export async function renderConfigList(
     const gestureDisplayName = category === 'BUILT_IN_HAND' ? translate(formattedName, { defaultValue: formattedName }) : formattedName;
     
     let itemClasses = "config-item";
+    if (cardStatus.isActive) {
+        itemClasses += " card-item-clickable";
+    }
+
     if (originalNameBeingEdited === name) itemClasses += " is-editing-highlight";
     
     const actionDetailsHtml = await getDetailsHtml(config, pluginUIServiceRef);
@@ -157,13 +168,19 @@ export async function renderConfigList(
     const pluginId = config.actionConfig?.pluginId;
     if (pluginId && pluginId !== 'none') {
         const manifest = pluginUIServiceRef.getPluginManifest(pluginId);
-        if (manifest?.nameKey) actionTypeDisplay = translate(manifest.nameKey, { defaultValue: pluginId });
+        if (manifest?.nameKey) {
+            actionTypeDisplay = translate(manifest.nameKey, { defaultValue: pluginId });
+        } else {
+            let formattedId = pluginId.replace('gesture-vision-plugin-', '');
+            formattedId = formattedId.charAt(0).toUpperCase() + formattedId.slice(1);
+            actionTypeDisplay = formattedId;
+        }
     }
     footerConfig.mainText = actionTypeDisplay;
     
     if (!cardStatus.isActive) {
+      itemClasses += " config-item-disabled"; // Generic disabled style
       if (cardStatus.reason === 'plugin_missing' || cardStatus.reason === 'plugin_disabled') {
-          itemClasses += " plugin-missing";
           const reasonTextKey = cardStatus.reason === 'plugin_disabled' ? 'pluginDisabled' : 'pluginMissing';
           footerConfig.statusText = translate(reasonTextKey);
           footerConfig.statusClass = 'error';
@@ -212,8 +229,6 @@ export async function renderConfigList(
   } else {
       activeCards.forEach(card => listFragment.appendChild(card));
       
-      // FIX: Show the "Inactive" title whenever there are inactive cards,
-      // which correctly handles the case where all cards are inactive.
       if (inactiveCount > 0) {
           const separatorTitle = document.createElement('h3');
           separatorTitle.className = 'inactive-list-title';

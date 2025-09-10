@@ -204,7 +204,7 @@ export class VideoOverlayControlsManager {
       this.#togglePanel("display")
     );
 
-    this.#uiControllerRef.appStore.subscribe((state) => {
+    this.#uiControllerRef.appStore.subscribe((state: FrontendFullState) => {
       if (this.#isInitialized) this.loadSettings(state);
     });
   }

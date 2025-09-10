@@ -5,33 +5,36 @@
   }
 
   /* --- Styles for Mobile Fullscreen Video --- */
-  body.video-fullscreen-active {
-    /* When fullscreen is active, hide everything except the main content wrapper */
-    & #app-container > header,
-    & #main-content > h2,
-    & #configListContainer {
-      @apply hidden;
-    }
-
-    & #main-content {
-      /* Make main content fill the entire viewport, ignoring header height */
-      @apply absolute inset-0 p-0;
-    }
-
-    & .video-container {
-      /* Make the video container fill its new absolute parent */
-      @apply h-full w-full max-h-full max-w-full rounded-none m-0;
-    }
-
-    & #historySidebar {
-      @apply translate-x-full;
-    }
+  body.video-fullscreen-active #app-container > header,
+  body.video-fullscreen-active #main-content > h2,
+  body.video-fullscreen-active #configListContainer {
+    display: none;
   }
 
-  /* FIX: Hide main content and sidebars when dashboard is active, but NOT the entire wrapper */
+  body.video-fullscreen-active #main-content {
+    position: absolute;
+    inset: 0px;
+    padding: 0px;
+  }
+
+  body.video-fullscreen-active .video-container {
+    height: 100%;
+    width: 100%;
+    max-height: 100%;
+    max-width: 100%;
+    border-radius: 0;
+    margin: 0;
+  }
+
+  body.video-fullscreen-active #historySidebar {
+    transform: translateX(100%);
+  }
+
+  /* Hide main content and sidebars when dashboard is active */
   body.dashboard-active #main-content,
   body.dashboard-active #historySidebar {
-    @apply invisible opacity-0;
+    visibility: hidden;
+    opacity: 0;
   }
 
   .video-container.size-constrained {

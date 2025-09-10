@@ -19,19 +19,19 @@
     @apply flex items-center gap-1 flex-shrink-0 ml-auto;
   }
   .card-details {
-    @apply text-sm text-text-secondary flex-col gap-1 flex-grow items-start justify-center;
+    @apply text-sm text-text-secondary flex flex-col gap-1 flex-grow items-start justify-center;
   }
   .card-detail-line {
-    @apply flex items-center gap-2 min-w-0;
+    @apply flex items-center gap-2 min-w-0 w-full;
   }
   .card-detail-icon {
     @apply text-base text-text-secondary flex-shrink-0;
   }
   .card-detail-value {
-    @apply truncate min-w-0;
-    &.allow-wrap {
-      @apply whitespace-normal;
-    }
+    @apply flex-grow truncate min-w-0;
+  }
+  .card-detail-value.allow-wrap {
+    white-space: normal;
   }
   .card-footer {
     @apply text-xs text-text-secondary flex items-center justify-between gap-2 mt-auto pt-2 border-t border-border-light flex-shrink-0;
@@ -40,14 +40,18 @@
     @apply border-primary shadow-md;
   }
   .config-item-disabled {
-    @apply opacity-60 bg-background pointer-events-none;
+    opacity: 0.6;
+    background-color: theme('colors.background');
+    pointer-events: none;
   }
   /* This rule re-enables pointer events ONLY for the action buttons inside a disabled card */
   .config-item-disabled .card-item-actions {
-    @apply pointer-events-auto;
+    pointer-events: auto;
   }
   .is-pending {
-    @apply opacity-50 pointer-events-none animate-pulse;
+    opacity: 0.5;
+    pointer-events: none;
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   }
   .confidence-pill,
   .duration-pill {

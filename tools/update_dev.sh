@@ -98,7 +98,6 @@ echo "== GestureVision Development Environment Update Script =="
 echo "================================================================"; echo
 
 echo "[Step 1/7] Initial checks and environment setup..."
-# FIX: Point to the correct file locations inside the config/ directory
 ENV_FILE="config/.env.dev"
 EXAMPLE_ENV_FILE="config/.env.dev.example"
 DOCKER_COMPOSE_FILE="docker-compose.dev.yaml"
@@ -159,7 +158,7 @@ else echo "[Step 5/7] Skipping image build as requested."; fi; echo
 FINAL_DETACHED_FLAG_DEV=""
 if [ "$FORCE_DETACHED" == "yes" ]; then FINAL_DETACHED_FLAG_DEV="-d"; echo "Running in detached mode (forced).";
 elif [ "$FORCE_DETACHED" == "no" ]; then FINAL_DETACHED_FLAG_DEV=""; echo "Running in attached mode (forced).";
-elif $BYPASS_INTERACTIVE; then FINAL_DETACHED_FLAG_DEV=""; echo "Defaulting to attached mode (-y flag).";
+elif $BYPASS_INTERACTIVE; then FINAL_DETACHED_FLAG_DEV="-d"; echo "Defaulting to detached mode (-y flag).";
 elif confirm_action "Run container in detached mode (background)? (Y/n) [N for dev logs]" "N"; then FINAL_DETACHED_FLAG_DEV="-d";
 else FINAL_DETACHED_FLAG_DEV=""; fi; echo
 

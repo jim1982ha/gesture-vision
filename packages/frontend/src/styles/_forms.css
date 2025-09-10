@@ -11,21 +11,26 @@
   }
   .form-group-checkbox-inline {
     @apply flex items-center gap-2;
-    & .form-checkbox {
-      @apply m-0;
-    }
-    & .form-label {
-      @apply m-0 p-0;
-    }
+  }
+  .form-group-checkbox-inline .form-checkbox {
+    margin: 0;
+  }
+  .form-group-checkbox-inline .form-label {
+    margin: 0;
+    padding: 0;
   }
   .form-control {
     @apply block w-full rounded-md border-border bg-surface shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50;
-    &[aria-invalid="true"] {
-      @apply border-error focus:border-error focus:ring-error;
-    }
+  }
+  .form-control[aria-invalid="true"] {
+    border-color: theme('colors.error.DEFAULT');
+  }
+  .form-control[aria-invalid="true"]:focus {
+    border-color: theme('colors.error.DEFAULT');
+    --tw-ring-color: theme('colors.error.DEFAULT');
   }
   select.form-control {
-    @apply pr-8;
+    padding-right: theme('spacing.8');
     -webkit-appearance: none;
     -moz-appearance: none;
     appearance: none;
@@ -35,19 +40,30 @@
   }
   .button-toggle-group {
     @apply flex items-stretch justify-center;
-    & .btn {
-      @apply rounded-none border-l-0 first:rounded-l-md first:border-l last:rounded-r-md;
-    }
+  }
+  .button-toggle-group .btn {
+    border-radius: 0;
+    border-left-width: 0;
+  }
+  .button-toggle-group .btn:first-child {
+    border-top-left-radius: theme('borderRadius.md');
+    border-bottom-left-radius: theme('borderRadius.md');
+    border-left-width: 1px;
+  }
+  .button-toggle-group .btn:last-child {
+    border-top-right-radius: theme('borderRadius.md');
+    border-bottom-right-radius: theme('borderRadius.md');
   }
   .button-toggle-group.btn-group-sm-text .btn {
-      @apply text-xs;
+    font-size: theme('fontSize.xs');
   }
   .header-dropdown-panel {
     @apply absolute top-full mt-1 z-dropdown bg-surface border border-border rounded-md shadow-lg p-1 flex-col gap-1 max-h-[250px] overflow-y-auto opacity-0 invisible transition-all;
-    &.visible {
-      visibility: visible;
-      @apply opacity-100 flex;
-    }
+  }
+  .header-dropdown-panel.visible {
+    visibility: visible;
+    display: flex;
+    opacity: 1;
   }
   .slider-group {
     @apply flex items-center gap-2 w-full;

@@ -51,6 +51,7 @@ export const GESTURE_EVENTS = {
   MODEL_LOADED: "gesture:model-loaded",
   UPDATE_STATUS: "gesture:update-status",
   UPDATE_PROGRESS: "gesture:update-progress",
+  DETECTED_ALERT: "gesture:detected-alert",
   CONFIDENCE_THRESHOLD_MET: "gesture:confidence-threshold-met",
   TIMERS_RESET: "gesture:timersReset",
   RECORDED: "gesture:recorded",
@@ -92,6 +93,7 @@ export const WEBSOCKET_EVENTS = {
   PLUGINS_MANIFESTS_UPDATED: "backend:pluginsManifestsUpdated",
   RTSP_CONNECT_REQUEST: "rtsp:connectRequest",
   RTSP_DISCONNECT_REQUEST: "rtsp:disconnectRequest",
+  FINALIZE_UNINSTALL: "plugin:finalizeUninstall",
 } as const;
 
 export const APP_STATUS_EVENTS = {
@@ -113,6 +115,7 @@ export const BACKEND_INTERNAL_EVENTS = {
   REQUEST_MANIFESTS_BROADCAST: "backendInternal:requestManifestsBroadcast",
   PLUGIN_GLOBAL_CONFIG_CHANGED_ON_BACKEND:
     "backendInternal:pluginConfigChanged",
+  PLUGIN_DIR_CHANGED: "backendInternal:pluginDirChanged",
 } as const;
 
 export const PERMISSION_EVENTS = {

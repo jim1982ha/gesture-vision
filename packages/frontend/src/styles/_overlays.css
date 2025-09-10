@@ -66,25 +66,36 @@
 
   /* --- Progress Rings --- */
   .progress-rings circle {
-    @apply fill-none transition-[stroke-dashoffset] duration-150 ease-linear;
+    fill: none;
+    transition: stroke-dashoffset 150ms linear;
     transform: rotate(-90deg);
     transform-origin: 50% 50%;
   }
   .gesture-progress {
     stroke-dasharray: 198;
     stroke-dashoffset: 198;
-    @apply stroke-primary;
+    stroke: theme('colors.primary');
   }
   .cooldown-progress {
     stroke-dasharray: 230;
     stroke-dashoffset: 230;
-    @apply stroke-secondary/50;
+    stroke: theme('colors.secondary / 50%');
   }
 
   /* --- Redesigned Dashboard Plugin Cursor for Maximum Visibility --- */
   #dashboard-cursor {
     --progress: 0;
-    @apply fixed w-8 h-8 rounded-full -translate-x-1/2 -translate-y-1/2 pointer-events-none opacity-0 invisible transition-all duration-200 ease-out;
+    position: fixed;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 9999px;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    opacity: 0;
+    visibility: hidden;
+    transition-property: all;
+    transition-duration: 200ms;
+    transition-timing-function: ease-out;
     z-index: theme("zIndex.alert");
     
     border: 1px solid black;
@@ -95,38 +106,34 @@
         theme("colors.primary") calc(var(--progress) * 100%),
         theme("colors.border / 50%") 0
       );
-
-    &.high-contrast {
+  }
+  #dashboard-cursor.high-contrast {
       box-shadow: 0 0 0 2px white, 0 0 10px theme("colors.primary");
       background: radial-gradient(closest-side, theme("colors.on-primary") 75%, transparent 0 99.9%),
         conic-gradient(
           theme("colors.primary") calc(var(--progress) * 100%),
           theme("colors.primary / 50%") 0
         );
-    }
-    
-    &.cooldown {
-      @apply opacity-50;
+  }
+  #dashboard-cursor.cooldown {
+      opacity: 0.5;
       border-color: theme("colors.secondary");
       box-shadow: 0 0 0 2px theme("colors.surface / 50%"), 0 2px 4px rgba(0, 0, 0, 0.2);
-    }
-
-    &.visible {
+  }
+  #dashboard-cursor.visible {
       visibility: visible;
-      @apply opacity-100;
-    }
-    &.dwelling {
-      @apply animate-pulse;
-    }
+      opacity: 1;
+  }
+  #dashboard-cursor.dwelling {
+      animation: pulse 1s infinite;
   }
 
-  /* --- FIX: Notification Alert Component Styles --- */
+  /* --- Notification Alert Component Styles --- */
   .alert {
     @apply fixed bottom-4 right-4 z-alert flex items-center gap-3 rounded-lg border p-4 text-sm font-medium shadow-lg;
     @apply opacity-0 invisible translate-y-4 transition-all duration-300 ease-out;
   }
   .alert.visible {
-    /* FIX: Replace @apply with raw CSS to prevent circular dependency */
     opacity: 1;
     visibility: visible;
     transform: translateY(0);

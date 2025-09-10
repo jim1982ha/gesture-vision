@@ -102,21 +102,29 @@
 
   html,
   body {
-    @apply h-full m-0 p-0 overflow-hidden bg-background text-text-primary font-sans;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background-color: theme('colors.background');
+    color: theme('colors.text-primary');
+    font-family: theme('fontFamily.sans');
   }
   ::-webkit-scrollbar {
-    @apply w-2 h-2;
+    width: theme('spacing.2');
+    height: theme('spacing.2');
   }
   ::-webkit-scrollbar-track {
-    @apply bg-surface;
+    background-color: theme('colors.surface');
   }
   ::-webkit-scrollbar-thumb {
-    @apply bg-border rounded-full;
+    background-color: theme('colors.border');
+    border-radius: theme('borderRadius.full');
   }
   ::-webkit-scrollbar-thumb:hover {
-    @apply bg-secondary;
+    background-color: theme('colors.secondary');
   }
   .material-icons {
-    @apply align-middle;
+    vertical-align: middle;
   }
 }

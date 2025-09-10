@@ -40,14 +40,20 @@ export class PluginLoaderService {
         
         const manifestPath = path.join(PLUGINS_DIR, dirent.name, 'plugin.json');
         try {
-          const manifest: PluginManifest = JSON.parse(await fs.readFile(manifestPath, 'utf-8'));
+          const manifestContent = await fs.readFile(manifestPath, 'utf-8');
+          const manifest: PluginManifest = JSON.parse(manifestContent);
           if (manifest.id !== dirent.name) {
             console.warn(`[PluginLoader] Manifest ID ('${manifest.id}') mismatch with dir ('${dirent.name}'). Using dir name.`);
             manifest.id = dirent.name;
           }
           manifests.push(manifest);
         } catch (error) {
-          console.error(`[PluginLoader] Failed to load manifest from '${dirent.name}':`, error);
+          // Gracefully handle cases where plugin.json doesn't exist yet (e.g., during git clone)
+          if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+            console.log(`[PluginLoader] Manifest for '${dirent.name}' not found yet. Will retry on next filesystem change.`);
+          } else {
+            console.error(`[PluginLoader] Failed to load manifest from '${dirent.name}':`, error);
+          }
         }
       }
     } catch (error) {

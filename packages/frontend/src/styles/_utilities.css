@@ -8,7 +8,12 @@
     clip: rect(0, 0, 0, 0);
   }
   .toggle-button-text {
-    @apply hidden desktop:inline;
+    display: none;
+  }
+  @screen desktop {
+    .toggle-button-text {
+      display: inline;
+    }
   }
   .inactive-list-title {
     @apply col-span-full text-sm font-semibold text-text-secondary border-b border-border pb-2 mb-2 mt-4;

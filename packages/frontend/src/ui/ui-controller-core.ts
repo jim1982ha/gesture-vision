@@ -17,7 +17,6 @@ import { VideoOverlayControlsManager } from '#frontend/ui/components/video-overl
 import { GestureConfigModalManager } from './modals/gesture-config-modal-manager.js';
 import { PluginUIService } from '#frontend/services/plugin-ui.service.js';
 import { CameraManager } from '#frontend/camera/camera-manager.js';
-
 import {
   pubsub,
   UI_EVENTS,
@@ -29,7 +28,6 @@ import {
   type GestureConfig,
   type PoseConfig,
 } from '#shared/index.js';
-
 import type { App } from '#frontend/core/app.js';
 import type { DocsModalManager } from './ui-docs-modal-manager.js';
 import type { ConfirmationModalManager } from './ui-confirmation-modal-manager.js';
@@ -236,15 +234,22 @@ export class UIController {
   #renderContributions = (): void => {
     if (!this.pluginUIService) return;
   
-    const contributionSlot = document.getElementById('header-plugin-contribution-slot');
+    // Define all known contribution slots
+    const slots = ['header-plugin-contribution-slot', 'custom-gestures-actions-slot'];
   
-    if (contributionSlot) {
-        contributionSlot.innerHTML = '';
-        const contributions = this.pluginUIService.getContributionsForSlot('header-controls');
+    slots.forEach(slotId => {
+      const slotElement = document.getElementById(slotId);
+      if (slotElement) {
+        // Clear the slot first
+        slotElement.innerHTML = '';
+        // Get the current, valid contributions for this slot
+        const contributions = this.pluginUIService.getContributionsForSlot(slotId);
+        // Append them back to the DOM
         contributions.forEach(element => {
-            contributionSlot.appendChild(element.cloneNode(true));
+          slotElement.appendChild(element);
         });
-    }
+      }
+    });
   };
 
   public applyTranslations = (): void => {

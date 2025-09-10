@@ -82,7 +82,14 @@ export default defineConfig(({ mode }) => {
   ];
 
   if (mode !== "apk") {
-    plugins.push(VitePWA({ /* PWA config can remain here */ }));
+    plugins.push(VitePWA({
+      workbox: {
+        // Exclude large WASM files from being precached by the service worker.
+        // The default limit is 2MB, and MediaPipe's WASM files are ~10MB.
+        // They are loaded on-demand by the app and should not be precached.
+        maximumFileSizeToCacheInBytes: 10 * 1024 * 1024, // 10 MB
+      },
+    }));
   }
   console.log(`\x1b[32m[VITE CONFIG] ✅ ${plugins.length} Vite plugins assembled.\x1b[0m`);
 

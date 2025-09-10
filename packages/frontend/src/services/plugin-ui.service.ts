@@ -1,7 +1,7 @@
 /* FILE: packages/frontend/src/services/plugin-ui.service.ts */
 import type { AppStore } from '#frontend/core/state/app-store.js';
 import type { CameraService } from '#frontend/services/camera.service.js';
-import { UI_EVENTS, pubsub } from '#shared/index.js';
+import { UI_EVENTS, WEBSOCKET_EVENTS, pubsub } from '#shared/index.js';
 import { webSocketService } from './websocket-service.js';
 import { translate } from '#shared/services/translations.js';
 import { setIcon, updateButtonGroupActiveState } from '#frontend/ui/helpers/index.js';
@@ -59,8 +59,6 @@ export class PluginUIService {
     this.#appStore = appStore;
     this.#translationService = translationService;
 
-    // FIX: Remove debounce to prevent race condition on initial load.
-    // Manifests should be processed immediately when the store updates.
     this.#unsubscribeStore = this.#appStore.subscribe((state) =>
       this.#handleManifestUpdate(state.pluginManifests).catch((e) => console.error(e))
     );
@@ -97,29 +95,59 @@ export class PluginUIService {
   }
 
   async #reconcilePluginComponents(newManifests: Map<string, PluginManifest>, oldManifests: Map<string, PluginManifest>): Promise<void> {
-    const pluginsToDeregister = Array.from(oldManifests.values()).filter(m => !newManifests.has(m.id) || newManifests.get(m.id)!.status === 'disabled');
-    const pluginsToInitialize = Array.from(newManifests.values()).filter(m => m.status === 'enabled' && oldManifests.get(m.id)?.status !== 'enabled');
-    const pluginsToUpdate = Array.from(newManifests.values()).filter(m => m.status === 'enabled' && oldManifests.get(m.id)?.status === 'enabled');
+    const allIds = new Set([...newManifests.keys(), ...oldManifests.keys()]);
 
-    for (const plugin of pluginsToDeregister) {
-      this.#deregisterPlugin(plugin.id);
+    const changes = {
+        uninstalled: [] as string[],
+        installed: [] as string[],
+        disabled: [] as string[],
+        enabled: [] as string[],
+        updated: [] as string[],
+    };
+
+    for (const id of allIds) {
+        const oldM = oldManifests.get(id);
+        const newM = newManifests.get(id);
+
+        if (oldM && !newM) {
+            changes.uninstalled.push(id);
+        } else if (!oldM && newM) {
+            if (newM.status === 'enabled') changes.installed.push(id);
+        } else if (oldM && newM) {
+            if (oldM.status === 'enabled' && newM.status === 'disabled') {
+                changes.disabled.push(id);
+            } else if (oldM.status === 'disabled' && newM.status === 'enabled') {
+                changes.enabled.push(id);
+            } else if (oldM.status === 'enabled' && newM.status === 'enabled') {
+                changes.updated.push(id);
+            }
+        }
     }
-    for (const plugin of pluginsToInitialize) {
-      await this.#initializePlugin(plugin);
+
+    for (const pluginId of [...changes.uninstalled, ...changes.disabled]) {
+        const wasUninstalled = changes.uninstalled.includes(pluginId);
+        this.#deregisterPlugin(pluginId, wasUninstalled);
     }
-    for (const manifest of pluginsToUpdate) {
-        const component = this.#pluginSettingsComponents.get(manifest.id);
+    for (const pluginId of [...changes.installed, ...changes.enabled]) {
+        if (changes.enabled.includes(pluginId)) {
+            this.#deregisterPlugin(pluginId, false);
+        }
+        await this.#initializePlugin(newManifests.get(pluginId)!);
+    }
+    for (const pluginId of changes.updated) {
+        const component = this.#pluginSettingsComponents.get(pluginId);
         if (component) {
-            const config = this.#appStore.getState().pluginGlobalConfigs.get(manifest.id) || null;
-            component.update(config, this.getPluginUIContext(manifest.id), {});
+            const config = this.#appStore.getState().pluginGlobalConfigs.get(pluginId) || null;
+            component.update(config, this.getPluginUIContext(pluginId), {});
         }
     }
     
-    if (pluginsToDeregister.length > 0 || pluginsToInitialize.length > 0) {
+    const hasStructuralChanges = changes.uninstalled.length > 0 || changes.installed.length > 0 || changes.enabled.length > 0 || changes.disabled.length > 0;
+    if (hasStructuralChanges) {
       this.#uiControllerRef?.applyTranslations();
       pubsub.publish(UI_EVENTS.RECEIVE_UI_CONTRIBUTION, {
-          initialized: pluginsToInitialize.map(p => p.id),
-          deregistered: pluginsToDeregister.map(p => p.id)
+          initialized: [...changes.installed, ...changes.enabled],
+          deregistered: [...changes.uninstalled, ...changes.disabled]
       });
     }
   }
@@ -137,7 +165,7 @@ export class PluginUIService {
     }
   }
 
-  #deregisterPlugin(pluginId: string): void {
+  #deregisterPlugin(pluginId: string, wasUninstalled: boolean): void {
     const component = this.#pluginSettingsComponents.get(pluginId);
     component?.destroy?.();
     this.#pluginSettingsComponents.delete(pluginId);
@@ -151,6 +179,11 @@ export class PluginUIService {
     this.#loadedFrontendModules.delete(pluginId);
     this.#actionDisplayRenderers.delete(pluginId);
     this.#moduleLoadPromises.delete(pluginId);
+
+    if (wasUninstalled) {
+      // This client initiated the uninstall, so it's responsible for finalizing.
+      webSocketService.sendMessage({ type: WEBSOCKET_EVENTS.FINALIZE_UNINSTALL, payload: { pluginId } });
+    }
   }
 
   public setCameraService(cameraService: CameraService | null): void {
