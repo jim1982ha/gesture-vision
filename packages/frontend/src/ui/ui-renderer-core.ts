@@ -12,10 +12,12 @@ import {
   UI_EVENTS,
   pubsub,
   normalizeNameForMtx,
+  type ActionResultPayload
 } from '#shared/index.js';
 import type { RoiConfig, RtspSourceConfig } from '#shared/index.js';
 import type { HistoryEntry, LandmarkVisibilityOverridePayload } from '#frontend/types/index.js';
 import type { UIController } from '#frontend/ui/ui-controller-core.js';
+import { renderConfigList } from './renderers/config-list-renderer.js';
 
 export interface RendererElements {
   configListDiv: HTMLElement | null;
@@ -55,7 +57,6 @@ export class UIRenderer {
   _canvasRenderer: CanvasRenderer | null = null;
   _isReady = false;
 
-  // Throttling state
   _lastStatusUpdateTime = 0;
   _lastProgressUpdateTime = 0;
   _lastStatusGestureName: string | null = null;
@@ -66,6 +67,10 @@ export class UIRenderer {
   constructor(uiControllerRef: UIController) {
     this._uiControllerRef = uiControllerRef;
     this._queryElements();
+  }
+
+  public destroy(): void {
+    // No-op for now, listeners are cleared in UIController
   }
 
   private _queryElements(): void {
@@ -98,6 +103,9 @@ export class UIRenderer {
           console.error(`[UIRenderer Event ERR]`, e, dataUnknown);
         }
       };
+    
+    pubsub.subscribe(UI_EVENTS.ACTION_RESULT_RECEIVED, createReadyHandler<ActionResultPayload>(payload => this.#handleActionResult(payload)));
+    pubsub.subscribe(UI_EVENTS.GESTURE_CONFIG_TRIGGERED, createReadyHandler<{gestureName: string; success: boolean}>(payload => this.#handleActionResult(payload)));
 
     pubsub.subscribe(
       GESTURE_EVENTS.UPDATE_STATUS,
@@ -200,6 +208,41 @@ export class UIRenderer {
     this._isReady = true;
   }
 
+  #handleActionResult(payload?: {gestureName: string, success: boolean, pluginId?: string, message?: string}): void {
+    if (!payload || !this._elements.configListDiv) return;
+
+    const cardSelector = `.config-item[data-gesture-name="${CSS.escape(payload.gestureName)}"]`;
+    const card = this._elements.configListDiv.querySelector<HTMLDivElement>(cardSelector);
+    
+    if (!card) return;
+
+    const feedbackClass = payload.success ? 'action-success' : 'action-failure';
+    
+    // Clean up old classes before adding the new one to ensure animation restarts
+    card.classList.remove('action-success', 'action-failure');
+
+    // This forces the browser to repaint/reflow, ensuring it acknowledges the class removal before adding the new one.
+    // This is a common technique to reliably restart CSS animations.
+    void card.offsetHeight;
+
+    card.classList.add(feedbackClass);
+
+    const translatedMessage = this._uiControllerRef.translationService.translate(
+        payload.success ? 'notificationActionSuccess' : 'notificationActionFailed',
+        { 
+            actionType: payload.pluginId || 'none',
+            gestureName: payload.gestureName,
+            message: payload.message || (payload.success ? 'OK' : 'Failed')
+        }
+    );
+    card.title = translatedMessage;
+
+    setTimeout(() => {
+        card.classList.remove(feedbackClass);
+        card.title = this._uiControllerRef.translationService.translate('editTooltip', { item: payload.gestureName });
+    }, 1500);
+  }
+
   public async applyTranslations(): Promise<void> {
     await this.renderConfigList();
     await this.renderHistoryList();
@@ -210,13 +253,12 @@ export class UIRenderer {
     this._canvasRenderer = renderer;
   }
   public async renderConfigList(): Promise<void> {
-    const { renderConfigList } = await import('./renderers/config-list-renderer.js');
+    if (!this._elements.configListDiv) return;
     await renderConfigList(
-      this._elements,
-      this._uiControllerRef.appStore?.getState().gestureConfigs,
-      this._uiControllerRef.appStore,
-      this._uiControllerRef.pluginUIService,
-      this._uiControllerRef
+        this._elements.configListDiv,
+        this._uiControllerRef.appStore,
+        this._uiControllerRef.pluginUIService,
+        this._uiControllerRef
     );
   }
 

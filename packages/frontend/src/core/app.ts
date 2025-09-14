@@ -28,6 +28,8 @@ export class App {
   #videoOriginalParent: HTMLElement | null = null;
   #videoOriginalNextSibling: Node | null = null;
 
+  #boundHandleVisibilityChange = this.#handleVisibilityChange.bind(this);
+
   constructor(
     appStore: AppStore
   ) {
@@ -41,7 +43,7 @@ export class App {
       throw new Error("Critical video or canvas element not found in DOM.");
     }
 
-    this.gesture = new GestureProcessor(this.appStore);
+    this.gesture = new GestureProcessor(this.appStore, this.translationService);
     this.cameraManager = new CameraManager(videoElement, outputCanvas, this.appStore, this.gesture, this.translationService);
     this.gesture.setCanvasRenderer(this.cameraManager.getCanvasRenderer());
 
@@ -52,7 +54,7 @@ export class App {
 
     this.setAppVersionDisplay();
 
-    document.getElementById("appVersionDisplaySettings")?.addEventListener('click', () => {
+    document.getElementById("appVersionDisplay")?.addEventListener('click', () => {
       pubsub.publish(DOCS_MODAL_EVENTS.REQUEST_OPEN, 'ABOUT');
     });
   }
@@ -79,6 +81,13 @@ export class App {
     }
   }
 
+  public destroy(): void {
+    document.removeEventListener('visibilitychange', this.#boundHandleVisibilityChange);
+    this.ui.destroy();
+    this.gesture.destroy();
+    this.cameraManager.destroy();
+  }
+
   public setAppVersionDisplay(): void {
     const versionDiv = document.getElementById("appVersionDisplaySettings");
     if (versionDiv)
@@ -88,7 +97,7 @@ export class App {
   }
 
   public setupLifecycleListeners(): void {
-    document.addEventListener('visibilitychange', this.#handleVisibilityChange);
+    document.addEventListener('visibilitychange', this.#boundHandleVisibilityChange);
 
     pubsub.subscribe(WEBCAM_EVENTS.STREAM_START, this.#handleStreamStart);
     pubsub.subscribe(WEBCAM_EVENTS.STREAM_STOP, this.#handleStreamStop);
@@ -121,14 +130,14 @@ export class App {
     this.#cancelFrameUpdates();
   };
 
-  #handleVisibilityChange = (): void => {
+  #handleVisibilityChange(): void {
     if (
       document.visibilityState === 'hidden' &&
       this.cameraService.isStreamActive()
     ) {
       this.cameraService.stopStream().catch((e) => console.error(e));
     }
-  };
+  }
 
   #handleVideoReparentRequest = (payload?: {
     placeholderElement?: HTMLElement;

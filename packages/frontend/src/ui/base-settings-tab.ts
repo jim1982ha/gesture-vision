@@ -11,7 +11,6 @@ import {
 } from '#frontend/ui/ui-translation-updater.js';
 
 import { type GestureCategoryIconType } from '#shared/index.js';
-import type { FullConfiguration } from '#shared/index.js';
 import type { Substitutions, TranslationService } from '#frontend/services/translation.service.js';
 import type { UIController } from './ui-controller-core.js';
 
@@ -52,9 +51,13 @@ export abstract class BaseSettingsTab<T extends TabElements> {
     this._translate = this._translationService.translate;
 
     this._appStore.subscribe((state, prevState) => {
-      if (this._doesConfigUpdateAffectThisTab(state, prevState)) {
-        this.loadSettings();
+      // If the specific tab's check returns false, it means it has handled the update internally.
+      // We must honor that and stop further processing by returning immediately.
+      // If it returns true, it means a full refresh is required, so we proceed to call loadSettings().
+      if (!this._doesConfigUpdateAffectThisTab(state, prevState)) {
+        return;
       }
+      this.loadSettings();
     });
   }
   
@@ -87,7 +90,6 @@ export abstract class BaseSettingsTab<T extends TabElements> {
   ): boolean;
   public abstract loadSettings(): void;
   public abstract applyTranslations(): void;
-  public abstract getSettingsToSave(): Partial<FullConfiguration>;
 
   protected _addEventListenerHelper = <K extends keyof T, E extends Event>(
     elementKey: K,
@@ -123,6 +125,6 @@ export abstract class BaseSettingsTab<T extends TabElements> {
     container: HTMLElement | null | undefined,
     options: Readonly<Array<ButtonGroupOption>>
   ): void {
-    renderButtonGroup(container, options, this._translate);
+    renderButtonGroup(container, options, this._translationService);
   }
 }

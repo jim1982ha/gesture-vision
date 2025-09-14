@@ -1,7 +1,7 @@
 /* FILE: packages/frontend/src/ui/tabs/rtsp-settings-tab.ts */
 import type { AppStore, FrontendFullState } from '#frontend/core/state/app-store.js';
 import type { UIController } from '#frontend/ui/ui-controller-core.js';
-import { createButton } from '#frontend/ui/utils/card-utils.js';
+import { createButton } from '#frontend/ui/helpers/card-utils.js';
 import { BaseSettingsTab, type TabElements } from "#frontend/ui/base-settings-tab.js";
 import { SharedFormManager } from '../components/shared-form-manager.js';
 import { RtspFormManager } from '../components/rtsp/rtsp-form-manager.js';
@@ -9,7 +9,7 @@ import { createRtspSourceCard } from '../components/rtsp/rtsp-source-card.js';
 
 import { UI_EVENTS, pubsub } from "#shared/index.js";
 import { normalizeNameForMtx } from "#shared/utils/index.js";
-import type { RtspSourceConfig, FullConfiguration } from "#shared/index.js";
+import type { RtspSourceConfig } from "#shared/index.js";
 
 type HTMLElementOrNull = HTMLElement | null;
 export interface RtspSettingsTabElements extends TabElements {
@@ -59,8 +59,6 @@ export class RtspSettingsTab extends BaseSettingsTab<RtspSettingsTabElements> {
 
     this._elements.rtspSourceListContainer?.addEventListener("click", this.#handleSourceListClick);
   }
-
-  public getSettingsToSave(): Partial<FullConfiguration> { return {}; }
 
   #handleEnterAddMode(): void {
     this.#formManager?.render();
@@ -148,7 +146,6 @@ export class RtspSettingsTab extends BaseSettingsTab<RtspSettingsTabElements> {
   }
 
   public applyTranslations(): void {
-    // Re-render only the button with translated text, not the whole layout.
     const actionsContainer = this._elements.rtspListActionsContainer;
     if (actionsContainer) {
         actionsContainer.innerHTML = '';
@@ -163,8 +160,21 @@ export class RtspSettingsTab extends BaseSettingsTab<RtspSettingsTabElements> {
         });
         actionsContainer.appendChild(addButton);
     }
-    // Re-render the list of cards which also contains translated text.
-    this.loadSettings();
+    
+    // Instead of loadSettings(), just update text on existing cards
+    this._elements.rtspSourceListContainer?.querySelectorAll<HTMLDivElement>('.rtsp-source-item').forEach(card => {
+        const index = parseInt(card.dataset.index || '-1', 10);
+        const source = this._appStore.getState().rtspSources[index];
+        if (source) {
+            const titleEl = card.querySelector<HTMLElement>('.card-title');
+            const onDemandText = source.sourceOnDemand ? ` (${this._translate("rtspOnDemandIndicator")})` : "";
+            if (titleEl) titleEl.textContent = `${source.name}${onDemandText}`;
+        }
+    });
+
+    if (this.#listManager?.isEditing()) {
+      this.#formManager?.render();
+    }
   }
   
   #renderLayout(): void {

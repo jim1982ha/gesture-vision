@@ -1,5 +1,5 @@
 /* FILE: packages/frontend/src/services/notification-manager.ts */
-import { UI_EVENTS, WEBSOCKET_EVENTS, WEBCAM_EVENTS, pubsub } from "#shared/index.js";
+import { UI_EVENTS, WEBCAM_EVENTS, WEBSOCKET_EVENTS, pubsub } from "#shared/index.js";
  
 import type { AppStore } from "#frontend/core/state/app-store.js";
 import type { ActionResultPayload, UploadCustomGestureAckPayload, ValidationErrorDetail } from "#shared/index.js"; 
@@ -75,7 +75,7 @@ export class NotificationManager {
       this.showNotification(msg, "error");
     });
 
-    pubsub.subscribe(WEBSOCKET_EVENTS.BACKEND_ACTION_RESULT, (dataUnknown?: unknown) => { 
+    pubsub.subscribe(UI_EVENTS.ACTION_RESULT_RECEIVED, (dataUnknown?: unknown) => { 
       if (!this.#isInitialized) return;
       const result = dataUnknown as ActionResultPayload | undefined;
       if (!result || result.pluginId === "none") return;

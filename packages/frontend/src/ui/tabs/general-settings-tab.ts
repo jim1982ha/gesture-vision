@@ -5,7 +5,6 @@ import {
   type ButtonGroupOption,
   type TabElements,
 } from '../base-settings-tab.js';
-import type { FullConfiguration } from '#shared/index.js';
 import type { UIController } from '#frontend/ui/ui-controller-core.js';
 
 export interface GeneralSettingsTabElements extends TabElements {
@@ -76,7 +75,6 @@ export class GeneralSettingsTab extends BaseSettingsTab<GeneralSettingsTabElemen
       </div>
     `;
 
-    // Re-query elements after rendering the layout and assign them to the _elements map.
     this._elements.globalCooldownSlider = container.querySelector('#globalCooldownSlider');
     this._elements.globalCooldownValue = container.querySelector('#globalCooldownValue');
     this._elements.resolutionSelectGroup = container.querySelector('#resolutionSelectGroup');
@@ -103,8 +101,6 @@ export class GeneralSettingsTab extends BaseSettingsTab<GeneralSettingsTabElemen
       )
     );
   }
-
-  public getSettingsToSave = (): Partial<FullConfiguration> => ({});
 
   #handleButtonClick = (
     event: MouseEvent,
@@ -165,17 +161,18 @@ export class GeneralSettingsTab extends BaseSettingsTab<GeneralSettingsTabElemen
 
   public applyTranslations(): void {
     this._applyTranslationsHelper([
-        { element: this._elements.container?.querySelector('[data-translate-key="globalCooldown"]'), config: "globalCooldown" },
-        { element: this._elements.container?.querySelector('[data-translate-key="processingResolutionLabel"]'), config: "processingResolutionLabel" },
-        { element: this._elements.container?.querySelector('[data-translate-key="resolutionHelpWebcamOnly"]'), config: "resolutionHelpWebcamOnly" },
-        { element: this._elements.container?.querySelector('[data-translate-key="targetFpsLabel"]'), config: "targetFpsLabel" },
-        { element: this._elements.container?.querySelector('[data-translate-key="targetFpsHelp"]'), config: "targetFpsHelp" },
-        { element: this._elements.container?.querySelector('[data-translate-key="telemetryEnabledLabel"]'), config: "telemetryEnabledLabel" },
-        { element: this._elements.container?.querySelector('[data-translate-key="telemetryEnabledHelp"]'), config: "telemetryEnabledHelp" },
+        { element: this._elements.container?.querySelector('[data-translate-key="globalCooldown"]'), config: { key: "globalCooldown" } },
+        { element: this._elements.container?.querySelector('[data-translate-key="processingResolutionLabel"]'), config: { key: "processingResolutionLabel" } },
+        { element: this._elements.container?.querySelector('[data-translate-key="resolutionHelpWebcamOnly"]'), config: { key: "resolutionHelpWebcamOnly" } },
+        { element: this._elements.container?.querySelector('[data-translate-key="targetFpsLabel"]'), config: { key: "targetFpsLabel" } },
+        { element: this._elements.container?.querySelector('[data-translate-key="targetFpsHelp"]'), config: { key: "targetFpsHelp" } },
+        { element: this._elements.container?.querySelector('[data-translate-key="telemetryEnabledLabel"]'), config: { key: "telemetryEnabledLabel" } },
+        { element: this._elements.container?.querySelector('[data-translate-key="telemetryEnabledHelp"]'), config: { key: "telemetryEnabledHelp" } },
     ]);
     this._renderButtonGroup(this._elements.resolutionSelectGroup, RESOLUTION_OPTIONS);
     this._renderButtonGroup(this._elements.targetFpsSelectGroup, FPS_OPTIONS);
     this._renderButtonGroup(this._elements.telemetryToggleGroup, TELEMETRY_OPTIONS);
+    // After re-rendering buttons with new text, we must reload settings to apply the active state.
     this.loadSettings();
   }
 }

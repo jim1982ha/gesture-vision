@@ -83,7 +83,7 @@ export function handleWsMessageLogic(this: WebSocketService, rawData: string | A
       this._publishEvent(UI_EVENTS.SHOW_ERROR, { messageKey: `Backend Error (${errPayload?.code || "UNK"}): ${errPayload?.message || "Unknown"}`, type: "error" });
       break;
     case WEBSOCKET_EVENTS.BACKEND_ACTION_RESULT:
-      this._publishEvent(WEBSOCKET_EVENTS.BACKEND_ACTION_RESULT, message.payload as ActionResultPayload);
+      actions.handleBackendActionResult(message.payload as ActionResultPayload);
       break;
     case WEBSOCKET_EVENTS.STREAM_STATUS_UPDATE:
       const { pathName, status } = message.payload as StreamStatusPayload;

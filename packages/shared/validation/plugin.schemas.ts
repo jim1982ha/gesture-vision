@@ -1,0 +1,58 @@
+/* FILE: packages/shared/validation/plugin.schemas.ts */
+import { z } from 'zod';
+
+export const ActionConfigSchema = z.object({
+  pluginId: z.string(),
+  settings: z.unknown().optional(), 
+});
+
+export const PluginManifestSchema = z.object({
+    id: z.string(),
+    nameKey: z.string(),
+    version: z.string(),
+    descriptionKey: z.string().optional(),
+    author: z.string().optional(),
+    icon: z.object({ type: z.enum(['material-icons', 'mdi']), name: z.string() }).optional(),
+    capabilities: z.object({
+      hasGlobalSettings: z.boolean().optional(),
+      providesActions: z.boolean().optional(),
+      providesTab: z.boolean().optional(),
+      providesUIContribution: z.boolean().optional(),
+      canTestConnection: z.boolean().optional(),
+    }),
+    globalConfigFileName: z.string().optional(),
+    defaultGlobalConfigPath: z.string().optional(),
+    backendEntry: z.string().optional(),
+    frontendEntry: z.string().optional(),
+    hasFrontendStyle: z.boolean().optional(),
+    locales: z.record(z.string(), z.record(z.string(), z.string())).optional(),
+    status: z.enum(['enabled', 'disabled']).optional(),
+    sourceUrl: z.string().optional(),
+});
+
+export const ActionSettingFieldOptionSchema = z.object({
+  value: z.string(),
+  label: z.string(),
+  disabled: z.boolean().optional(),
+});
+  
+export const ActionSettingFieldDescriptorSchema = z.object({
+    id: z.string(),
+    type: z.enum(['text', 'password', 'url', 'select', 'textarea', 'checkbox']),
+    labelKey: z.string(),
+    placeholderKey: z.string().optional(),
+    helpTextKey: z.string().optional(),
+    required: z.boolean().optional(),
+    rows: z.number().optional(),
+    optionsSource: z.function().optional(),
+    searchable: z.boolean().optional(),
+    dependsOn: z.array(z.string()).optional(),
+    autocomplete: z.enum(['on', 'off', 'name', 'email', 'username', 'new-password', 'current-password', 'url']).optional(),
+});
+
+export const ActionDisplayDetailSchema = z.object({
+  icon: z.string().optional(),
+  iconType: z.enum(['material-icons', 'mdi']).optional(),
+  value: z.string(),
+  allowWrap: z.boolean().optional(),
+});

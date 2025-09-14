@@ -29,6 +29,7 @@ export class VideoOverlayControlsManager {
   #handTuningSliders: HTMLElement;
   #poseTuningSliders: HTMLElement;
   #isInitialized = false;
+  #subscriptions: (() => void)[] = [];
 
   constructor(uiController: UIController) {
     this.#uiControllerRef = uiController;
@@ -172,41 +173,52 @@ export class VideoOverlayControlsManager {
     setIcon(document.getElementById("resetDisplayAdjustmentsBtn"), "UI_RESET");
   }
 
+  destroy(): void {
+    this.#overlayContainer.removeEventListener("click", this.#handleVideoClick);
+    this.#subscriptions.forEach(unsub => unsub());
+    this.#subscriptions = [];
+    this.#statusOverlayManager.destroy();
+    this.#toolbarManager.destroy();
+    this.#displayTuningPanel.destroy();
+    this.#aiTuningPanel.destroy();
+  }
+
   #attachEventListeners(): void {
     this.#overlayContainer.addEventListener("click", this.#handleVideoClick);
 
-    pubsub.subscribe(WEBCAM_EVENTS.STREAM_START, () => {
-      this.updateAllControls();
-      this.setOverlayState("STREAM_ACTIVE");
-    });
-    pubsub.subscribe(WEBCAM_EVENTS.STREAM_STOP, () => {
-      this.updateAllControls();
-      this.setOverlayState("OFFLINE_IDLE");
-    });
-    pubsub.subscribe(WEBCAM_EVENTS.ERROR, () => {
-      this.updateAllControls();
-      this.setOverlayState("OFFLINE_IDLE");
-    });
-    pubsub.subscribe(WEBCAM_EVENTS.STREAM_CONNECTION_CANCELLED, () => {
-      this.updateAllControls();
-      this.setOverlayState("OFFLINE_IDLE");
-    });
-    pubsub.subscribe(CAMERA_SOURCE_EVENTS.REQUESTING_STREAM_START, () =>
-      this.setOverlayState("INITIAL_CONNECTING")
+    this.#subscriptions.push(
+      pubsub.subscribe(WEBCAM_EVENTS.STREAM_START, () => {
+        this.updateAllControls();
+        this.setOverlayState("STREAM_ACTIVE");
+      }),
+      pubsub.subscribe(WEBCAM_EVENTS.STREAM_STOP, () => {
+        this.updateAllControls();
+        this.setOverlayState("OFFLINE_IDLE");
+      }),
+      pubsub.subscribe(WEBCAM_EVENTS.ERROR, () => {
+        this.updateAllControls();
+        this.setOverlayState("OFFLINE_IDLE");
+      }),
+      pubsub.subscribe(WEBCAM_EVENTS.STREAM_CONNECTION_CANCELLED, () => {
+        this.updateAllControls();
+        this.setOverlayState("OFFLINE_IDLE");
+      }),
+      pubsub.subscribe(CAMERA_SOURCE_EVENTS.REQUESTING_STREAM_START, () =>
+        this.setOverlayState("INITIAL_CONNECTING")
+      ),
+      pubsub.subscribe(UI_EVENTS.REQUEST_OVERLAY_STATE, (state?: unknown) =>
+        this.setOverlayState(state as VideoOverlayState)
+      ),
+      pubsub.subscribe(UI_EVENTS.VIDEO_TOOLBAR_AI_CLICKED, () =>
+        this.#togglePanel("ai")
+      ),
+      pubsub.subscribe(UI_EVENTS.VIDEO_TOOLBAR_DISPLAY_CLICKED, () =>
+        this.#togglePanel("display")
+      ),
+      this.#uiControllerRef.appStore.subscribe((state: FrontendFullState) => {
+        if (this.#isInitialized) this.loadSettings(state);
+      })
     );
-    pubsub.subscribe(UI_EVENTS.REQUEST_OVERLAY_STATE, (state?: unknown) =>
-      this.setOverlayState(state as VideoOverlayState)
-    );
-    pubsub.subscribe(UI_EVENTS.VIDEO_TOOLBAR_AI_CLICKED, () =>
-      this.#togglePanel("ai")
-    );
-    pubsub.subscribe(UI_EVENTS.VIDEO_TOOLBAR_DISPLAY_CLICKED, () =>
-      this.#togglePanel("display")
-    );
-
-    this.#uiControllerRef.appStore.subscribe((state: FrontendFullState) => {
-      if (this.#isInitialized) this.loadSettings(state);
-    });
   }
 
   #handleVideoClick = (event: MouseEvent): void => {

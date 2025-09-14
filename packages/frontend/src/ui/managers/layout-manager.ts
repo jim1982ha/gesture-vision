@@ -14,6 +14,7 @@ export class LayoutManager {
   #videoSizeToggleButton: HTMLElement | null;
 
   #uiControllerRef: UIController;
+  #boundToggleVideoVisibility = this.toggleVideoVisibility.bind(this);
 
   constructor(uiController: UIController) {
     this.#uiControllerRef = uiController;
@@ -36,7 +37,7 @@ export class LayoutManager {
   #attachEventListeners(): void {
     this.#toggleVideoButton?.addEventListener(
       "click",
-      this.toggleVideoVisibility.bind(this)
+      this.#boundToggleVideoVisibility
     );
   }
 
@@ -93,7 +94,7 @@ export class LayoutManager {
     const isMobile = this.#uiControllerRef.sidebarManager?.isMobile;
     const isFullscreen = document.body.classList.contains("video-fullscreen-active");
     const isConstrained = (secureStorage.get(VIDEO_SIZE_CONSTRAINED_KEY) as boolean | null) ?? true;
-
+    
     let titleKey: string;
     let iconKey: GestureCategoryIconType;
 
@@ -168,6 +169,9 @@ export class LayoutManager {
   };
 
   destroy(): void {
-    // No-op
+    this.#toggleVideoButton?.removeEventListener(
+      "click",
+      this.#boundToggleVideoVisibility
+    );
   }
 }

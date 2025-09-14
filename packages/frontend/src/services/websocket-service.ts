@@ -35,6 +35,7 @@ export interface WebSocketInternalState {
   pongTimeoutTimer: number | null;
   lastPingId: number | null;
   pendingRequests: Map<number, PendingRequest<unknown>>;
+  messageQueue: WebSocketMessage<unknown>[];
 }
 function initializeWsState(): WebSocketInternalState {
   return {
@@ -49,6 +50,7 @@ function initializeWsState(): WebSocketInternalState {
     pongTimeoutTimer: null,
     lastPingId: null,
     pendingRequests: new Map(),
+    messageQueue: [],
   };
 }
 function initializeUrlLogic(this: { _state: WebSocketInternalState }): void {
@@ -95,7 +97,8 @@ class WebSocketServiceImpl {
   };
 
   sendMessage(message: WebSocketMessage<unknown>): boolean {
-    const { ws, isConnected } = this._state;
+    const { ws, isConnected, messageQueue } = this._state;
+
     if (ws && ws.readyState === WebSocket.OPEN && isConnected) {
       try {
         ws.send(JSON.stringify(message));
@@ -105,13 +108,18 @@ class WebSocketServiceImpl {
           `[WS Sender] Error sending ${message.type}:`,
           (error as Error).message
         );
+        messageQueue.push(message);
         return false;
       }
     } else {
       console.warn(
-        `[WS Sender] Cannot send ${message?.type}, WS not open/ready.`
+        `[WS Sender] WS not ready for ${message?.type}. Queuing message.`
       );
-      return false;
+      messageQueue.push(message);
+      if (!this.isConnecting()) {
+        this.connect();
+      }
+      return true; // Return true as it's queued successfully.
     }
   }
 
@@ -123,7 +131,8 @@ class WebSocketServiceImpl {
     const messageId = Date.now() + Math.random();
     return new Promise<T>((resolve, reject) => {
       if (!this.sendMessage({ type: messageType, payload, messageId })) {
-        return reject(new Error(`Failed to send ${messageType} message.`));
+        // If sendMessage itself fails (e.g., queueing logic has an issue), reject.
+        return reject(new Error(`Failed to send or queue ${messageType} message.`));
       }
       const timeoutId = window.setTimeout(() => {
         this._state.pendingRequests.delete(messageId);

@@ -1,6 +1,6 @@
 /* FILE: packages/frontend/src/ui/renderers/history-list-renderer.ts */
 import type { AppStore } from '#frontend/core/state/app-store.js';
-import { createCardElement, type CardFooterConfig } from '#frontend/ui/utils/card-utils.js';
+import { createCardElement, type CardFooterConfig } from '#frontend/ui/helpers/card-utils.js';
 import type { PluginUIService } from '#frontend/services/plugin-ui.service.js';
 import { getGestureDisplayInfo, setIcon } from '#frontend/ui/helpers/index.js';
 import type { Substitutions } from '#shared/services/translations.js';

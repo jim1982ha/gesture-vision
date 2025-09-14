@@ -1,8 +1,9 @@
 /* FILE: packages/frontend/src/styles/_cards.css */
 @layer components {
   .card-item {
-    @apply bg-surface border border-border rounded-xl p-3 flex flex-col shadow-sm duration-200 ease-in-out;
-    transition-property: box-shadow, border-color, opacity;
+    @apply bg-surface border border-border rounded-xl p-3 flex flex-col shadow-sm duration-200 ease-in-out relative;
+    /* Isolate transition properties to prevent conflict with keyframe animations */
+    transition: box-shadow 200ms ease-in-out, opacity 200ms ease-in-out;
   }
   .card-item-clickable {
     @apply cursor-pointer hover:shadow-md hover:border-primary;
@@ -20,7 +21,7 @@
     @apply flex items-center gap-1 flex-shrink-0 ml-auto;
   }
   .card-details {
-    @apply text-sm text-text-secondary flex flex-col gap-1 flex-grow items-start justify-center;
+    @apply text-sm text-text-secondary flex-col gap-1 flex-grow items-start justify-center;
   }
   .card-detail-line {
     @apply flex items-center gap-2 min-w-0 w-full;
@@ -62,5 +63,45 @@
   }
   .card-item .plugin-global-settings-form {
     @apply w-full;
+  }
+
+  /* --- Action Feedback Animations (Applied directly to the card) --- */
+  .action-triggered {
+    animation: bounce-subtle 0.4s ease-out;
+  }
+  .action-success {
+    animation: glow-success 1.2s ease-out;
+  }
+  .action-failure {
+    animation: glow-failure 1.2s ease-out;
+  }
+
+  @keyframes bounce-subtle {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(0.97); }
+  }
+
+  @keyframes glow-success {
+    0% {
+      box-shadow: 0 0 0 0 rgb(var(--color-success) / 0.7);
+    }
+    40% {
+      box-shadow: 0 0 0 5px rgb(var(--color-success) / 0.3);
+    }
+    100% {
+      box-shadow: 0 0 0 0 rgb(var(--color-success) / 0);
+    }
+  }
+
+  @keyframes glow-failure {
+    0% {
+      box-shadow: 0 0 0 0 rgb(var(--color-error) / 0.7);
+    }
+    40% {
+      box-shadow: 0 0 0 5px rgb(var(--color-error) / 0.3);
+    }
+    100% {
+      box-shadow: 0 0 0 0 rgb(var(--color-error) / 0);
+    }
   }
 }

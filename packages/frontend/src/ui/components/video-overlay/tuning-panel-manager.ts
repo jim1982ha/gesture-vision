@@ -16,6 +16,10 @@ export class TuningPanelManager {
   #resetButton: HTMLButtonElement | null;
   #resetDefaults: Record<string, number>;
 
+  #boundHandleSliderInput = this.#handleSliderInput.bind(this);
+  #boundHandleSliderChange = this.#handleSliderChange.bind(this);
+  #boundHandleReset = this.#handleReset.bind(this);
+
   constructor(
     panelElement: HTMLElement,
     sliderConfigs: SliderConfig[],
@@ -31,12 +35,20 @@ export class TuningPanelManager {
     this.#attachEventListeners();
   }
 
+  destroy(): void {
+    this.#sliders.forEach(({ slider }) => {
+      slider.removeEventListener('input', this.#boundHandleSliderInput);
+      slider.removeEventListener('change', this.#boundHandleSliderChange);
+    });
+    this.#resetButton?.removeEventListener('click', this.#boundHandleReset);
+  }
+
   #attachEventListeners(): void {
     this.#sliders.forEach(({ slider }) => {
-      slider.addEventListener('input', this.#handleSliderInput);
-      slider.addEventListener('change', this.#handleSliderChange);
+      slider.addEventListener('input', this.#boundHandleSliderInput);
+      slider.addEventListener('change', this.#boundHandleSliderChange);
     });
-    this.#resetButton?.addEventListener('click', this.#handleReset);
+    this.#resetButton?.addEventListener('click', this.#boundHandleReset);
   }
 
   public show(): void {
@@ -56,7 +68,7 @@ export class TuningPanelManager {
     return !this.#panelElement.classList.contains('hidden');
   }
 
-  #handleSliderInput = (event: Event): void => {
+  #handleSliderInput(event: Event): void {
     const slider = event.target as HTMLInputElement;
     const config = this.#sliders.find((s) => s.slider === slider);
     if (!config) return;
@@ -71,9 +83,9 @@ export class TuningPanelManager {
           [config.configKey]: parseFloat(slider.value),
         });
     }
-  };
+  }
 
-  #handleSliderChange = (event: Event): void => {
+  #handleSliderChange(event: Event): void {
     const slider = event.target as HTMLInputElement;
     const config = this.#sliders.find((s) => s.slider === slider);
     if (config) {
@@ -86,9 +98,9 @@ export class TuningPanelManager {
         .getState()
         .actions.requestBackendPatch({ [config.configKey]: value });
     }
-  };
+  }
 
-  #handleReset = (): void => {
+  #handleReset(): void {
     const patchData: Partial<FullConfiguration> = {};
     this.#sliders.forEach((config) => {
       if (this.#resetDefaults[config.configKey] !== undefined) {
@@ -101,7 +113,7 @@ export class TuningPanelManager {
     if (Object.keys(patchData).length > 0) {
       this.#appStore.getState().actions.requestBackendPatch(patchData);
     }
-  };
+  }
 
   #updateOutput = (output: HTMLElement, value: string): void => {
     const isConfidence = output.id.includes('Confidence');

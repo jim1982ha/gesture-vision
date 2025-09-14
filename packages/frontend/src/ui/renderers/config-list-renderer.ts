@@ -3,8 +3,7 @@
 import type { AppStore } from '#frontend/core/state/app-store.js';
 import type { PluginUIService } from '#frontend/services/plugin-ui.service.js';
 import type { UIController } from '#frontend/ui/ui-controller-core.js';
-import type { RendererElements } from '#frontend/ui/ui-renderer-core.js';
-import { createCardElement, type CardFooterConfig, type ActionButtonConfig } from '#frontend/ui/utils/card-utils.js';
+import { createCardElement, type CardFooterConfig, type ActionButtonConfig } from '#frontend/ui/helpers/card-utils.js';
 import { getGestureDisplayInfo, getActionIconDetails } from '#frontend/ui/helpers/index.js';
 import type { ActionDisplayDetail, GestureConfig, PoseConfig, CustomGestureMetadata, GestureCategoryIconType } from '#shared/index.js';
 
@@ -59,20 +58,17 @@ async function getDetailsHtml(
 }
 
 export async function renderConfigList(
-  elements: Partial<RendererElements>,
-  configsData?: Array<GestureConfig | PoseConfig> | null,
-  appStore?: AppStore | null,
-  pluginUIServiceRef?: PluginUIService | null,
-  uiControllerRef?: UIController | null
+  listDiv: HTMLElement | null,
+  appStore: AppStore,
+  pluginUIServiceRef: PluginUIService,
+  uiControllerRef: UIController
 ): Promise<void> {
-  const listDiv = elements.configListDiv;
-
-  if (!listDiv || !appStore || !pluginUIServiceRef || !uiControllerRef) {
+  if (!listDiv) {
     console.error("[ConfigListRenderer] Critical references are missing.");
     return;
   }
   
-  const configs: Array<GestureConfig | PoseConfig> = configsData || appStore.getState().gestureConfigs || [];
+  const configs: Array<GestureConfig | PoseConfig> = appStore.getState().gestureConfigs || [];
   const translate = uiControllerRef.translationService.translate;
   
   const getGestureConfigCategory = (config: GestureConfig | PoseConfig, customMetaList: CustomGestureMetadata[]): GestureCategoryIconType => {
@@ -109,7 +105,7 @@ export async function renderConfigList(
     return { isActive: true, reason: null };
   };
   
-  const originalNameBeingEdited = uiControllerRef?.getOriginalNameBeingEdited() ?? null;
+  const originalNameBeingEdited = uiControllerRef.getOriginalNameBeingEdited() ?? null;
   const customMetadataList = appStore.getState().customGestureMetadataList || [];
   
   const sortedConfigs = [...configs].sort((a: GestureConfig | PoseConfig, b: GestureConfig | PoseConfig) => {
@@ -141,8 +137,8 @@ export async function renderConfigList(
     const cardTitle = gestureDisplayName;
     
     const actionButtons: ActionButtonConfig[] = [
-      { action: 'edit', title: translate('editTooltip', { item: name }), iconKey: 'UI_EDIT_NOTE', extraClasses: ['edit-btn'], translate },
-      { action: 'delete', title: translate('deleteTooltip', { item: name }), iconKey: 'UI_DELETE', extraClasses: ['btn-icon-danger', 'delete-btn'], translate }
+      { action: 'edit', title: translate('editTooltip', { item: name }), titleKey: 'editTooltip', titleSubstitutions: { item: name }, iconKey: 'UI_EDIT_NOTE', extraClasses: ['edit-btn'], translate },
+      { action: 'delete', title: translate('deleteTooltip', { item: name }), titleKey: 'deleteTooltip', titleSubstitutions: { item: name }, iconKey: 'UI_DELETE_FOREVER', extraClasses: ['btn-icon-danger', 'delete-btn'], translate }
     ];
 
     const footerConfig: CardFooterConfig = {};
@@ -173,7 +169,6 @@ export async function renderConfigList(
       itemClasses: itemClasses, datasetAttributes: { gestureName: name || '' }, translate,
     });
 
-    // Populate the details container after creation
     const detailsContainer = cardElement.querySelector('.card-details');
     if(detailsContainer) {
         detailsContainer.innerHTML = await getDetailsHtml(config, pluginUIServiceRef);

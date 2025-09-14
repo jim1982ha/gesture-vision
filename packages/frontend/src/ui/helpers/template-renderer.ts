@@ -1,4 +1,4 @@
-/* FILE: packages/frontend/src/ui/utils/template-renderer.ts */
+/* FILE: packages/frontend/src/ui/helpers/template-renderer.ts */
 // A lightweight, declarative template renderer to replace imperative DOM creation.
 // Supports placeholder substitution, conditional rendering (data-if), and HTML injection (data-html-key).
 

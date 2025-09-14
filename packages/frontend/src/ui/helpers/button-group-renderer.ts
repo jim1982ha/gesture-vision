@@ -1,6 +1,6 @@
 /* FILE: packages/frontend/src/ui/helpers/button-group-renderer.ts */
 import type { ButtonGroupOption } from "#frontend/ui/base-settings-tab.js";
-import { createButton } from "#frontend/ui/utils/card-utils.js";
+import { createButton } from "#frontend/ui/helpers/card-utils.js";
 import type { TranslationService } from '#frontend/services/translation.service.js';
 
 /**

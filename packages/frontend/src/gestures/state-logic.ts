@@ -1,47 +1,16 @@
 /* FILE: packages/frontend/src/gestures/state-logic.ts */
-// Manages the state of detected gestures, including hold timers and cooldowns,
+// Orchestrates gesture detection logic by coordinating timers, configuration, actions, and UI updates.
 import type { AppStore } from '#frontend/core/state/app-store.js';
-import type { HistoryEntry } from '#frontend/types/index.js';
-
-import {
-  GESTURE_EVENTS,
-  WEBCAM_EVENTS,
-  WEBSOCKET_EVENTS,
-  UI_EVENTS,
-  BUILT_IN_HAND_GESTURES,
-  pubsub,
-  normalizeNameForMtx,
-  type GestureConfig,
-  type PoseConfig,
-  type CustomGestureMetadata,
-  type ActionResultPayload,
-  type ActionConfig,
-  type RoiConfig,
-} from '#shared/index.js';
-
-import { getGestureDisplayInfo } from '#frontend/ui/helpers/index.js';
-
+import { GESTURE_EVENTS, pubsub, type GestureConfig, type PoseConfig, type RoiConfig } from '#shared/index.js';
 import { GestureTimerManager } from './logic/gesture-timer-manager.js';
-import { webSocketService } from '../services/websocket-service.js';
+import { GestureConfigManager } from './logic/GestureConfigManager.js';
+import { GestureActionHandler } from './logic/GestureActionHandler.js';
+import { GestureUIDispatcher } from './logic/GestureUIDispatcher.js';
+import type { TranslationService } from '#frontend/services/translation.service.js';
 
 interface ActionableRecognition {
   name: string;
   confidence: number;
-}
-
-interface DisplayStatus {
-  gesture: string;
-  realtimeConfidence: number;
-  configuredThreshold: number | null;
-  isCooldownActive?: boolean;
-}
-
-interface ProgressData {
-  holdPercent: number;
-  cooldownPercent: number;
-  currentHoldMs?: number;
-  requiredHoldMs?: number;
-  remainingCooldownMs?: number;
 }
 
 interface DisplayedGestureInfo {
@@ -54,429 +23,147 @@ interface DisplayedGestureInfo {
 
 export class GestureStateLogic {
   #timerManager: GestureTimerManager;
+  #configManager: GestureConfigManager;
+  #actionHandler: GestureActionHandler;
+  #uiDispatcher: GestureUIDispatcher;
+
   #publishedConfidencePulse = new Set<string>();
-  #appStore: AppStore;
-  #gestureConfigsCache: (GestureConfig | PoseConfig)[] = [];
   #currentlyDisplayedGesture: DisplayedGestureInfo | null = null;
-  #customMetadataCache: CustomGestureMetadata[] = [];
-  #isInitialized = false;
-  #unsubscribeStore: () => void;
   #isActionDispatchSuppressed = false;
   #activeStreamRoi: RoiConfig | null = null;
 
-  #boundHandleActionResult: (data?: unknown) => void;
-  #boundHandleStreamStop: () => void;
-  #boundHandleTimersReset: (data?: unknown) => void;
-  #boundHandlePluginActionTrigger: () => void;
   #boundHandleSuppressActions: () => void;
   #boundHandleResumeActions: () => void;
-
-
-  constructor(appStore: AppStore) {
-    this.#appStore = appStore;
+  
+  constructor(appStore: AppStore, translationService: TranslationService) {
+    // Instantiate the new logical components
     this.#timerManager = new GestureTimerManager(appStore);
-
-    this.#gestureConfigsCache = this.#appStore.getState().gestureConfigs || [];
-    this.#customMetadataCache =
-      this.#appStore.getState().customGestureMetadataList || [];
-    this.#isInitialized = true;
-
-    this.#boundHandleActionResult = (data?: unknown) => this.#handleActionResult(data as ActionResultPayload | undefined);
-    this.#boundHandleStreamStop = () => { this.#currentlyDisplayedGesture = null; this.#timerManager.resetAllTimersAndStates(); };
-    this.#boundHandleTimersReset = (_data?: unknown) => { this.#publishProgress({ holdPercent: 0, cooldownPercent: this.#timerManager.getGlobalCooldownPercent(), }); };
-    this.#boundHandlePluginActionTrigger = () => { this.#timerManager.startGlobalCooldown(); };
+    this.#configManager = new GestureConfigManager(appStore);
+    this.#actionHandler = new GestureActionHandler(appStore);
+    this.#uiDispatcher = new GestureUIDispatcher(appStore, translationService);
+    
     this.#boundHandleSuppressActions = () => { this.#isActionDispatchSuppressed = true; };
     this.#boundHandleResumeActions = () => { this.#isActionDispatchSuppressed = false; };
-
-    this.#unsubscribeStore = this.#appStore.subscribe((state, prevState) => {
-      if (state.gestureConfigs !== prevState.gestureConfigs) {
-        this.#gestureConfigsCache = state.gestureConfigs || [];
-        this.#timerManager.resetAllGestureHoldStates();
-        this.#currentlyDisplayedGesture = null;
-      }
-      if (
-        state.customGestureMetadataList !== prevState.customGestureMetadataList
-      ) {
-        this.updateCustomMetadataCache(state.customGestureMetadataList);
-      }
-      if (
-        state.enableBuiltInHandGestures !==
-          prevState.enableBuiltInHandGestures ||
-        state.enableCustomHandGestures !==
-          prevState.enableCustomHandGestures ||
-        state.enablePoseProcessing !== prevState.enablePoseProcessing
-      ) {
-        this.#handleFeatureToggle();
-      }
-    });
-
     this.#subscribeToEvents();
   }
 
-  public getTimerManager(): GestureTimerManager {
-    return this.#timerManager;
-  }
-
-  destroy() {
-    this.#unsubscribeStore();
-    pubsub.unsubscribe( WEBSOCKET_EVENTS.BACKEND_ACTION_RESULT, this.#boundHandleActionResult );
-    pubsub.unsubscribe(WEBCAM_EVENTS.STREAM_STOP, this.#boundHandleStreamStop);
-    pubsub.unsubscribe(GESTURE_EVENTS.TIMERS_RESET, this.#boundHandleTimersReset);
-    pubsub.unsubscribe( GESTURE_EVENTS.ACTION_TRIGGERED_BY_PLUGIN, this.#boundHandlePluginActionTrigger );
+  destroy(): void {
+    this.#configManager.destroy();
+    this.#timerManager.destroy();
     pubsub.unsubscribe(GESTURE_EVENTS.SUPPRESS_ACTIONS, this.#boundHandleSuppressActions);
     pubsub.unsubscribe(GESTURE_EVENTS.RESUME_ACTIONS, this.#boundHandleResumeActions);
   }
 
   #subscribeToEvents(): void {
-    pubsub.subscribe( WEBSOCKET_EVENTS.BACKEND_ACTION_RESULT, this.#boundHandleActionResult );
-    pubsub.subscribe(WEBCAM_EVENTS.STREAM_STOP, this.#boundHandleStreamStop);
-    pubsub.subscribe(GESTURE_EVENTS.TIMERS_RESET, this.#boundHandleTimersReset);
-    pubsub.subscribe( GESTURE_EVENTS.ACTION_TRIGGERED_BY_PLUGIN, this.#boundHandlePluginActionTrigger );
     pubsub.subscribe(GESTURE_EVENTS.SUPPRESS_ACTIONS, this.#boundHandleSuppressActions);
     pubsub.subscribe(GESTURE_EVENTS.RESUME_ACTIONS, this.#boundHandleResumeActions);
   }
 
-  updateCustomMetadataCache(metadataList?: CustomGestureMetadata[]): void {
-    this.#customMetadataCache = Array.isArray(metadataList)
-      ? structuredClone(metadataList)
-      : [];
-    this.#handleFeatureToggle();
-  }
-
-  #handleFeatureToggle = (): void => {
-    if (!this.#isInitialized) return;
-    if (this.#currentlyDisplayedGesture) {
-      const config = this.#getActiveGestureConfigFromCache(
-        this.#currentlyDisplayedGesture.name
-      );
-      if (!config || !this.#isActiveConfig(config)) {
-        this.#currentlyDisplayedGesture = null;
-        this.#updateUIDisplay([], false, 0);
-      }
-    }
-    this.#gestureConfigsCache = this.#appStore.getState().gestureConfigs || [];
-  };
-
-  #handleActionResult = (result?: ActionResultPayload): void => {
-    if (!result) return;
-    this.#appStore.getState().actions.updateHistoryEntryStatus(result);
-    if (!result.success && result.pluginId !== 'none') {
-      pubsub.publish(UI_EVENTS.SHOW_ERROR, {
-        messageKey: `Action Error: ${result.message || 'Unknown'}`,
-      });
-    }
-  };
-
-  #isActiveConfig(config: GestureConfig | PoseConfig): boolean {
-    if (!this.#isInitialized) return false;
-    const state = this.#appStore.getState();
-
-    const gestureName =
-      'gesture' in config
-        ? (config as GestureConfig).gesture
-        : (config as PoseConfig).pose;
-    if (!gestureName) return false;
-
-    const { category } = getGestureDisplayInfo(
-      gestureName,
-      this.#customMetadataCache
-    );
-
-    switch (category) {
-      case 'BUILT_IN_HAND':
-        return state.enableBuiltInHandGestures;
-      case 'CUSTOM_HAND':
-        return state.enableCustomHandGestures;
-      case 'CUSTOM_POSE':
-        return state.enablePoseProcessing;
-      default:
-        return false;
-    }
-  }
-
-  #getActiveGestureConfigFromCache(
-    gestureName: string
-  ): GestureConfig | PoseConfig | null {
-    if (!gestureName || typeof gestureName !== 'string' || !this.#isInitialized)
-      return null;
-
-    const isPotentiallyBuiltIn = BUILT_IN_HAND_GESTURES.includes(
-      gestureName.toUpperCase() as (typeof BUILT_IN_HAND_GESTURES)[number]
-    );
-    const normalizedSearchName = isPotentiallyBuiltIn
-      ? normalizeNameForMtx(gestureName).toUpperCase()
-      : gestureName;
-
-    const config = this.#gestureConfigsCache.find((c) => {
-      const nameToCheck =
-        'gesture' in c ? (c as GestureConfig).gesture : (c as PoseConfig).pose;
-      if (!nameToCheck || typeof nameToCheck !== 'string') return false;
-
-      const isCurrentConfigPotentiallyBuiltIn = BUILT_IN_HAND_GESTURES.includes(
-        nameToCheck.toUpperCase() as (typeof BUILT_IN_HAND_GESTURES)[number]
-      );
-      const normalizedConfigName = isCurrentConfigPotentiallyBuiltIn
-        ? normalizeNameForMtx(nameToCheck).toUpperCase()
-        : nameToCheck;
-
-      return normalizedConfigName === normalizedSearchName;
-    });
-    return config && this.#isActiveConfig(config) ? config : null;
-  }
-
-  checkConditions(
-    currentDetections: ActionableRecognition[]
-  ): void {
-    if (!this.#isInitialized) return;
+  checkConditions(currentDetections: ActionableRecognition[]): void {
     const now = Date.now();
     const isCooldownActive = this.#timerManager.isCooldownActive(now);
     this.#publishedConfidencePulse.clear();
-
     this.#timerManager.pruneExpiredHoldStates(now);
 
-    const actionableDetections = currentDetections.filter((detection) => {
-      const config = this.#getActiveGestureConfigFromCache(detection.name);
-      return !!config;
-    });
+    const actionableDetections = currentDetections.filter(detection => this.#configManager.getActiveConfig(detection.name));
 
     if (!isCooldownActive && !this.#isActionDispatchSuppressed) {
-      actionableDetections.forEach((detection) => {
-        const config = this.#getActiveGestureConfigFromCache(detection.name);
-        if (!config) return;
-
-        const configName =
-          'gesture' in config
-            ? (config as GestureConfig).gesture
-            : (config as PoseConfig).pose;
-        const { category: gestureType } = getGestureDisplayInfo(
-          configName,
-          this.#customMetadataCache
-        );
-
-        let configuredThreshold = 0;
-        if (config.confidence !== undefined) {
-          configuredThreshold = config.confidence / 100.0;
-        } else if (
-          gestureType === 'BUILT_IN_HAND' ||
-          gestureType === 'CUSTOM_HAND'
-        ) {
-          configuredThreshold = 0.5;
-        }
-
-        const confidenceMet = detection.confidence >= configuredThreshold;
-        
-        this.#timerManager.updateHoldState(
-          configName,
-          confidenceMet,
-          now
-        );
-
-        if (
-          confidenceMet &&
-          (gestureType === 'BUILT_IN_HAND' ||
-            gestureType === 'CUSTOM_HAND' ||
-            config.confidence !== undefined) &&
-          !this.#publishedConfidencePulse.has(configName)
-        ) {
-          pubsub.publish(GESTURE_EVENTS.CONFIDENCE_THRESHOLD_MET, configName);
-          this.#publishedConfidencePulse.add(configName);
-        }
-      });
+      this.#updateGestureHoldStates(actionableDetections, now);
     } else {
       this.#timerManager.resetAllGestureHoldStates();
       this.#currentlyDisplayedGesture = null;
     }
-    this.#processHeldGesturesAndDisplayLogic(
-      actionableDetections,
-      now,
-      isCooldownActive
-    );
+    
+    this.#processHeldGesturesAndDisplayLogic(actionableDetections, now, isCooldownActive);
   }
 
-  #processHeldGesturesAndDisplayLogic(
-    actionableDetections: ActionableRecognition[],
-    now: number,
-    isCooldownActive: boolean
-  ): void {
-    if (!this.#isInitialized) return;
+  #updateGestureHoldStates(detections: ActionableRecognition[], now: number): void {
+    detections.forEach(detection => {
+      const config = this.#configManager.getActiveConfig(detection.name);
+      if (!config) return;
+
+      const configName = 'gesture' in config ? config.gesture : config.pose;
+      const configuredThreshold = (config.confidence ?? 50) / 100.0;
+      const confidenceMet = detection.confidence >= configuredThreshold;
+      
+      this.#timerManager.updateHoldState(configName, confidenceMet, now);
+      
+      if (confidenceMet && !this.#publishedConfidencePulse.has(configName)) {
+        pubsub.publish(GESTURE_EVENTS.CONFIDENCE_THRESHOLD_MET, configName);
+        this.#publishedConfidencePulse.add(configName);
+      }
+    });
+  }
+
+  #processHeldGesturesAndDisplayLogic(actionableDetections: ActionableRecognition[], now: number, isCooldownActive: boolean): void {
     let triggeredGestureName: string | null = null;
     let triggeredConfig: GestureConfig | PoseConfig | null = null;
-    let highestHoldPercentForDisplay = 0;
-    let candidateGestureForDisplay: DisplayedGestureInfo | null = null;
+    let highestHoldPercent = 0;
+    let candidateForDisplay: DisplayedGestureInfo | null = null;
 
     if (!isCooldownActive && !this.#isActionDispatchSuppressed) {
-      actionableDetections.forEach((detection) => {
-        const config = this.#getActiveGestureConfigFromCache(detection.name);
+      actionableDetections.forEach(detection => {
+        const config = this.#configManager.getActiveConfig(detection.name);
         if (!config) return;
 
-        const configName =
-          'gesture' in config
-            ? (config as GestureConfig).gesture
-            : (config as PoseConfig).pose;
+        const configName = 'gesture' in config ? config.gesture : config.pose;
         const holdState = this.#timerManager.getGestureHoldState(configName);
 
-        if (holdState && holdState.startTime !== null) {
-          const displayConfidence = detection.confidence;
+        if (holdState?.startTime) {
           const holdDuration = now - holdState.startTime;
           const requiredDurationMs = (config.duration || 1.0) * 1000;
-          const holdPercent =
-            requiredDurationMs > 0
-              ? Math.min(1, holdDuration / requiredDurationMs)
-              : 0;
+          const holdPercent = requiredDurationMs > 0 ? Math.min(1, holdDuration / requiredDurationMs) : 0;
 
-          if (holdPercent >= highestHoldPercentForDisplay) {
-            highestHoldPercentForDisplay = holdPercent;
-            candidateGestureForDisplay = {
-              name: configName,
-              confidence: displayConfidence,
-              config,
-              currentHoldMs: holdDuration,
-              requiredHoldMs: requiredDurationMs,
-            };
+          if (holdPercent >= highestHoldPercent) {
+            highestHoldPercent = holdPercent;
+            candidateForDisplay = { name: configName, confidence: detection.confidence, config, currentHoldMs: holdDuration, requiredHoldMs: requiredDurationMs };
           }
 
-          if (
-            triggeredGestureName === null &&
-            holdDuration >= requiredDurationMs
-          ) {
+          if (!triggeredGestureName && holdDuration >= requiredDurationMs) {
             triggeredGestureName = configName;
             triggeredConfig = config;
           }
         }
       });
     }
-
-    this.#currentlyDisplayedGesture = candidateGestureForDisplay;
-
-    this.#updateUIDisplay(
-      actionableDetections,
-      isCooldownActive,
-      highestHoldPercentForDisplay
-    );
+    
+    this.#currentlyDisplayedGesture = candidateForDisplay;
+    this.#updateUIDisplay(isCooldownActive, highestHoldPercent);
     
     if (triggeredGestureName && triggeredConfig) {
-      this.#triggerAction(
-        triggeredGestureName,
-        triggeredConfig,
-        actionableDetections,
-        now
-      );
-      // FIX: Resetting this *after* the UI update for the triggered frame.
+      this.#actionHandler.trigger(triggeredGestureName, triggeredConfig, actionableDetections, now);
+      this.#timerManager.startGlobalCooldown(now);
+      this.#timerManager.resetAllGestureHoldStates();
       this.#currentlyDisplayedGesture = null;
     }
   }
 
-  #triggerAction(
-    gestureName: string,
-    config: GestureConfig | PoseConfig,
-    currentDetections: ActionableRecognition[],
-    now: number
-  ): void {
-    if (!this.#isInitialized || this.#isActionDispatchSuppressed) return;
+  #updateUIDisplay(isCooldownActive: boolean, currentMaxHoldPercent: number): void {
+    let gesture = '-';
+    let realtimeConfidence = 0;
+    let configuredThreshold: number | null = null;
 
-    const actionConfig = config.actionConfig as ActionConfig | null;
-    const pluginId = actionConfig?.pluginId || 'none';
-    const { category: gestureCategory } = getGestureDisplayInfo(
-      gestureName,
-      this.#customMetadataCache
-    );
-
-    if (actionConfig && pluginId !== 'none') {
-      const latestDetectionForAction = currentDetections.find(
-        (d) => d.name === gestureName
-      );
-      const actionConfidence =
-        latestDetectionForAction?.confidence ??
-        (config.confidence !== undefined ? config.confidence / 100.0 : 1.0);
-      const actionDetails = {
-        gestureName,
-        confidence: actionConfidence,
-        timestamp: now,
-      };
-      webSocketService.sendDispatchAction(config, actionDetails);
-    }
-
-    const historyEntryPayload: Partial<HistoryEntry> = {
-      gesture: gestureName,
-      actionType: pluginId,
-      gestureCategory: gestureCategory,
-      details: config.actionConfig,
-    };
-
-    this.#appStore.getState().actions.addHistoryEntry(historyEntryPayload);
-    this.#timerManager.startGlobalCooldown(now);
-    this.#timerManager.resetAllGestureHoldStates();
-  }
-
-  #updateUIDisplay(
-    currentDetections: ActionableRecognition[],
-    isCooldownActive: boolean,
-    currentMaxHoldPercent: number
-  ): void {
-    if (!this.#isInitialized) return;
-    const displayStatus: DisplayStatus = {
-      gesture: '-',
-      realtimeConfidence: 0,
-      configuredThreshold: null,
-      isCooldownActive,
-    };
-    
     if (this.#currentlyDisplayedGesture && !isCooldownActive && !this.#isActionDispatchSuppressed) {
-      const heldInfo = this.#currentlyDisplayedGesture;
-      displayStatus.gesture = heldInfo.name;
-      displayStatus.realtimeConfidence = heldInfo.confidence;
-      displayStatus.configuredThreshold =
-        typeof heldInfo.config.confidence === 'number'
-          ? heldInfo.config.confidence / 100.0
-          : null;
-    } else if (!isCooldownActive && !this.#isActionDispatchSuppressed && currentDetections.length > 0) {
-      const topActiveGesture = currentDetections
-        .filter((d) => d.confidence > 0)
-        .reduce(
-          (prev, current) =>
-            current.confidence > prev.confidence ? current : prev,
-          { name: '-', confidence: 0 }
-        );
-
-      if (topActiveGesture.name !== '-') {
-        const config = this.#getActiveGestureConfigFromCache(
-          topActiveGesture.name
-        );
-        if (config) {
-          displayStatus.gesture = topActiveGesture.name;
-          displayStatus.realtimeConfidence = topActiveGesture.confidence;
-          displayStatus.configuredThreshold =
-            typeof config.confidence === 'number'
-              ? config.confidence / 100.0
-              : null;
-        }
-      }
+        gesture = this.#currentlyDisplayedGesture.name;
+        realtimeConfidence = this.#currentlyDisplayedGesture.confidence;
+        configuredThreshold = typeof this.#currentlyDisplayedGesture.config.confidence === 'number' ? this.#currentlyDisplayedGesture.config.confidence / 100.0 : null;
     }
+    
+    if (gesture === '-') this.#currentlyDisplayedGesture = null;
 
-    if (displayStatus.gesture === '-') this.#currentlyDisplayedGesture = null;
-
-    pubsub.publish(GESTURE_EVENTS.UPDATE_STATUS, displayStatus);
-    this.#publishProgress({
-      holdPercent: this.#isActionDispatchSuppressed ? 0 : currentMaxHoldPercent,
-      cooldownPercent: this.#timerManager.getGlobalCooldownPercent(),
-      currentHoldMs: this.#currentlyDisplayedGesture?.currentHoldMs || 0,
-      requiredHoldMs: this.#currentlyDisplayedGesture?.requiredHoldMs || 0,
-      remainingCooldownMs: this.#timerManager.getRemainingCooldownMs(),
+    this.#uiDispatcher.update({
+        gesture, realtimeConfidence, configuredThreshold, isCooldownActive,
+        holdPercent: this.#isActionDispatchSuppressed ? 0 : currentMaxHoldPercent,
+        cooldownPercent: this.#timerManager.getGlobalCooldownPercent(),
+        currentHoldMs: this.#currentlyDisplayedGesture?.currentHoldMs || 0,
+        requiredHoldMs: this.#currentlyDisplayedGesture?.requiredHoldMs || 0,
+        remainingCooldownMs: this.#timerManager.getRemainingCooldownMs(),
     });
   }
 
-  #publishProgress(progressData: ProgressData): void {
-    pubsub.publish(GESTURE_EVENTS.UPDATE_PROGRESS, progressData);
-  }
-  public setActiveStreamRoi = (roi: RoiConfig | null): void => {
-    this.#activeStreamRoi = roi;
-  };
+  public getTimerManager = (): GestureTimerManager => this.#timerManager;
+  public setActiveStreamRoi = (roi: RoiConfig | null): void => { this.#activeStreamRoi = roi; };
   public getActiveStreamRoi = (): RoiConfig | null => this.#activeStreamRoi;
-  resetHoldTimers(): void {
-    this.#timerManager.resetAllGestureHoldStates();
-    this.#currentlyDisplayedGesture = null;
-  }
-  resetCooldown(): void {
-    this.#timerManager.resetGlobalCooldown();
-  }
+  public resetHoldTimers = (): void => { this.#timerManager.resetAllGestureHoldStates(); this.#currentlyDisplayedGesture = null; };
+  public resetCooldown = (): void => { this.#timerManager.resetGlobalCooldown(); };
 }

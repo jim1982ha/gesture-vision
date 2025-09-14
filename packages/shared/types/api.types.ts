@@ -1,25 +1,9 @@
 /* FILE: packages/shared/types/api.types.ts */
 
-export interface ActionDetails {
-    gestureName: string;
-    confidence: number;
-    timestamp: number;
-}
-  
-export interface ActionResult {
-    success: boolean;
-    message?: string;
-    details?: unknown;
-}
+// All types previously here (ActionDetails, ActionResult, etc.) are now
+// inferred directly from their Zod schemas in packages/shared/validation/api.schemas.ts
+// and exported via packages/shared/index.ts. This file is now empty
+// but is kept to avoid breaking existing import statements that might only be
+// importing types. It can be considered for deletion in a future cleanup.
 
-export interface ValidationErrorDetail {
-    field: string;
-    messageKey: string;
-    details?: unknown;
-}
-
-export interface SectionValidationResult {
-    isValid: boolean;
-    error?: ValidationErrorDetail;
-    errors?: ValidationErrorDetail[];
-}
+export {};

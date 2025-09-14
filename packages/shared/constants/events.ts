@@ -26,6 +26,8 @@ export const UI_EVENTS = {
   VIDEO_TOOLBAR_AI_CLICKED: "ui:videoToolbarAiClicked",
   VIDEO_TOOLBAR_DISPLAY_CLICKED: "ui:videoToolbarDisplayClicked",
   REQUEST_MIRROR_TOGGLE: "ui:requestMirrorToggle",
+  ACTION_RESULT_RECEIVED: "ui:actionResultReceived",
+  GESTURE_CONFIG_TRIGGERED: "ui:gestureConfigTriggered", // For immediate UI feedback
 } as const;
 
 export const WEBCAM_EVENTS = {

@@ -11,10 +11,6 @@ import {
 } from '#shared/index.js';
 import { pubsub } from '#shared/core/pubsub.js';
 import { secureStorage } from '#shared/services/security-utils.js';
-import {
-  checkPermissionsAndEnumerate,
-  publishDeviceList,
-} from './logic/permission-helpers.js';
 import type { CameraManager } from '#frontend/camera/camera-manager.js';
 import type { RtspSourceConfig } from '#shared/index.js';
 import type { TranslationService } from '#frontend/services/translation.service.js';
@@ -26,50 +22,8 @@ interface DeviceInfo {
 
 type CameraClickPayload = string | { deviceId: string; isFlip: boolean };
 
-/**
- * Creates a map of RTSP sources from the application configuration.
- * @param rtspSourcesCache - The array of RTSP source configurations.
- * @returns A Map where the key is the generated device ID (e.g., 'rtsp:living_room') and the value is the display name.
- */
-function createRtspDeviceMap(rtspSourcesCache: RtspSourceConfig[] | undefined): Map<string, string> {
-    const rtspMap = new Map<string, string>();
-    (rtspSourcesCache || []).forEach((rtspSrc) => {
-      if (rtspSrc?.name) {
-        const normalizedName = normalizeNameForMtx(rtspSrc.name);
-        const rtspDeviceId = `rtsp:${normalizedName}`;
-        rtspMap.set(rtspDeviceId, rtspSrc.name);
-      }
-    });
-    return rtspMap;
-  }
-  
-/**
- * Creates a map of webcam devices from the browser's enumerated devices.
- * On mobile, it consolidates all webcams under a single "Webcam" entry.
- * @param devices - The array of MediaDeviceInfo objects.
- * @param isMobile - A boolean indicating if the device is considered mobile.
- * @returns A Map where the key is the deviceId and the value is its user-friendly label.
- */
-function createWebcamDeviceMap(devices: DeviceInfo[], isMobile: boolean, translationService: TranslationService): Map<string, string> {
-    const webcamMap = new Map<string, string>();
-    const validWebcams = Array.isArray(devices) ? devices.filter(d => d?.id && typeof d.id === 'string' && d.id.length > 0) : [];
-  
-    if (isMobile && validWebcams.length > 0) {
-      webcamMap.set("webcam:mobile_default", translationService.translate("Webcam", { defaultValue: "Webcam" }));
-    } else {
-      validWebcams.forEach((d, index) => {
-        let deviceLabel = d?.label;
-        if (!deviceLabel || deviceLabel.trim() === "") {
-          deviceLabel = translationService.translate("Camera", {
-            defaultValue: `Camera ${index + 1}`
-          });
-        }
-        deviceLabel = deviceLabel.replace(/\s\([\s\S]*?\)$/, '');
-        webcamMap.set(d.id, deviceLabel);
-      });
-    }
-    return webcamMap;
-}
+const ENUMERATE_TIMEOUT_MS = 5000;
+const GUM_LABEL_PROMPT_TIMEOUT_MS = 8000;
 
 export class CameraSourceManager {
   #selectedCameraSource = '';
@@ -105,11 +59,11 @@ export class CameraSourceManager {
 
   public async refreshDeviceList(): Promise<void> {
     try {
-      const devices = await checkPermissionsAndEnumerate(this.#mockCameraManager as CameraManager);
-      publishDeviceList(this.#mockCameraManager as CameraManager, devices, this.#translationService);
+      const devices = await this.#checkPermissionsAndEnumerate();
+      this.#publishDeviceList(devices);
     } catch (error) {
       console.error('[SourceMgr] Device enumeration failed:', error);
-      publishDeviceList(this.#mockCameraManager as CameraManager, [], this.#translationService);
+      this.#publishDeviceList([]);
     }
   }
 
@@ -159,8 +113,8 @@ export class CameraSourceManager {
   };
 
   #rebuildCombinedMap = (): void => {
-    const webcamMap = createWebcamDeviceMap(this.#lastWebcamDevices, this.#isMobile, this.#translationService);
-    const rtspMap = createRtspDeviceMap(this.#rtspSourcesCache);
+    const webcamMap = this.#createWebcamDeviceMap(this.#lastWebcamDevices, this.#isMobile);
+    const rtspMap = this.#createRtspDeviceMap(this.#rtspSourcesCache);
     this.#combinedDeviceMap = new Map([...webcamMap, ...rtspMap]);
   };
 
@@ -196,6 +150,78 @@ export class CameraSourceManager {
     if (this.#selectedCameraSource && !streamIsActive) {
       pubsub.publish(CAMERA_SOURCE_EVENTS.CHANGED, this.#selectedCameraSource);
     }
+  }
+  
+  async #checkPermissionsAndEnumerate(): Promise<MediaDeviceInfo[]> {
+    let permissionState: PermissionState = 'prompt';
+    try {
+      if (navigator.permissions?.query) {
+        const status = await navigator.permissions.query({ name: 'camera' as PermissionName });
+        permissionState = status.state;
+        status.onchange = () => pubsub.publish(PERMISSION_EVENTS.CAMERA_CHANGED, status.state);
+      }
+      if (permissionState === 'prompt') {
+        const timeoutPromise = new Promise<never>((_, reject) => setTimeout(() => reject(new Error('getUserMedia prompt timeout')), GUM_LABEL_PROMPT_TIMEOUT_MS));
+        const stream = await Promise.race([navigator.mediaDevices.getUserMedia({ video: true }), timeoutPromise]);
+        stream.getTracks().forEach((track) => track.stop());
+        permissionState = 'granted';
+        pubsub.publish(PERMISSION_EVENTS.CAMERA_CHANGED, permissionState);
+      }
+      const enumeratePromise = navigator.mediaDevices.enumerateDevices();
+      const enumerateTimeout = new Promise<MediaDeviceInfo[]>((_, reject) => setTimeout(() => reject(new Error('Enumeration Timeout')), ENUMERATE_TIMEOUT_MS));
+      return await Promise.race([enumeratePromise, enumerateTimeout]);
+    } catch (e: unknown) {
+      if ((e as Error).name === 'NotAllowedError') pubsub.publish(PERMISSION_EVENTS.CAMERA_CHANGED, 'denied');
+      else console.error('[PermissionHelper]', e);
+      return [];
+    }
+  }
+
+  #publishDeviceList(devices: MediaDeviceInfo[]): void {
+    const videoDevices = devices.filter((d) => d?.kind === 'videoinput');
+    const activeDeviceId = this.#mockCameraManager.getCurrentDeviceId?.();
+    const hasCameraAccess = videoDevices.some((d) => d?.label && d.label !== '');
+    const deviceListPayload = {
+      devices: videoDevices.map((d, index) => {
+        let finalLabel = d.label || this.#translationService.translate('Camera', { defaultValue: `Camera ${index + 1}` });
+        finalLabel = finalLabel.replace(/\s\([\s\S]*?\)$/, '');
+        return { id: d.deviceId, label: finalLabel, active: d.deviceId === activeDeviceId };
+      }),
+      hasSpecificDevices: videoDevices.length > 0,
+      hasCameraAccess: hasCameraAccess,
+    };
+    pubsub.publish(WEBCAM_EVENTS.DEVICE_UPDATE, deviceListPayload);
+  }
+
+  #createRtspDeviceMap(rtspSourcesCache: RtspSourceConfig[] | undefined): Map<string, string> {
+    const rtspMap = new Map<string, string>();
+    (rtspSourcesCache || []).forEach((rtspSrc) => {
+      if (rtspSrc?.name) {
+        const normalizedName = normalizeNameForMtx(rtspSrc.name);
+        const rtspDeviceId = `rtsp:${normalizedName}`;
+        rtspMap.set(rtspDeviceId, rtspSrc.name);
+      }
+    });
+    return rtspMap;
+  }
+  
+  #createWebcamDeviceMap(devices: DeviceInfo[], isMobile: boolean): Map<string, string> {
+    const webcamMap = new Map<string, string>();
+    const validWebcams = Array.isArray(devices) ? devices.filter(d => d?.id && typeof d.id === 'string' && d.id.length > 0) : [];
+  
+    if (isMobile && validWebcams.length > 0) {
+      webcamMap.set("webcam:mobile_default", this.#translationService.translate("Webcam", { defaultValue: "Webcam" }));
+    } else {
+      validWebcams.forEach((d, index) => {
+        let deviceLabel = d?.label;
+        if (!deviceLabel || deviceLabel.trim() === "") {
+          deviceLabel = this.#translationService.translate("Camera", { defaultValue: `Camera ${index + 1}` });
+        }
+        deviceLabel = deviceLabel.replace(/\s\([\s\S]*?\)$/, '');
+        webcamMap.set(d.id, deviceLabel);
+      });
+    }
+    return webcamMap;
   }
 
   public getSelectedCameraSource = (): string => this.#selectedCameraSource;

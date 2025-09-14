@@ -134,7 +134,7 @@ export class HeaderTogglesController {
       button.className = 'btn btn-secondary w-full justify-start';
       button.id = item.id;
       if (item.value) button.dataset.value = item.value;
-      button.addEventListener('click', () => { item.handler(); this.#closeActiveDropdown(); });
+      button.addEventListener('click', () => { item.handler(); this.closeActiveDropdown(); });
 
       const iconSpan = document.createElement('span');
       setIcon(iconSpan, item.iconKey);
@@ -189,9 +189,9 @@ export class HeaderTogglesController {
   };
 
   #toggleDropdown = (type: string, button: HTMLButtonElement, panel: HTMLElement): void => {
-    if (button.disabled) { this.#closeActiveDropdown(); return; }
+    if (button.disabled) { this.closeActiveDropdown(); return; }
     const isOpening = !this.#activeDropdown || this.#activeDropdown.type !== type;
-    this.#closeActiveDropdown();
+    this.closeActiveDropdown();
     if (isOpening) {
       panel.classList.add('visible');
       button.setAttribute('aria-expanded', 'true');
@@ -200,7 +200,7 @@ export class HeaderTogglesController {
     }
   };
 
-  #closeActiveDropdown = (): void => {
+  public closeActiveDropdown = (): void => {
     if (!this.#activeDropdown) return;
     this.#activeDropdown.panel.classList.remove('visible');
     this.#activeDropdown.button.setAttribute('aria-expanded', 'false');
@@ -208,9 +208,13 @@ export class HeaderTogglesController {
     this.#activeDropdown = null;
   };
 
+  public isDropdownOpen = (): boolean => {
+    return !!this.#activeDropdown;
+  };
+
   #handleClickOutside = (event: MouseEvent): void => {
     if (this.#activeDropdown && !this.#activeDropdown.button.closest('.dropdown-container')?.contains(event.target as Node)) {
-      this.#closeActiveDropdown();
+      this.closeActiveDropdown();
     }
   };
 
@@ -241,7 +245,7 @@ export class HeaderTogglesController {
     const isAnyFeatureOn = anyHandOn || poseOn;
     updateButtonToggleActiveState(featuresDropdownTrigger as HTMLButtonElement, isAnyFeatureOn);
 
-    if (this.#activeDropdown?.type === 'landmarks' && !anyHandOn && !poseOn) this.#closeActiveDropdown();
+    if (this.#activeDropdown?.type === 'landmarks' && !anyHandOn && !poseOn) this.closeActiveDropdown();
   };
 
   applyTranslations = (): void => {

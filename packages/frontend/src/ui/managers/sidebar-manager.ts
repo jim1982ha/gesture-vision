@@ -12,6 +12,11 @@ export class SidebarManager {
   #uiControllerRef: UIController;
   public isMobile = false;
 
+  #boundUpdateViewportState: () => void;
+  #boundToggleHistorySidebar: () => void;
+  #boundCloseAllSidebars: () => void;
+  #boundCloseHistorySidebar: () => void;
+
   constructor(uiController: UIController) {
     this.#uiControllerRef = uiController;
     this.#historySidebar = document.getElementById("historySidebar");
@@ -19,6 +24,11 @@ export class SidebarManager {
     this.#headerHistoryToggle = document.getElementById("headerHistoryToggle") as HTMLButtonElement | null;
     this.#historySidebarHeaderCloseBtn = document.getElementById("historySidebarHeaderCloseBtn") as HTMLButtonElement | null;
     this.#clearHistoryButton = document.getElementById("clearHistoryButton") as HTMLButtonElement | null;
+
+    this.#boundUpdateViewportState = this.updateViewportState.bind(this);
+    this.#boundToggleHistorySidebar = () => this.toggleHistorySidebar();
+    this.#boundCloseAllSidebars = this.closeAllSidebars.bind(this);
+    this.#boundCloseHistorySidebar = this.closeHistorySidebar.bind(this);
 
     this.#initialize();
   }
@@ -30,10 +40,17 @@ export class SidebarManager {
   }
 
   #attachEventListeners(): void {
-    window.addEventListener('resize', this.updateViewportState.bind(this));
-    this.#headerHistoryToggle?.addEventListener('click', () => this.toggleHistorySidebar());
-    this.#sidebarBackdrop?.addEventListener('click', () => this.closeAllSidebars());
-    this.#historySidebarHeaderCloseBtn?.addEventListener('click', () => this.closeHistorySidebar());
+    window.addEventListener('resize', this.#boundUpdateViewportState);
+    this.#headerHistoryToggle?.addEventListener('click', this.#boundToggleHistorySidebar);
+    this.#sidebarBackdrop?.addEventListener('click', this.#boundCloseAllSidebars);
+    this.#historySidebarHeaderCloseBtn?.addEventListener('click', this.#boundCloseHistorySidebar);
+  }
+
+  public destroy(): void {
+    window.removeEventListener('resize', this.#boundUpdateViewportState);
+    this.#headerHistoryToggle?.removeEventListener('click', this.#boundToggleHistorySidebar);
+    this.#sidebarBackdrop?.removeEventListener('click', this.#boundCloseAllSidebars);
+    this.#historySidebarHeaderCloseBtn?.removeEventListener('click', this.#boundCloseHistorySidebar);
   }
   
   public applyTranslations(): void {
@@ -45,7 +62,7 @@ export class SidebarManager {
     }
 
     setIcon(this.#headerHistoryToggle, 'UI_HISTORY');
-    setIcon(this.#clearHistoryButton, 'UI_DELETE');
+    setIcon(this.#clearHistoryButton, 'UI_DELETE_FOREVER');
     setIcon(this.#historySidebarHeaderCloseBtn, 'UI_CLOSE');
 
     this.#clearHistoryButton?.setAttribute('title', translate('clearHistory'));
@@ -87,6 +104,11 @@ export class SidebarManager {
       this.toggleHistorySidebar(false);
     }
   }
+
+  public isHistorySidebarOpen(): boolean {
+      return document.body.classList.contains('history-sidebar-active');
+  }
+
   public closeAllSidebars(): void {
     this.closeHistorySidebar();
   }

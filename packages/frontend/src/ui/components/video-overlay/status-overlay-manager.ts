@@ -17,6 +17,8 @@ export class StatusOverlayManager {
   #currentState: VideoOverlayState | null = null;
   #uiControllerRef: UIController;
 
+  #boundHandleClick = this.#handleClick.bind(this);
+
   constructor(overlayElement: HTMLElement, uiController: UIController) {
     this.#overlayElement = overlayElement;
     this.#uiControllerRef = uiController;
@@ -28,18 +30,22 @@ export class StatusOverlayManager {
     )!;
     this.#iconElement = this.#iconContainer.querySelector('.material-icons')!;
     this.#textElement = this.#textContainer.querySelector('#connectingText')!;
-    this.#attachEventListeners();
   }
 
   public initialize(): void {
+    this.#attachEventListeners();
     this.setState('OFFLINE_IDLE');
+  }
+  
+  public destroy(): void {
+    this.#overlayElement.removeEventListener('click', this.#boundHandleClick);
   }
 
   #attachEventListeners(): void {
-    this.#overlayElement.addEventListener('click', this.#handleClick);
+    this.#overlayElement.addEventListener('click', this.#boundHandleClick);
   }
 
-  #handleClick = (event: MouseEvent): void => {
+  #handleClick(event: MouseEvent): void {
     switch (this.#currentState) {
       case 'INITIAL_CONNECTING':
         if ((event.target as HTMLElement) === this.#overlayElement) {
@@ -52,7 +58,7 @@ export class StatusOverlayManager {
         }
         break;
     }
-  };
+  }
 
   public setState(newState: VideoOverlayState): void {
     if (this.#currentState === newState) return;

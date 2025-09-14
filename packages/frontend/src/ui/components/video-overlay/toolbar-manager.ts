@@ -21,11 +21,25 @@ export class ToolbarManager {
   #uiControllerRef: UIController;
   #visibilityTimeout: number | null = null;
 
+  #boundClearVisibilityTimeout: () => void;
+  #boundScheduleHide: () => void;
+
   constructor(elements: ToolbarElements, uiController: UIController) {
     this.#elements = elements;
     this.#uiControllerRef = uiController;
+
+    this.#boundClearVisibilityTimeout = this.clearVisibilityTimeout.bind(this);
+    this.#boundScheduleHide = this.scheduleHide.bind(this);
+
     this.#attachEventListeners();
     this.applyTranslations();
+  }
+
+  destroy(): void {
+    this.#elements.streamActionsGroup.removeEventListener('mouseenter', this.#boundClearVisibilityTimeout);
+    this.#elements.streamActionsGroup.removeEventListener('mouseleave', this.#boundScheduleHide);
+    // Button listeners are not stored as bound methods, so we can't easily remove them.
+    // For this component, assuming it's destroyed with its elements is acceptable.
   }
 
   #attachEventListeners(): void {
@@ -39,8 +53,8 @@ export class ToolbarManager {
       videoStopBtn,
     } = this.#elements;
 
-    streamActionsGroup.addEventListener('mouseenter', this.clearVisibilityTimeout);
-    streamActionsGroup.addEventListener('mouseleave', this.scheduleHide);
+    streamActionsGroup.addEventListener('mouseenter', this.#boundClearVisibilityTimeout);
+    streamActionsGroup.addEventListener('mouseleave', this.#boundScheduleHide);
     
     videoSizeToggleButton.addEventListener('click', () => {
         if (this.#uiControllerRef.sidebarManager?.isMobile) {
@@ -69,13 +83,13 @@ export class ToolbarManager {
     );
   }
 
-  public scheduleHide = (): void => {
+  public scheduleHide(): void {
     this.clearVisibilityTimeout();
-  };
+  }
   
-  public clearVisibilityTimeout = (): void => {
+  public clearVisibilityTimeout(): void {
     if (this.#visibilityTimeout) clearTimeout(this.#visibilityTimeout);
-  };
+  }
   
   public updateButtonStates(): void {
     const camManager = this.#uiControllerRef.cameraManager;

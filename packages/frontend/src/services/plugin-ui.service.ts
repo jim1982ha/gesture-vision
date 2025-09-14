@@ -6,7 +6,8 @@ import { webSocketService } from './websocket-service.js';
 import { setIcon, updateButtonGroupActiveState, setElementVisibility } from '#frontend/ui/helpers/index.js';
 import { BasePluginGlobalSettingsComponent } from '#frontend/ui/components/plugins/base-plugin-global-settings.component.js';
 import { GenericPluginActionSettingsComponent } from '#frontend/ui/components/plugins/generic-plugin-action-settings.component.js';
-import { createCardElement } from '#frontend/ui/utils/card-utils.js';
+import { createCardElement } from '#frontend/ui/helpers/card-utils.js';
+import { modalStack } from '#frontend/ui/managers/modal-manager.js';
 import type { PluginManifest, PluginTestConnectionResultPayload,} from '#shared/index.js';
 import type {
   FrontendPluginModule,
@@ -140,10 +141,7 @@ export class PluginUIService {
 
     for (const pluginId of changes.updated) {
         const component = this.#pluginSettingsComponents.get(pluginId);
-        if (component) {
-            const config = this.#appStore.getState().pluginGlobalConfigs.get(pluginId) || null;
-            component.update(config, this.getPluginUIContext(pluginId), {});
-        }
+        component?.update();
     }
     
     if (hasStructuralChanges) {
@@ -161,9 +159,7 @@ export class PluginUIService {
 
     if (manifest.capabilities.hasGlobalSettings && module.createGlobalSettingsComponent) {
       const component = module.createGlobalSettingsComponent(manifest.id, manifest, this.getPluginUIContext(manifest.id));
-      component.initialize?.();
-      const config = this.#appStore.getState().pluginGlobalConfigs.get(manifest.id) || null;
-      component.update(config, this.getPluginUIContext(manifest.id));
+      component.update();
       this.#pluginSettingsComponents.set(manifest.id, component);
     }
   }
@@ -182,7 +178,6 @@ export class PluginUIService {
     this.#actionDisplayRenderers.delete(pluginId);
     this.#moduleLoadPromises.delete(pluginId);
 
-    // Remove the plugin's stylesheet if it was injected
     const stylesheetId = `plugin-stylesheet-${pluginId}`;
     document.getElementById(stylesheetId)?.remove();
 
@@ -206,9 +201,9 @@ export class PluginUIService {
       cameraService: this.#cameraServiceRef || undefined,
       gesture: this.#gestureProcessorRef || undefined,
       webSocketService: webSocketService || undefined,
-      requestCloseSettingsModal: () => this.#uiControllerRef?.modalManager?.closeSettingsModal(),
       globalSettingsModalManager: this.#uiControllerRef?._globalSettingsForm || undefined,
       uiController: this.#uiControllerRef || undefined,
+      requestCloseSettingsModal: () => this.#uiControllerRef?.modalManager?.closeSettingsModal(),
       data: {},
       services: {
         translationService: this.#translationService,
@@ -217,6 +212,7 @@ export class PluginUIService {
       uiComponents: {
         createCardElement, setIcon, updateButtonGroupActiveState, setElementVisibility,
         BasePluginGlobalSettingsComponent, GenericPluginActionSettingsComponent, ActionPluginUIManager,
+        modalStack,
       },
       shared: { constants, services: { actionDisplayUtils }, utils },
     };
@@ -231,7 +227,6 @@ export class PluginUIService {
     if (document.getElementById(stylesheetId)) return;
   
     const cssPath = `/plugins/${pluginId}/frontend/style.css?v=${manifest.version || Date.now()}`;
-    console.log(`[PluginUIService] Injecting stylesheet for '${pluginId}' from: ${cssPath}`);
     
     const link = document.createElement('link');
     link.id = stylesheetId;
@@ -239,9 +234,6 @@ export class PluginUIService {
     link.type = 'text/css';
     link.href = cssPath;
     
-    link.onload = () => {
-      console.log(`[PluginUIService] SUCCESS: Stylesheet for '${pluginId}' loaded successfully.`);
-    };
     link.onerror = () => {
       console.error(`[PluginUIService] FAILED: Could not load stylesheet for '${pluginId}' at ${cssPath}. Check if the file exists and the server path is correct.`);
       link.remove();

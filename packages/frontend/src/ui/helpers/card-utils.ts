@@ -1,4 +1,4 @@
-/* FILE: packages/frontend/src/ui/utils/card-utils.ts */
+/* FILE: packages/frontend/src/ui/helpers/card-utils.ts */
 // Utility for creating card UI elements using a declarative template.
 import { setIcon, clsx } from '#frontend/ui/helpers/index.js';
 import type { Substitutions } from '#shared/services/translations.js';

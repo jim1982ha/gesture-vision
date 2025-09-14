@@ -9,6 +9,7 @@ import { GestureStateLogic } from './state-logic.js';
 import { GestureWorkerManager } from '#frontend/services/gesture-worker-manager.js';
 import type { Landmark } from '@mediapipe/tasks-vision';
 import type { CanvasRenderer } from '#frontend/camera/canvas-renderer.js';
+import type { TranslationService } from '#frontend/services/translation.service.js';
 
 interface ProcessorState {
   processingEnabled: boolean;
@@ -41,9 +42,9 @@ export class GestureProcessor {
   #canvasRendererRef: CanvasRenderer | null = null;
   #processingOverride: { hand: boolean; pose: boolean; numHands: number } | undefined;
 
-  constructor(appStore: AppStore) {
+  constructor(appStore: AppStore, translationService: TranslationService) {
     this.#appStore = appStore;
-    this.#stateLogic = new GestureStateLogic(this.#appStore);
+    this.#stateLogic = new GestureStateLogic(this.#appStore, translationService);
     this.#workerManager = new GestureWorkerManager(this.#appStore);
     
     const state = this.#appStore.getState();

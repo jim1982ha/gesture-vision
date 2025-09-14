@@ -4,6 +4,7 @@ import { registerSW } from "virtual:pwa-register";
 
 import { App } from "./core/app.js";
 import { appStore } from "./core/state/app-store.js";
+import { initializeErrorHandlingService } from "./services/error-handling.service.js";
 import './index.css'; // Import Tailwind CSS entry point
 
 declare global {
@@ -21,6 +22,7 @@ async function initializeApplication() {
     registerSW({ immediate: true });
     
     appInstance = new App(appStore);
+    initializeErrorHandlingService(appInstance.translationService);
 
     await appInstance.initializeAppSequence();
 

@@ -17,6 +17,7 @@ export interface PluginManifest {
       providesActions?: boolean;
       providesTab?: boolean;
       providesUIContribution?: boolean;
+      canTestConnection?: boolean;
     };
     globalConfigFileName?: string;
     defaultGlobalConfigPath?: string;

@@ -95,7 +95,7 @@ interface AppStoreActions {
   clearPluginExtData: (pluginId: string) => void;
   setLowLightSettings: (payload: { lowLightBrightness?: number; lowLightContrast?: number; }) => void;
   addHistoryEntry: (entry: Partial<HistoryEntry>) => void;
-  updateHistoryEntryStatus: (result: ActionResultPayload) => void;
+  handleBackendActionResult: (result: ActionResultPayload) => void;
   clearHistory: () => void;
   setModelLoadingStatus: (status: { hand?: boolean, pose?: boolean }) => void;
   setIsActionDispatchSuppressed: (isSuppressed: boolean) => void;
@@ -174,7 +174,6 @@ export function createAppStore(initialState: FrontendFullState) {
             return { pluginExtDataCache: newCache };
           });
         },
-        // NEW: Action to clear extended data for a specific plugin.
         clearPluginExtData: (pluginId: string) => {
             set((state) => {
                 const newCache = new Map(state.pluginExtDataCache);
@@ -204,18 +203,25 @@ export function createAppStore(initialState: FrontendFullState) {
           const newHistory = [newEntry, ...currentHistory].slice(0, MAX_HISTORY_ITEMS);
           set({ historyEntries: newHistory });
         },
-        updateHistoryEntryStatus: (result: ActionResultPayload) => {
-          if (!result?.gestureName || result.pluginId === 'none') return;
-          const currentHistory = get().historyEntries;
-          let entryUpdated = false;
-          const newHistory = currentHistory.map((entry) => {
-            if (!entryUpdated && entry.gesture === result.gestureName && entry.actionType === result.pluginId && entry.reason === 'AWAITING_RESULT') {
-              entryUpdated = true;
-              return { ...entry, success: result.success, reason: result.message || (result.success ? 'OK' : 'FAILED'), };
+        handleBackendActionResult: (result: ActionResultPayload) => {
+            if (!result?.gestureName || result.pluginId === 'none') return;
+            
+            // 1. Update history state
+            const currentHistory = get().historyEntries;
+            let entryUpdated = false;
+            const newHistory = currentHistory.map((entry) => {
+                if (!entryUpdated && entry.gesture === result.gestureName && entry.actionType === result.pluginId && entry.reason === 'AWAITING_RESULT') {
+                    entryUpdated = true;
+                    return { ...entry, success: result.success, reason: result.message || (result.success ? 'OK' : 'FAILED'), };
+                }
+                return entry;
+            });
+            if (entryUpdated) {
+                set({ historyEntries: newHistory });
             }
-            return entry;
-          });
-          if (entryUpdated) set({ historyEntries: newHistory });
+
+            // 2. Publish a clean UI event for other components to consume
+            pubsub.publish(UI_EVENTS.ACTION_RESULT_RECEIVED, result);
         },
         clearHistory: () => {
           set({ historyEntries: [] });

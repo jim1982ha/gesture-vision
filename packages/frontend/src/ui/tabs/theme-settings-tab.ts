@@ -7,7 +7,6 @@ import {
 import { renderThemeSelectionTab as renderThemeList } from '#frontend/ui/renderers/theme-tab-renderer.js';
 import type { UIController } from '#frontend/ui/ui-controller-core.js';
 
-import type { FullConfiguration } from '#shared/index.js';
 import type { ThemePreference } from '#frontend/types/index.js';
 import type { AppStore, FrontendFullState } from '#frontend/core/state/app-store.js';
 
@@ -44,10 +43,6 @@ export class ThemeSettingsTab extends BaseSettingsTab<ThemeSettingsTabElements> 
     this._addEventListenerHelper('themeToggleGroup', 'click', this.#handleBaseThemeSelection);
   }
 
-  public getSettingsToSave(): Partial<FullConfiguration> {
-    return {};
-  }
-
   #handleModeButtonClick = (event: MouseEvent): void => {
     const button = (event.target as HTMLElement).closest<HTMLButtonElement>('button[data-value]');
     const newPreference = button?.dataset.value as ThemePreference['mode'] | undefined;
@@ -82,10 +77,11 @@ export class ThemeSettingsTab extends BaseSettingsTab<ThemeSettingsTabElements> 
 
   public applyTranslations(): void {
     this._applyTranslationsHelper([
-        { element: this._elements.container?.querySelector('#theme-settings-colormode-section .form-label'), config: "colorModeLegend" },
-        { element: this._elements.container?.querySelector('#theme-settings-theme-section .form-label'), config: "themeSelectionLabel" },
+        { element: this._elements.container?.querySelector('#theme-settings-colormode-section .form-label'), config: { key: "colorModeLegend" } },
+        { element: this._elements.container?.querySelector('#theme-settings-theme-section .form-label'), config: { key: "themeSelectionLabel" } },
     ]);
     this._renderButtonGroup(this._elements.colorModeToggleGroup, COLOR_MODE_OPTIONS);
+    // After re-rendering buttons with new text, we must reload settings to apply the active state.
     this.loadSettings();
   }
 

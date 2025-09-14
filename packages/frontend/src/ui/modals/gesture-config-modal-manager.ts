@@ -13,11 +13,26 @@ export class GestureConfigModalManager {
     #uiControllerRef: UIController;
     #isModalVisible = false;
 
+    #boundHandleModalClick: (e: MouseEvent) => void;
+    #boundHandleAddNew: () => void;
+    #boundHandleRequestEdit: (gestureName?: unknown) => void;
+
     constructor(uiControllerRef: UIController) {
         this.#uiControllerRef = uiControllerRef;
         this.#modalElement = document.getElementById("gestureConfigModal");
 
         this.#form = new GestureConfigForm(this, this.#uiControllerRef);
+
+        this.#boundHandleModalClick = this.#handleModalClick.bind(this);
+        this.#boundHandleAddNew = this.startNew.bind(this);
+        this.#boundHandleRequestEdit = (gestureName?: unknown) => {
+            const index = this.#uiControllerRef.getGestureConfigsSnapshot().findIndex(
+                (c: GestureConfig | PoseConfig) => ('gesture' in c ? c.gesture : c.pose) === (gestureName as string)
+            );
+            if (index > -1) {
+                this.startEdit(index);
+            }
+        };
     }
 
     public initialize(): void {
@@ -25,24 +40,24 @@ export class GestureConfigModalManager {
         this.#attachEventListeners();
     }
 
+    public destroy(): void {
+        this.#modalElement?.removeEventListener('click', this.#boundHandleModalClick);
+        document.getElementById('addNewActionButton')?.removeEventListener('click', this.#boundHandleAddNew);
+        pubsub.unsubscribe(UI_EVENTS.REQUEST_EDIT_CONFIG, this.#boundHandleRequestEdit);
+        this.#form.destroy();
+    }
+
+    #handleModalClick(e: MouseEvent): void {
+        const target = e.target as HTMLElement;
+        if (target.closest('#addGestureConfig')) this.#handleSave();
+        if (target.closest('#cancelEditButton')) this.hide();
+        if (target.closest('#gestureConfigModalCloseBtn')) this.hide();
+    }
+
     #attachEventListeners(): void {
-        this.#modalElement?.addEventListener('click', (e) => {
-            const target = e.target as HTMLElement;
-            if (target.closest('#addGestureConfig')) this.#handleSave();
-            if (target.closest('#cancelEditButton')) this.hide();
-            if (target.closest('#gestureConfigModalCloseBtn')) this.hide();
-        });
-
-        document.getElementById('addNewActionButton')?.addEventListener('click', () => this.startNew());
-
-        pubsub.subscribe(UI_EVENTS.REQUEST_EDIT_CONFIG, (gestureName?: unknown) => {
-            const index = this.#uiControllerRef.getGestureConfigsSnapshot().findIndex(
-                (c: GestureConfig | PoseConfig) => ('gesture' in c ? c.gesture : c.pose) === (gestureName as string)
-            );
-            if (index > -1) {
-                this.startEdit(index);
-            }
-        });
+        this.#modalElement?.addEventListener('click', this.#boundHandleModalClick);
+        document.getElementById('addNewActionButton')?.addEventListener('click', this.#boundHandleAddNew);
+        pubsub.subscribe(UI_EVENTS.REQUEST_EDIT_CONFIG, this.#boundHandleRequestEdit);
     }
 
     public startNew(): void {

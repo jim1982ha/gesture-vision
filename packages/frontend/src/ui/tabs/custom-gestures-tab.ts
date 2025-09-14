@@ -9,7 +9,7 @@ import { GestureImportManager } from '../components/custom-gestures/gesture-impo
 import { CustomGestureCardComponent } from '../components/custom-gestures/custom-gesture-card.component.js';
 
 import { pubsub } from '#shared/core/pubsub.js';
-import type { CustomGestureMetadata, UploadCustomGestureAckPayload, DeleteCustomGestureAckPayload, UpdateCustomGestureAckPayload, FullConfiguration } from '#shared/index.js';
+import type { CustomGestureMetadata, UploadCustomGestureAckPayload, DeleteCustomGestureAckPayload, UpdateCustomGestureAckPayload, UpdateCustomGesturePayload } from '#shared/index.js';
 import { UI_EVENTS, WEBSOCKET_EVENTS } from '#shared/index.js';
 
 export interface CustomGesturesTabElements extends TabElements {
@@ -62,8 +62,6 @@ export class CustomGesturesTab extends BaseSettingsTab<CustomGesturesTabElements
         return newState.customGestureMetadataList !== oldState.customGestureMetadataList;
     }
     
-    public getSettingsToSave = (): Partial<FullConfiguration> => ({});
-
     #handleUpdateAck = (payload: UpdateCustomGestureAckPayload): void => { if (payload.success) pubsub.publish(UI_EVENTS.SHOW_NOTIFICATION, { messageKey: "notificationItemUpdated", substitutions: { item: payload.updatedDefinition?.name }, type: "success" }); else pubsub.publish(UI_EVENTS.SHOW_ERROR, { messageKey: payload.message || "errorGeneric", type: 'error' }); };
     #handleDeleteAck = (payload: DeleteCustomGestureAckPayload): void => { if (payload.success) pubsub.publish(UI_EVENTS.SHOW_NOTIFICATION, { messageKey: 'customGestureDeleteSuccess', substitutions: { id: payload.deletedId ?? 'N/A' }, type: 'info' }); else pubsub.publish(UI_EVENTS.SHOW_ERROR, { messageKey: 'customGestureDeleteFailed', substitutions: { message: payload.message || 'Unknown error' } }); };
     
@@ -74,19 +72,49 @@ export class CustomGesturesTab extends BaseSettingsTab<CustomGesturesTabElements
         const { gestureId, gestureName } = card.dataset;
         if (!gestureId || !gestureName) return;
 
-        if ((event.target as HTMLElement).closest('.delete-btn')) {
+        const targetButton = (event.target as HTMLElement).closest('button');
+
+        if (targetButton?.classList.contains('delete-btn')) {
             this.#handleDeleteClick(gestureId, gestureName);
+        } else if (targetButton?.classList.contains('save-edit-btn')) {
+            this.#handleSaveClick(gestureId);
+        } else if (targetButton?.classList.contains('cancel-edit-btn')) {
+            this.#editingGestureId = null;
+            this.loadSettings();
+        } else if (!targetButton) {
+            this.#editingGestureId = gestureId;
+            this.loadSettings();
+        }
+    }
+
+    #handleSaveClick(gestureId: string): void {
+        const cardComponent = this.#cardComponents.get(gestureId);
+        if (!cardComponent) return;
+
+        const nameInput = cardComponent.cardElement.querySelector<HTMLInputElement>('input[type="text"]');
+        const descTextarea = cardComponent.cardElement.querySelector<HTMLTextAreaElement>('textarea');
+        const oldDef = this._appStore.getState().customGestureMetadataList.find(d => d.id === gestureId);
+
+        const newName = nameInput?.value.trim() ?? '';
+        if (!newName) {
+            pubsub.publish(UI_EVENTS.SHOW_ERROR, { messageKey: "customGestureNameReq" });
             return;
         }
 
-        // Switch clicked card to edit mode and all others to view mode.
-        this.#cardComponents.forEach((component, id) => {
-            if (id === gestureId) {
-                component.editableCard.switchToEditMode();
-            } else {
-                component.editableCard.switchToViewMode();
-            }
-        });
+        const payload: UpdateCustomGesturePayload = {
+            id: gestureId,
+            oldName: oldDef?.name ?? gestureId,
+            newName: newName,
+            newDescription: descTextarea?.value.trim() ?? ''
+        };
+
+        webSocketService.request<UpdateCustomGestureAckPayload>(WEBSOCKET_EVENTS.UPDATE_CUSTOM_GESTURE, payload)
+            .then(result => {
+                if (result.success) {
+                    this.#editingGestureId = null;
+                    // The websocket event will trigger a re-render from the store update.
+                }
+            });
     }
 
     #handleDeleteClick = (id: string, name: string): void => {
@@ -95,52 +123,24 @@ export class CustomGesturesTab extends BaseSettingsTab<CustomGesturesTabElements
         const confirmAction = () => webSocketService.sendMessage({ type: WEBSOCKET_EVENTS.DELETE_CUSTOM_GESTURE, payload: { id, name } });
         confirmMgr.show({ titleKey: 'confirmDeleteGestureTitle', messageKey: 'confirmDeleteMessage', messageSubstitutions: { item: name }, confirmTextKey: 'delete', onConfirm: confirmAction });
     }
-
-    #handleEditStateChange = (gestureId: string, isEditing: boolean): void => {
-        if (isEditing) {
-            this.#editingGestureId = gestureId;
-            // When one card enters edit mode, tell all others to exit edit mode.
-            this.#cardComponents.forEach((component, id) => {
-                if (id !== gestureId) {
-                    component.editableCard.switchToViewMode();
-                }
-            });
-        } else if (this.#editingGestureId === gestureId) {
-            this.#editingGestureId = null;
-        }
-    };
     
     #renderCustomGestureList = (definitions: CustomGestureMetadata[] = []): void => {
         const { customHandGestureListContainer: hc, customHandGestureListPlaceholder: hp, customPoseGestureListContainer: pc, customPoseGestureListPlaceholder: pp } = this._elements;
         if (!hc || !hp || !pc || !pp) return;
         
-        const currentIds = new Set(definitions.map(d => d.id));
-
-        this.#cardComponents.forEach((component, id) => {
-            if (!currentIds.has(id)) {
-                component.destroy();
-                this.#cardComponents.delete(id);
-            }
-        });
+        this.#cardComponents.clear();
     
         const handsContainer = document.createDocumentFragment();
         const posesContainer = document.createDocumentFragment();
         
         definitions.forEach(def => {
-            let component = this.#cardComponents.get(def.id);
-            if (!component) {
-                component = new CustomGestureCardComponent(
-                    def, 
-                    this._uiControllerRef.pluginUIService.getPluginUIContext(), 
-                    () => this.#handleDeleteClick(def.id, def.name),
-                    (isEditing) => this.#handleEditStateChange(def.id, isEditing)
-                );
-                this.#cardComponents.set(def.id, component);
-            }
-
-            component.update(def, this._uiControllerRef.pluginUIService.getPluginUIContext(def.id), {
-                isEditing: this.#editingGestureId === def.id
-            });
+            const isEditing = this.#editingGestureId === def.id;
+            const component = new CustomGestureCardComponent(
+                def, 
+                this._uiControllerRef.pluginUIService.getPluginUIContext(),
+                isEditing
+            );
+            this.#cardComponents.set(def.id, component);
             
             if (def.type === 'pose') {
                 posesContainer.appendChild(component.getElement());
@@ -180,9 +180,12 @@ export class CustomGesturesTab extends BaseSettingsTab<CustomGesturesTabElements
             { element: this._elements.container?.querySelector('#custom-gestures-pose-list-title'), config: { key: 'savedCustomGesturesTitle', substitutions: { type: this._translate('Pose') } } },
         ]);
         
-        this.#cardComponents.forEach(component => component.applyTranslations());
+        // Instead of a full reload, iterate through existing components and apply translations.
+        for (const component of this.#cardComponents.values()) {
+            component.applyTranslations?.();
+        }
+        
         this.#importManager?.applyTranslations();
-        this.loadSettings();
         this.#renderContributions();
     }
     

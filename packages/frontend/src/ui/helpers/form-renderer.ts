@@ -1,5 +1,5 @@
 /* FILE: packages/frontend/src/ui/helpers/form-renderer.ts */
-import { createFromTemplate } from '#frontend/ui/utils/template-renderer.js';
+import { createFromTemplate } from '#frontend/ui/helpers/template-renderer.js';
 import type { ActionSettingFieldDescriptor } from '#shared/index.js';
 import type { PluginUIContext } from '#frontend/types/index.js';
 import type { TranslationService } from '#frontend/services/translation.service.js';
@@ -17,17 +17,24 @@ export function createFormField(
   translate: TranslationService['translate']
 ): HTMLElement {
   const isCheckbox = field.type === 'checkbox';
-  const controlId = `${pluginId}-${field.id}`;
+  const controlId = `${pluginId}-${field.id.replace(/\./g, '-')}`;
 
   const labelHtml = `<label for="${controlId}" class="form-label">${translate(field.labelKey)}</label>`;
   
   let controlHtml: string;
+  const placeholder = field.placeholderKey ? `placeholder="${translate(field.placeholderKey)}"` : '';
+  const autocomplete = field.autocomplete || 'off';
+
   if (isCheckbox) {
     controlHtml = `<input type="checkbox" id="${controlId}" class="form-checkbox">`;
+  } else if (field.type === 'select') {
+    controlHtml = `<select id="${controlId}" class="form-control"></select>`;
+  } else if (field.type === 'textarea') {
+    const rows = field.rows || 3;
+    controlHtml = `<textarea id="${controlId}" class="form-control" rows="${rows}" ${placeholder}></textarea>`;
   } else {
-    const placeholder = field.placeholderKey ? translate(field.placeholderKey) : '';
-    const autocomplete = field.autocomplete || 'off';
-    controlHtml = `<input type="${field.type}" id="${controlId}" class="form-control" placeholder="${placeholder}" autocomplete="${autocomplete}">`;
+    // Default to a standard input for types like 'text', 'url', 'password', etc.
+    controlHtml = `<input type="${field.type}" id="${controlId}" class="form-control" ${placeholder} autocomplete="${autocomplete}">`;
   }
 
   const helpTextHtml = field.helpTextKey ? `<small class="form-help-text">${translate(field.helpTextKey)}</small>` : '';
@@ -59,7 +66,8 @@ export function renderFormFields(
     const formElements: Record<string, HTMLElement> = {};
     const translate = context.services.translationService.translate;
 
-    for (let i = 0; i < fieldDescriptors.length; i++) {
+    let i = 0;
+    while (i < fieldDescriptors.length) {
         const field = fieldDescriptors[i];
         const nextField = fieldDescriptors[i + 1];
 
@@ -69,14 +77,16 @@ export function renderFormFields(
             row.appendChild(createFormField(field, pluginId, translate));
             row.appendChild(createFormField(nextField, pluginId, translate));
             container.appendChild(row);
-            i++; // Skip next field as it's already rendered
+            i += 2;
         } else {
             container.appendChild(createFormField(field, pluginId, translate));
+            i++;
         }
     }
 
     fieldDescriptors.forEach(field => {
-        const element = container.querySelector<HTMLElement>(`#${pluginId}-${field.id}`);
+        const controlId = `${pluginId}-${field.id.replace(/\./g, '-')}`;
+        const element = container.querySelector<HTMLElement>(`#${controlId}`);
         if (element) {
             formElements[field.id] = element;
         }

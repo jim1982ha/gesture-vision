@@ -1,8 +1,5 @@
 /* FILE: packages/frontend/src/ui/ui-docs-modal-manager.ts */
-import {
-  UI_EVENTS,
-  DOCS_MODAL_EVENTS,
-} from "#shared/index.js";
+import { DOCS_MODAL_EVENTS } from "#shared/index.js";
 import { pubsub } from "#shared/core/pubsub.js";
 import { DocsContentLoader } from "./docs/docs-content-loader.js";
 import { DocsTocManager } from "./docs/docs-toc-manager.js";
@@ -160,20 +157,15 @@ export class DocsModalManager {
   };
 
   public openModal = async (docKey: string | null = "ABOUT"): Promise<void> => {
-    pubsub.publish(UI_EVENTS.REQUEST_CLOSE_ALL_PANELS_EXCEPT, "docs");
-    this.#elements.docsModal!.classList.add("visible");
-    document.body.classList.add("modal-open", "modal-docs-open");
-    pubsub.publish(UI_EVENTS.MODAL_VISIBILITY_CHANGED, { modalId: "docs", isVisible: true });
-    this.applyTranslations();
+    this.#uiControllerRef.modalManager?.closeAllModals();
     await this.#loadAndRenderDocument(docKey || "ABOUT");
+    this.#uiControllerRef.modalManager?.toggleDocsModal(true);
+    this.applyTranslations();
   };
 
   public closeModal = (): void => {
     this.#tocManager.cleanup();
-    this.#elements.docsModal?.classList.remove("visible");
-    document.body.classList.remove("modal-open");
-    pubsub.publish(UI_EVENTS.MODAL_VISIBILITY_CHANGED, { modalId: "docs", isVisible: false });
-    pubsub.publish(UI_EVENTS.REQUEST_MODAL_BLUR_UPDATE);
+    this.#uiControllerRef.modalManager?.toggleDocsModal(false);
     this.#currentDocKey = "";
   };
 

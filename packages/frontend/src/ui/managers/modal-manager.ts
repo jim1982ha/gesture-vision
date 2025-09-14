@@ -3,6 +3,31 @@ import { UI_EVENTS, pubsub } from '#shared/index.js';
 import { toggleElementClass, setIcon } from '#frontend/ui/helpers/index.js';
 import type { UIController } from '#frontend/ui/ui-controller-core.js';
 
+/** A simple stack to manage layered modals for the Escape key handler. */
+class ModalStackManager {
+    #stack: string[] = [];
+
+    push(modalId: string): void {
+        if (!this.#stack.includes(modalId)) {
+            this.#stack.push(modalId);
+        }
+    }
+
+    pop(): string | undefined {
+        return this.#stack.pop();
+    }
+
+    peek(): string | undefined {
+        return this.#stack.length > 0 ? this.#stack[this.#stack.length - 1] : undefined;
+    }
+
+    remove(modalId: string): void {
+        this.#stack = this.#stack.filter(id => id !== modalId);
+    }
+}
+
+export const modalStack = new ModalStackManager();
+
 export class ModalManager {
   #mainSettingsModal: HTMLElement | null;
   #cameraSelectModal: HTMLElement | null;
@@ -12,8 +37,11 @@ export class ModalManager {
   #cameraSelectCloseButton: HTMLButtonElement | null;
   
   #uiControllerRef: UIController;
-  #activeModalId: string | null = null;
   #isInitialized = false;
+
+  #boundToggleSettings: () => void;
+  #boundCloseDocs: () => void;
+  #boundCloseCameraSelect: () => void;
 
   constructor(uiController: UIController) {
     this.#uiControllerRef = uiController;
@@ -23,6 +51,10 @@ export class ModalManager {
     this.#mainSettingsToggle = document.getElementById("mainSettingsToggle") as HTMLButtonElement | null;
     this.#docsCloseButton = document.getElementById("docsCloseButton") as HTMLButtonElement | null;
     this.#cameraSelectCloseButton = document.getElementById("cameraSelectCloseButton") as HTMLButtonElement | null;
+
+    this.#boundToggleSettings = () => this.toggleSettingsModal();
+    this.#boundCloseDocs = this.closeDocsModal.bind(this);
+    this.#boundCloseCameraSelect = this.closeCameraSelectModal.bind(this);
   }
   
   public initialize(): void {
@@ -31,17 +63,17 @@ export class ModalManager {
       this.applyTranslations();
       this.#isInitialized = true;
   }
+  
+  public destroy(): void {
+    this.#mainSettingsToggle?.removeEventListener('click', this.#boundToggleSettings);
+    this.#docsCloseButton?.removeEventListener('click', this.#boundCloseDocs);
+    this.#cameraSelectCloseButton?.removeEventListener('click', this.#boundCloseCameraSelect);
+  }
 
   #attachEventListeners(): void {
-    this.#mainSettingsToggle?.addEventListener('click', () =>
-      this.toggleSettingsModal()
-    );
-    this.#docsCloseButton?.addEventListener('click', () =>
-      this.closeDocsModal()
-    );
-    this.#cameraSelectCloseButton?.addEventListener('click', () =>
-      this.closeCameraSelectModal()
-    );
+    this.#mainSettingsToggle?.addEventListener('click', this.#boundToggleSettings);
+    this.#docsCloseButton?.addEventListener('click', this.#boundCloseDocs);
+    this.#cameraSelectCloseButton?.addEventListener('click', this.#boundCloseCameraSelect);
   }
 
   public applyTranslations(): void {
@@ -51,75 +83,57 @@ export class ModalManager {
     setIcon(document.getElementById("cameraModalHeader")?.querySelector('.header-icon'), 'UI_WEBCAM');
   }
 
-  #getModalElementById = (id: string): HTMLElement | null => {
+  #getModalElementById(id: string): HTMLElement | null {
     if (id === 'main-settings') return this.#mainSettingsModal ?? null;
     if (id === 'camera') return this.#cameraSelectModal ?? null;
     if (id === 'docs') return this.#docsModal ?? null;
     return null;
-  };
+  }
 
   #toggleModal(id: string, force?: boolean): void {
     const modalElement = this.#getModalElementById(id);
     if (!modalElement) return;
 
-    const isCurrentlyActive = this.#activeModalId === id;
-    const shouldBeVisible = force !== undefined ? force : !isCurrentlyActive;
-
-    if (shouldBeVisible === isCurrentlyActive && force === undefined) return;
+    const isCurrentlyVisible = modalElement.classList.contains('visible');
+    const shouldBeVisible = force !== undefined ? force : !isCurrentlyVisible;
 
     if (shouldBeVisible) {
-      this.#uiControllerRef.sidebarManager?.closeAllSidebars();
-      this.#uiControllerRef.modalManager?.closeAllModals();
-      if (id === 'main-settings')
-        this.#uiControllerRef._globalSettingsForm?.prepareToShowDefaultTab();
+      if (id === 'main-settings') this.#uiControllerRef._globalSettingsForm?.prepareToShowDefaultTab();
       if (id === 'camera') {
-        this.#uiControllerRef.cameraManager
-          ?.getCameraSourceManager()
-          .refreshDeviceList();
+        this.#uiControllerRef.cameraManager?.getCameraSourceManager().refreshDeviceList();
         pubsub.publish(UI_EVENTS.MODAL_OPENED_CAMERA_SELECT);
       }
-      this.#activeModalId = id;
-    } else if (this.#activeModalId === id) {
-      this.#activeModalId = null;
+      modalStack.push(id);
+    } else {
+      modalStack.remove(id);
     }
 
     toggleElementClass(modalElement, 'visible', shouldBeVisible);
     document.body.classList.toggle(`modal-${id}-open`, shouldBeVisible);
-    pubsub.publish(UI_EVENTS.MODAL_VISIBILITY_CHANGED, {
-      modalId: id,
-      isVisible: shouldBeVisible,
-    });
-    this.#checkToRemoveBlurClass();
+    pubsub.publish(UI_EVENTS.MODAL_VISIBILITY_CHANGED, { modalId: id, isVisible: shouldBeVisible });
+    this.#checkBodyModalClass();
   }
 
-  #checkToRemoveBlurClass(): void {
+  #checkBodyModalClass(): void {
     const isAnyModalOpen =
-      !!this.#activeModalId ||
-      document.getElementById('confirmationModal')?.classList.contains('visible');
+      !!modalStack.peek() || document.getElementById('confirmationModal')?.classList.contains('visible');
     toggleElementClass(document.body, 'modal-open', isAnyModalOpen);
   }
 
-  public getActiveModalId = (): string | null => this.#activeModalId;
+  public getActiveModalId(): string | undefined {
+    return modalStack.peek();
+  }
 
-  public closeAllModals = (): void => {
+  public closeAllModals(): void {
     this.closeSettingsModal();
     this.closeCameraSelectModal();
     this.closeDocsModal();
-    this.#checkToRemoveBlurClass();
-  };
+  }
 
-  public toggleSettingsModal = (force?: boolean): void =>
-    this.#toggleModal('main-settings', force);
-  public closeSettingsModal = (): void => {
-    if (this.#activeModalId === 'main-settings')
-      this.#toggleModal('main-settings', false);
-  };
-  public toggleCameraSelectModal = (force?: boolean): void =>
-    this.#toggleModal('camera', force);
-  public closeCameraSelectModal = (): void => {
-    if (this.#activeModalId === 'camera') this.#toggleModal('camera', false);
-  };
-  public closeDocsModal = (): void => {
-    if (this.#activeModalId === 'docs') this.#toggleModal('docs', false);
-  };
+  public toggleSettingsModal(force?: boolean): void { this.#toggleModal('main-settings', force); }
+  public closeSettingsModal(): void { this.#toggleModal('main-settings', false); }
+  public toggleCameraSelectModal(force?: boolean): void { this.#toggleModal('camera', force); }
+  public closeCameraSelectModal(): void { this.#toggleModal('camera', false); }
+  public toggleDocsModal(force?: boolean): void { this.#toggleModal('docs', force); }
+  public closeDocsModal(): void { this.#toggleModal('docs', false); }
 }

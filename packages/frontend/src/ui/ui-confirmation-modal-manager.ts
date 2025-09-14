@@ -85,14 +85,6 @@ export class ConfirmationModalManager {
 
     this.#confirmButton?.addEventListener('click', this.#handleConfirm);
     this.#cancelButton?.addEventListener('click', this.#handleCancel);
-    this.#modalElement?.addEventListener('keydown', (event: KeyboardEvent) => {
-      if (
-        event.key === 'Escape' &&
-        this.#modalElement?.classList.contains('visible')
-      ) {
-        this.#handleCancel();
-      }
-    });
   }
 
   #handleConfirm = (): void => {
@@ -156,6 +148,10 @@ export class ConfirmationModalManager {
   isReady(): boolean {
     return this.#isReadyAndInitialized && !!this.#modalElement;
   }
+  
+  isVisible(): boolean {
+    return this.isReady() && this.#modalElement!.classList.contains('visible');
+  }
 
   show({
     titleKey = 'confirmActionTitle',
@@ -218,7 +214,7 @@ export class ConfirmationModalManager {
       this.#confirmButton.classList.add(
         isDangerAction ? 'btn-danger' : 'btn-primary'
       );
-      setIcon(this.#confirmButton, isDangerAction ? 'UI_DELETE' : 'UI_CONFIRM');
+      setIcon(this.#confirmButton, isDangerAction ? 'UI_DELETE_FOREVER' : 'UI_CONFIRM');
     }
     setIcon(this.#cancelButton, 'UI_CANCEL');
 
@@ -230,8 +226,13 @@ export class ConfirmationModalManager {
     this.#confirmButton?.focus();
   }
 
-  hide(): void {
+  hide(wasCancelledByUser = false): void {
     if (!this.isReady()) return;
+    
+    if (wasCancelledByUser && typeof this.#onCancelCallback === 'function') {
+        this.#onCancelCallback();
+    }
+    
     this.#modalElement?.classList.add('hidden');
     this.#modalElement?.classList.remove('visible');
     document.body.classList.remove('modal-confirmation-open');

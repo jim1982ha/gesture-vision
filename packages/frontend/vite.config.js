@@ -26,7 +26,6 @@ dns.setDefaultResultOrder("verbatim");
 function readPartial(partialPath) {
   try {
     const fullPath = path.resolve(__dirname, `src/partials/${partialPath}`);
-    // console.log(`\x1b[36m[VITE PARTIALS] 🔎 Reading partial: ${fullPath}\x1b[0m`);
     return fs.readFileSync(fullPath, "utf-8");
   } catch (error) {
     console.error(`\x1b[31m[VITE PARTIALS] ❌ Error loading partial: ${partialPath}. Error: ${error.message}\x1b[0m`);
@@ -50,7 +49,6 @@ export default defineConfig(({ mode }) => {
     enforce: "pre",
     transformIndexHtml(html) {
       const partials = {
-        // FIX: Removed all settings tab injectors. They are now rendered from TS.
         "<!-- header-inject -->": readPartial("_header.html"),
         "<!-- main-content-inject -->": readPartial("_main_content.html"),
         "<!-- history-sidebar-inject -->": readPartial("_history_sidebar.html"),

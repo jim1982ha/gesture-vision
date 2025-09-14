@@ -1,5 +1,5 @@
 /* FILE: packages/frontend/src/ui/components/rtsp/rtsp-source-card.ts */
-import { createCardElement, type ActionButtonConfig } from '#frontend/ui/utils/card-utils.js';
+import { createCardElement, type ActionButtonConfig } from '#frontend/ui/helpers/card-utils.js';
 import { setIcon } from '#frontend/ui/helpers/index.js';
 import type { RtspSourceConfig } from '#shared/index.js';
 import type { TranslationService } from '#frontend/services/translation.service.js';
@@ -31,7 +31,7 @@ export function createRtspSourceCard(
     const actionButtons: ActionButtonConfig[] = [{
         action: 'delete',
         title: translate('deleteTooltip', { item: source.name }),
-        iconKey: 'UI_DELETE',
+        iconKey: 'UI_DELETE_FOREVER',
         extraClasses: ['btn-icon-danger', 'delete-rtsp-btn'],
         translate: translate,
     }];

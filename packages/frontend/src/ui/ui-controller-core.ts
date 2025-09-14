@@ -1,7 +1,7 @@
 /* FILE: packages/frontend/src/ui/ui-controller-core.ts */
 // Main UI orchestrator, initializes and manages UI components and managers.
 import { SidebarManager } from './managers/sidebar-manager.js';
-import { ModalManager } from './managers/modal-manager.js';
+import { ModalManager, modalStack } from './managers/modal-manager.js';
 import { LayoutManager } from './managers/layout-manager.js';
 import { GlobalSettingsModalManager } from './modals/global-settings-modal-manager.js';
 import { NotificationManager } from '#frontend/services/notification-manager.js';
@@ -29,6 +29,7 @@ import type { ConfirmationModalManager } from './ui-confirmation-modal-manager.j
 import type { CameraService } from '#frontend/services/camera.service.js';
 import { setIcon } from './helpers/index.js';
 import type { TranslationService } from '#frontend/services/translation.service.js';
+import { errorHandlingService } from '#frontend/services/error-handling.service.js';
 
 /**
  * Main UI orchestrator, responsible for initializing all UI managers and components.
@@ -59,6 +60,9 @@ export class UIController {
   _originalNameBeingEdited: string | null = null;
   _editingRtspSourceIndex: number | null = null;
 
+  #unsubscribeStore: () => void;
+  #boundGlobalKeyDownHandler = this.#handleGlobalKeyDown.bind(this);
+
   constructor(appRef: App) {
     this.appStore = appRef.appStore;
     this.translationService = appRef.translationService;
@@ -67,7 +71,7 @@ export class UIController {
     this.cameraService = appRef.cameraService;
 
     this.#initializeManagers(appRef.translationService);
-    this.#initializeCoreSubscriptions();
+    this.#unsubscribeStore = this.#initializeCoreSubscriptions();
   }
 
   #initializeManagers(translationService: TranslationService): void {
@@ -112,18 +116,26 @@ export class UIController {
     this.#renderContributions();
   }
 
-  #initializeCoreSubscriptions = (): void => {
-    this.appStore.subscribe((state, prevState) => {
-      if (state.languagePreference !== prevState.languagePreference) {
-        this.applyTranslations();
-      }
-      if (state.isWsConnected !== prevState.isWsConnected)
-        this.#updateWsStatusIndicator();
-      this.updateButtonState();
-      if (state.historyEntries !== prevState.historyEntries)
-        this._renderer?.renderHistoryList(state.historyEntries);
-    });
+  public destroy(): void {
+    document.removeEventListener('keydown', this.#boundGlobalKeyDownHandler);
+    this.#unsubscribeStore();
+    this.sidebarManager.destroy();
+    this.modalManager.destroy();
+    this.layoutManager.destroy();
+    this._gestureConfigModalManager.destroy();
+    this._globalSettingsForm.destroy();
+    this._themeManager.destroy();
+    this._languageManager.destroy();
+    this._headerTogglesController.destroy();
+    this.pluginUIService.destroy();
+    this._videoOverlayControlsManager.destroy();
+    this._renderer.destroy();
+    this._docsModalMgr?.destroy();
+  }
 
+  #initializeCoreSubscriptions = (): (() => void) => {
+    document.addEventListener('keydown', this.#boundGlobalKeyDownHandler);
+    
     pubsub.subscribe(UI_EVENTS.REQUEST_SELECTED_CAMERA_DISPLAY_UPDATE, this.updateButtonState);
 
     pubsub.subscribe(WEBSOCKET_EVENTS.CONNECTING, () =>
@@ -178,11 +190,68 @@ export class UIController {
       }
     });
     
+    document.getElementById('clearHistoryButton')?.addEventListener('click', this.#handleClearHistory);
+
     setIcon(document.getElementById("mainSettingsCloseButton"), 'UI_CLOSE');
     setIcon(document.getElementById("docsCloseButton"), 'UI_CLOSE');
     setIcon(document.getElementById("cameraSelectCloseButton"), 'UI_CLOSE');
     setIcon(document.getElementById("historySidebarHeaderCloseBtn"), 'UI_CLOSE');
+
+    return this.appStore.subscribe((state, prevState) => {
+        if (state.languagePreference !== prevState.languagePreference) {
+          this.applyTranslations();
+        }
+        if (state.isWsConnected !== prevState.isWsConnected)
+          this.#updateWsStatusIndicator();
+        this.updateButtonState();
+        if (state.historyEntries !== prevState.historyEntries)
+          this._renderer?.renderHistoryList(state.historyEntries);
+      });
   };
+
+  #handleGlobalKeyDown(event: KeyboardEvent): void {
+    if (event.key !== 'Escape') {
+        return;
+    }
+
+    if (this._languageManager?.isDropdownOpen()) {
+        this._languageManager.toggleDropdown();
+        return;
+    }
+    
+    if (this._headerTogglesController?.isDropdownOpen()) {
+        this._headerTogglesController.closeActiveDropdown();
+        return;
+    }
+
+    const topModal = modalStack.peek();
+    switch (topModal) {
+        case 'gesture-studio':
+        case 'landmark-selector':
+        case 'dashboard':
+            pubsub.publish(`escape-for-${topModal}`);
+            return;
+        case 'main-settings':
+            this.modalManager.closeSettingsModal();
+            return;
+        case 'docs':
+            this.modalManager.closeDocsModal();
+            return;
+        case 'camera':
+            this.modalManager.closeCameraSelectModal();
+            return;
+    }
+    
+    if (this._confirmationModalMgr?.isVisible()) {
+        this._confirmationModalMgr.hide(true);
+        return;
+    }
+
+    if (this.sidebarManager?.isHistorySidebarOpen()) {
+        this.sidebarManager.closeHistorySidebar();
+        return;
+    }
+  }
 
   #updateWsStatusIndicator(isInitial = false, isConnecting = false): void {
     const t = document.getElementById("wsStatusIndicator");
@@ -246,6 +315,18 @@ export class UIController {
 
   public updateButtonState = (): void => {
     this._headerTogglesController?.updateAllButtonStates();
+  };
+  
+  #handleClearHistory = (): void => {
+    this._confirmationModalMgr?.show({
+      titleKey: 'confirmClearHistory',
+      messageKey: 'confirmClearHistory',
+      confirmTextKey: 'clearHistory',
+      onConfirm: () => {
+        this.appStore.getState().actions.clearHistory();
+        pubsub.publish(UI_EVENTS.SHOW_NOTIFICATION, { messageKey: "historyCleared", type: "info" });
+      }
+    });
   };
 
   #handleDeleteGestureConfig = (gestureName: string): void => {
@@ -321,9 +402,13 @@ export class UIController {
   public async updateGestureConfigs(
     c: (GestureConfig | PoseConfig)[]
   ): Promise<void> {
-    await this.appStore
-      .getState()
-      .actions.requestBackendPatch({ gestureConfigs: c });
+    try {
+      await this.appStore
+        .getState()
+        .actions.requestBackendPatch({ gestureConfigs: c });
+    } catch (e) {
+      errorHandlingService?.handleError(e, 'UpdateGestureConfigs');
+    }
   }
   public getGestureConfigsSnapshot = (): (GestureConfig | PoseConfig)[] =>
     this.appStore.getState().gestureConfigs || [];

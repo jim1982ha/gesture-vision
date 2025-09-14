@@ -34,6 +34,7 @@ export class CameraManager {
   #currentFacingMode: 'user' | 'environment' = DEFAULT_WEBCAM_FACING_MODE;
   #cameraSourceManager: CameraSourceManager;
   #streamService: CameraStreamService;
+  #unsubscribeStore: () => void;
 
   constructor(
     videoElement: HTMLVideoElement,
@@ -67,10 +68,22 @@ export class CameraManager {
     );
     this.#loadPreferences();
     this.#attachEventListeners();
+
+    this.#unsubscribeStore = this.#appStore.subscribe((state, prevState) => {
+      if (state.rtspSources !== prevState.rtspSources && this.isStreaming()) {
+        this.#handleLiveRtspConfigUpdate(state.rtspSources);
+      }
+    });
   }
 
   public async initialize(): Promise<void> {
     await this.#cameraSourceManager.initialize();
+  }
+
+  public destroy(): void {
+    window.removeEventListener('resize', this.#canvasRendererRef.handleResize);
+    this.#unsubscribeStore();
+    this.#cameraSourceManager.destroy();
   }
 
   #loadPreferences(): void {
@@ -90,11 +103,6 @@ export class CameraManager {
     window.addEventListener('resize', () =>
       this.#canvasRendererRef.handleResize()
     );
-    this.#appStore.subscribe((state, prevState) => {
-      if (state.rtspSources !== prevState.rtspSources && this.isStreaming()) {
-        this.#handleLiveRtspConfigUpdate(state.rtspSources);
-      }
-    });
 
     pubsub.subscribe(UI_EVENTS.REQUEST_MIRROR_TOGGLE, () => {
         this.toggleMirroringForCurrentStream();

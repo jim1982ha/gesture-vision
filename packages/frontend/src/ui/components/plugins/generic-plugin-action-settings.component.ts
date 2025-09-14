@@ -1,7 +1,7 @@
 /* FILE: packages/frontend/src/ui/components/plugins/generic-plugin-action-settings.component.ts */
-import type {
-  ActionSettingFieldDescriptor,
-  ActionSettingFieldOption,
+import {
+  type ActionSettingFieldDescriptor,
+  type ActionSettingFieldOption,
 } from '#shared/index.js';
 import type {
   IPluginActionSettingsComponent,
@@ -26,6 +26,7 @@ export class GenericPluginActionSettingsComponent
   #formElements: Record<string, HTMLElement> = {};
   #dependencyMap = new Map<string, string[]>();
   #currentSettings: Record<string, unknown> | null = null;
+  #subscriptions: (() => void)[] = [];
 
   constructor(
     pluginId: string,
@@ -43,6 +44,20 @@ export class GenericPluginActionSettingsComponent
     this.#uiContainer = document.createElement('div');
     this.#uiContainer.className = `plugin-action-settings-form generic-settings-form generic-${pluginId}-settings`;
     this.#buildDependencyMap();
+    this.#attachEventListeners();
+  }
+
+  #attachEventListeners(): void {
+    const sub = this.#context.services.pubsub.subscribe(
+        'PLUGIN_EXT_DATA_UPDATED',
+        (updatedPluginId?: unknown) => {
+            if (updatedPluginId === this.#pluginId) {
+                // Re-render the entire form to refresh all dropdowns
+                this.render(this.#currentSettings);
+            }
+        }
+    );
+    this.#subscriptions.push(sub);
   }
 
   render(
@@ -109,7 +124,6 @@ export class GenericPluginActionSettingsComponent
     select.disabled = true;
 
     try {
-      // FIX: Assert the type of the function to guide the TypeScript compiler.
       const typedOptionsSource = optionsSource as OptionsSourceFn;
       const options = await typedOptionsSource(
         this.#context,
@@ -266,6 +280,8 @@ export class GenericPluginActionSettingsComponent
   }
 
   destroy(): void {
+    this.#subscriptions.forEach(unsub => unsub());
+    this.#subscriptions = [];
     this.#uiContainer.innerHTML = '';
   }
 }

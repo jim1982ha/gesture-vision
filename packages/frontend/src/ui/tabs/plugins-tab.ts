@@ -1,11 +1,14 @@
 /* FILE: packages/frontend/src/ui/tabs/plugins-tab.ts */
 import type { AppStore, FrontendFullState } from '#frontend/core/state/app-store.js';
+import type { ConfirmationModalManager } from '#frontend/ui/ui-confirmation-modal-manager.js';
 import type { UIController } from '#frontend/ui/ui-controller-core.js';
 import { BaseSettingsTab, type TabElements } from '../base-settings-tab.js';
-import { UI_EVENTS, pubsub, type FullConfiguration } from '#shared/index.js';
+import { pubsub } from '#shared/core/pubsub.js';
 import type { DocsModalManager } from '../ui-docs-modal-manager.js';
 import { PluginInstallManager } from '../components/plugins/plugin-install-manager.js';
-import { PluginListRenderer } from '../components/plugins/plugin-list-renderer.js';
+import { BasePluginGlobalSettingsComponent } from '../components/plugins/base-plugin-global-settings.component.js';
+import type { IPluginGlobalSettingsComponent } from '#frontend/types/index.js';
+import { UI_EVENTS } from '#shared/index.js';
 
 export interface PluginsTabElements extends TabElements {
     container?: HTMLElement | null;
@@ -17,11 +20,11 @@ export interface PluginsTabElements extends TabElements {
 }
 
 export class PluginsTab extends BaseSettingsTab<PluginsTabElements> {
-    #uiControllerRef: UIController;
+    #uiControllerRef: UIController & { _confirmationModalMgr?: ConfirmationModalManager | null };
     #pendingPlugins = new Set<string>();
     #installManager: PluginInstallManager | null = null;
-    #listRenderer: PluginListRenderer | null = null;
     #editingPluginId: string | null = null;
+    #cardComponents = new Map<string, IPluginGlobalSettingsComponent>();
 
     constructor(appStore: AppStore, uiControllerRef: UIController) {
         super(appStore, uiControllerRef, { container: '[data-tab-content="plugins"]' });
@@ -36,19 +39,6 @@ export class PluginsTab extends BaseSettingsTab<PluginsTabElements> {
         this.#renderContributions();
     }
     
-    protected async _additionalInitializationChecks(): Promise<void> {
-        if (this._elements.pluginInstallContainer) {
-            this.#installManager = new PluginInstallManager(this._elements.pluginInstallContainer, this.#uiControllerRef);
-        }
-        if (this._elements.pluginsListContainer && this._elements.pluginsListPlaceholder) {
-            this.#listRenderer = new PluginListRenderer(
-                this._elements.pluginsListContainer,
-                this._elements.pluginsListPlaceholder,
-                this.#uiControllerRef
-            );
-        }
-    }
-    
     #renderContributions = (): void => {
         // This tab does not have a dynamic contribution slot itself, but is called by the pubsub event.
     }
@@ -58,43 +48,79 @@ export class PluginsTab extends BaseSettingsTab<PluginsTabElements> {
         this._addEventListenerHelper("openPluginDevDocsBtn", "click", this.#handleOpenDocsClick);
     }
     
-    protected _doesConfigUpdateAffectThisTab(newState: FrontendFullState, oldState: FrontendFullState): boolean { 
-        return newState.pluginManifests !== oldState.pluginManifests || newState.pluginGlobalConfigs !== oldState.pluginGlobalConfigs;
+    protected _doesConfigUpdateAffectThisTab(newState: FrontendFullState, oldState: FrontendFullState): boolean {
+        const newManifests = newState.pluginManifests || [];
+        const oldManifests = oldState.pluginManifests || [];
+    
+        if (newManifests.length !== oldManifests.length) {
+            return true;
+        }
+    
+        newManifests.forEach(newManifest => {
+            const oldManifest = oldManifests.find(m => m.id === newManifest.id);
+            const component = this.#cardComponents.get(newManifest.id);
+            if (!component) return;
+    
+            if (oldManifest && newManifest.status !== oldManifest.status) {
+                component.manifest = newManifest;
+                component.updateToggleButtonState();
+                component.getElement().classList.toggle('config-item-disabled', newManifest.status !== 'enabled');
+            }
+    
+            const newConfig = newState.pluginGlobalConfigs.get(newManifest.id) as object | null;
+            const oldConfig = oldState.pluginGlobalConfigs.get(newManifest.id) as object | null;
+            if (JSON.stringify(newConfig) !== JSON.stringify(oldConfig)) {
+                component.update(newConfig);
+            }
+        });
+    
+        return false;
     }
     
-    public getSettingsToSave(): Partial<FullConfiguration> { return {}; }
-    
     public loadSettings(): void {
-        this.#listRenderer?.render(
-            this._appStore.getState().pluginManifests || [],
-            this.#pendingPlugins,
-            this.#editingPluginId
-        );
+        this.#renderPluginList();
+    }
+
+    #setEditing = (pluginId: string | null): void => {
+        if (this.#editingPluginId === pluginId) return;
+
+        const oldEditingId = this.#editingPluginId;
+        if (oldEditingId && this.#cardComponents.has(oldEditingId)) {
+            this.#cardComponents.get(oldEditingId)?.switchToViewMode();
+        }
+
+        this.#editingPluginId = pluginId;
+        if (this.#editingPluginId && this.#cardComponents.has(this.#editingPluginId)) {
+            this.#cardComponents.get(this.#editingPluginId)?.switchToEditMode();
+        }
     }
     
     #handlePluginCardClick = (event: MouseEvent): void => {
-        const card = (event.target as HTMLElement).closest<HTMLDivElement>('.plugin-item');
+        const card = (event.target as HTMLElement).closest<HTMLDivElement>('.config-item');
         if (!card?.dataset.pluginId) return;
 
         const pluginId = card.dataset.pluginId;
         const button = (event.target as HTMLElement).closest<HTMLButtonElement>('button[data-action]');
         
-        if (button) {
+        if (button && !this.#pendingPlugins.has(pluginId)) {
+            event.preventDefault();
+            event.stopPropagation();
             const { action } = button.dataset;
-            if (!action || this.#pendingPlugins.has(pluginId)) return;
             if (action === 'toggle') {
                 const manifest = this.#uiControllerRef.pluginUIService?.getPluginManifest(pluginId);
                 const newState = manifest?.status === 'enabled' ? 'disabled' : 'enabled';
                 void this.#setPluginState(pluginId, newState);
             } else if (action === 'uninstall') {
                 this.#handleUninstallPlugin(pluginId);
+            } else if (action === 'save') {
+                void this.#handleSave(pluginId);
+            } else if (action === 'cancel') {
+                this.#setEditing(null);
+            } else if (action === 'test-connection') {
+                this.#handleTestConnection(pluginId);
             }
-        } else {
-            const manifest = this.#uiControllerRef.pluginUIService.getPluginManifest(pluginId);
-            if (manifest?.capabilities.hasGlobalSettings) {
-                this.#editingPluginId = pluginId;
-                this.loadSettings(); // Re-render to highlight the editing card
-            }
+        } else if (card.classList.contains('card-item-clickable') && this.#editingPluginId !== pluginId) {
+            this.#setEditing(pluginId);
         }
     };
     
@@ -104,9 +130,54 @@ export class PluginsTab extends BaseSettingsTab<PluginsTabElements> {
             .catch((error: unknown) => console.error("[PluginsTab] Failed to open docs modal:", error));
     };
 
+    #handleSave = async (pluginId: string): Promise<void> => {
+        const component = this.#cardComponents.get(pluginId);
+        if (!component) return;
+    
+        const newConfig = component.getFormValues();
+        const result = await this.#uiControllerRef.pluginUIService.savePluginGlobalConfig(pluginId, newConfig);
+
+        if (result.success) {
+            component.update(result.config as object | null);
+            this.#setEditing(null);
+            pubsub.publish(UI_EVENTS.SHOW_NOTIFICATION, { messageKey: "notificationItemSaved", substitutions: { item: "Configuration" }, type: "success" });
+        } else {
+            pubsub.publish(UI_EVENTS.SHOW_ERROR, { messageKey: result.message ?? 'errorSavingConfig' });
+        }
+    };
+
+    #handleTestConnection = async (pluginId: string): Promise<void> => {
+        const component = this.#cardComponents.get(pluginId);
+        if (!component) return;
+    
+        const configToTest = component.isEditing() ? component.getFormValues() : (component as BasePluginGlobalSettingsComponent<object>).initialConfig;
+        
+        component.updateTestState(true);
+
+        try {
+            const result = await this.#uiControllerRef.pluginUIService.sendPluginTestConnectionRequest?.(pluginId, configToTest) || null;
+            if (result?.success === false) {
+                pubsub.publish(UI_EVENTS.SHOW_ERROR, { 
+                    messageKey: result.messageKey ?? 'haConnectionFailed', 
+                    substitutions: { ...(result.error ?? {}) }, type: 'error' 
+                });
+            } else if (result?.success === true) {
+                pubsub.publish(UI_EVENTS.SHOW_NOTIFICATION, { messageKey: result.messageKey || 'genericConnectionSuccess', type: 'success' });
+            }
+            component.updateTestState(false, result);
+        } catch (error) {
+            const result = { pluginId: pluginId, success: false, messageKey: 'TEST_FAILED', error: { message: (error as Error).message } };
+            component.updateTestState(false, result);
+        }
+    }
+
     #setPluginState = async (pluginId: string, state: 'enabled' | 'disabled'): Promise<void> => {
         this.#pendingPlugins.add(pluginId);
-        this.loadSettings(); 
+        const component = this.#cardComponents.get(pluginId);
+        if (component) {
+            component.isPending = true;
+            component.getElement().classList.add('is-pending');
+        }
 
         try {
             const response = await fetch(`/api/plugins/manage/${pluginId}/state`, {
@@ -118,11 +189,17 @@ export class PluginsTab extends BaseSettingsTab<PluginsTabElements> {
                 const result = await response.json() as { message?: string };
                 throw new Error(result.message || `HTTP error ${response.status}`);
             }
+            // The backend file watcher will now trigger a resync and broadcast,
+            // which will be handled by our smart subscription logic (_doesConfigUpdateAffectThisTab).
         } catch (error) {
             console.error(`[PluginsTab] Failed to set plugin state for '${pluginId}':`, error);
             pubsub.publish(UI_EVENTS.SHOW_ERROR, { message: `Failed to change plugin state: ${(error as Error).message}` });
         } finally {
             this.#pendingPlugins.delete(pluginId);
+            if (component) {
+                component.isPending = false;
+                component.getElement().classList.remove('is-pending');
+            }
         }
     };
     
@@ -153,13 +230,83 @@ export class PluginsTab extends BaseSettingsTab<PluginsTabElements> {
             },
         });
     };
+    
+    #renderPluginList(): void {
+        const container = this._elements.pluginsListContainer;
+        const placeholder = this._elements.pluginsListPlaceholder;
+        const manifests = this._appStore.getState().pluginManifests || [];
+        if (!container || !placeholder) return;
+
+        if (manifests.length === 0) {
+            placeholder.textContent = this._translate('noPluginsInstalled');
+            container.innerHTML = '';
+            container.appendChild(placeholder);
+            return;
+        }
+
+        const sortedManifests = [...manifests].sort((a, b) => {
+            const nameA = this._translate(a.nameKey, { defaultValue: a.id });
+            const nameB = this._translate(b.nameKey, { defaultValue: b.id });
+            return nameA.localeCompare(nameB);
+        });
+        
+        const currentIds = new Set(sortedManifests.map(m => m.id));
+        
+        for (const id of this.#cardComponents.keys()) {
+            if (!currentIds.has(id)) {
+                const componentToDestroy = this.#cardComponents.get(id);
+                if (componentToDestroy) {
+                    componentToDestroy.destroy();
+                }
+                this.#cardComponents.delete(id);
+            }
+        }
+    
+        const cardElements = sortedManifests.map((manifest) => {
+            let component = this.#cardComponents.get(manifest.id);
+            if (!component) {
+                const module = this.#uiControllerRef.pluginUIService.getLoadedModuleById(manifest.id);
+                const componentFactory = module?.createGlobalSettingsComponent;
+
+                component = componentFactory 
+                    ? componentFactory(manifest.id, manifest, this.#uiControllerRef.pluginUIService.getPluginUIContext(manifest.id))
+                    : new BasePluginGlobalSettingsComponent(manifest.id, manifest, this.#uiControllerRef.pluginUIService.getPluginUIContext(manifest.id), []);
+                
+                this.#cardComponents.set(manifest.id, component);
+            }
+            
+            component.manifest = manifest;
+            component.updateToggleButtonState();
+            component.isPending = this.#pendingPlugins.has(manifest.id);
+
+            const cardElement = component.getElement(); 
+            cardElement.classList.toggle('config-item-disabled', manifest.status !== 'enabled');
+            cardElement.classList.toggle('is-pending', component.isPending);
+
+            if (this.#editingPluginId === manifest.id && !component.isEditing()) {
+                component.switchToEditMode();
+            } else if (this.#editingPluginId !== manifest.id && component.isEditing()) {
+                component.switchToViewMode();
+            }
+            
+            return cardElement;
+        });
+        
+        container.replaceChildren(...cardElements);
+    }
 
     public applyTranslations(): void {
         this._applyTranslationsHelper([
-            { element: this._elements.pluginDevInfoText, config: "pluginDevInfoText" },
-            { element: this._elements.openPluginDevDocsBtn, config: "pluginDevInfoLink" },
+            { element: this._elements.pluginDevInfoText, config: { key: "pluginDevInfoText" } },
+            { element: this._elements.openPluginDevDocsBtn, config: { key: "pluginDevInfoLink" } },
         ]);
-        this.loadSettings();
+        
+        // Corrected logic: Iterate and apply translations to existing components
+        // instead of calling the destructive loadSettings().
+        for (const component of this.#cardComponents.values()) {
+            component.applyTranslations?.();
+        }
+        
         this.#installManager?.applyTranslations();
         this.#renderContributions();
     }
@@ -172,7 +319,7 @@ export class PluginsTab extends BaseSettingsTab<PluginsTabElements> {
                 <div class="mb-6" id="pluginInstallContainer">
                     <!-- PluginInstallManager will render its content here -->
                 </div>
-                <div id="pluginsListContainer" class="grid grid-cols-1 gap-3"></div>
+                <div id="pluginsListContainer" class="flex flex-col gap-3"></div>
                 <p id="pluginsListPlaceholder" class="list-placeholder"></p>
                 <div class="flex items-center justify-center gap-2 text-sm text-text-secondary py-2 mt-6">
                     <span class="material-icons">code</span>
@@ -185,5 +332,6 @@ export class PluginsTab extends BaseSettingsTab<PluginsTabElements> {
         this._elements.pluginsListPlaceholder = container.querySelector('#pluginsListPlaceholder');
         this._elements.pluginInstallContainer = container.querySelector('#pluginInstallContainer');
         this._elements.openPluginDevDocsBtn = container.querySelector('#openPluginDevDocsBtn');
+        this._elements.pluginDevInfoText = container.querySelector('#pluginDevInfoText');
     }
 }

@@ -53,7 +53,7 @@ export function updateStatusDisplay(
       ? translate(formattedName, { defaultValue: formattedName })
       : translate('None');
 
-  const showGestureInfo = rawGestureName !== '-' && !isCooldownActive;
+  const showGestureInfo = rawGestureName !== '-' && rawGestureName.toUpperCase() !== 'NONE' && !isCooldownActive;
   gestureFeedbackOverlay.classList.toggle('hidden', !showGestureInfo);
   gestureFeedbackOverlay.classList.toggle('flex', showGestureInfo);
   gestureFeedbackOverlay.classList.toggle('flex-row', showGestureInfo);
@@ -125,9 +125,6 @@ export function updateProgressRings(
   const safeHoldPercent = Math.max(0, Math.min(1, holdPercent));
   gestureProgressCircle.style.strokeDashoffset = String(circGesture * (1 - safeHoldPercent));
   gestureProgressCircle.style.opacity = holdPercent > 0 ? '1' : '0';
-
-  // The color is now handled by the CSS class `.gesture-progress` in _overlays.css
-  // This removes the buggy, complex gradient logic.
   gestureProgressCircle.style.stroke = '';
 
   const safeCooldownPercent = Math.max(0, Math.min(1, cooldownPercent));

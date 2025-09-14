@@ -1,120 +1,99 @@
 /* FILE: packages/frontend/src/ui/components/plugins/base-plugin-global-settings.component.ts */
-import { UI_EVENTS, PLUGIN_CONFIG_UPDATED_EVENT_PREFIX } from '#shared/index.js';
-import { pubsub } from '#shared/core/pubsub.js';
 import { setIcon } from '#frontend/ui/helpers/index.js';
-import { createCardElement, buildFooterHtml, createButton, type CardFooterConfig } from '#frontend/ui/utils/card-utils.js';
-import { EditableCard } from '../editable-card.js';
-
+import { createCardElement, buildFooterHtml, createButton, type CardFooterConfig, type ActionButtonConfig } from '#frontend/ui/helpers/card-utils.js';
 import type { IPluginGlobalSettingsComponent, PluginUIContext } from '#frontend/types/index.js';
 import type { ActionSettingFieldDescriptor, PluginManifest, PluginTestConnectionResultPayload } from '#shared/index.js';
 import { renderFormFields } from '#frontend/ui/helpers/form-renderer.js';
+import type { AppStore } from '#frontend/core/state/app-store.js';
 
+/**
+ * A stateful component that renders a single plugin card and manages its own view/edit state.
+ */
 export class BasePluginGlobalSettingsComponent<TConfig extends object> implements IPluginGlobalSettingsComponent {
-    protected cardElement: HTMLDivElement;
-    protected formFieldsContainer!: HTMLDivElement;
-    protected viewWrapper!: HTMLDivElement;
-    public editableCard!: EditableCard;
-    
+    public cardElement: HTMLDivElement;
+    public manifest: PluginManifest;
     protected context: PluginUIContext;
-    protected manifest: PluginManifest;
     protected fieldDescriptors: ActionSettingFieldDescriptor[];
-    protected initialConfig: TConfig | null = null;
-    
-    protected testButton!: HTMLButtonElement;
+    public initialConfig: TConfig | null = null;
     protected formElements: Record<string, HTMLElement> = {};
+    
+    #viewWrapper!: HTMLDivElement;
+    #formWrapper!: HTMLDivElement;
+    #isEditing = false;
+    
+    public isTestingConnection = false;
+    public isPending = false;
+    public testButtonTimeout: number | null = null;
+    public lastTestResult: PluginTestConnectionResultPayload | null = null;
 
-    protected isTestingConnection = false;
-    protected isPending = false;
-    protected testButtonTimeout: number | null = null;
-    protected lastTestResult: PluginTestConnectionResultPayload | null = null;
-
-    #boundConfigUpdateHandler: (config?: unknown) => void;
-    #isInitialized = false;
-
-    constructor(pluginId: string, manifest: PluginManifest, context: PluginUIContext, fieldDescriptors: ActionSettingFieldDescriptor[] = []) {
+    constructor(
+        pluginId: string,
+        manifest: PluginManifest,
+        context: PluginUIContext,
+        fieldDescriptors: ActionSettingFieldDescriptor[] = []
+    ) {
         this.context = context;
         this.manifest = manifest;
         this.fieldDescriptors = fieldDescriptors;
-        this.#boundConfigUpdateHandler = (newConfig?: unknown) => this.onConfigUpdate(newConfig as TConfig | null);
+        this.initialConfig = (this.context.coreStateManager as AppStore).getState().pluginGlobalConfigs.get(pluginId) as TConfig | null;
 
         const iconDetails = manifest.icon ?? { type: 'material-icons', name: 'extension' };
         
+        const actionButtons: ActionButtonConfig[] = [];
+        if (manifest.capabilities.hasGlobalSettings && manifest.capabilities.canTestConnection) {
+             actionButtons.push({ action: 'test-connection', titleKey: 'testConnectionTooltip', iconKey: 'UI_NETWORK_CHECK', pluginId: pluginId, extraClasses: ['test-btn-header'], translate: this.context.services.translationService.translate });
+        }
+        
+        const isEnabled = this.manifest.status === 'enabled';
+        actionButtons.push({ 
+            action: 'toggle', 
+            titleKey: isEnabled ? 'disable' : 'enable', 
+            iconKey: isEnabled ? 'UI_TOGGLE_ON' : 'UI_TOGGLE_OFF', 
+            pluginId: pluginId, 
+            translate: this.context.services.translationService.translate 
+        });
+
+        actionButtons.push({ action: 'uninstall', titleKey: 'uninstall', iconKey: 'UI_DELETE_FOREVER', pluginId: pluginId, extraClasses: ['btn-icon-danger'], translate: this.context.services.translationService.translate });
+
         this.cardElement = createCardElement({
             title: this.context.services.translationService.translate(manifest.nameKey),
             iconName: iconDetails.name,
             iconType: iconDetails.type,
-            itemClasses: "config-item" + (manifest.capabilities.hasGlobalSettings ? " card-item-clickable" : ""),
+            itemClasses: "config-item w-full" + (manifest.capabilities.hasGlobalSettings ? " card-item-clickable" : ""),
             datasetAttributes: { pluginId: pluginId },
-            actionButtons: [
-                { action: 'test-connection', titleKey: 'testConnectionTooltip', iconKey: 'UI_NETWORK_CHECK', pluginId: pluginId, extraClasses: ['test-btn-header'], translate: this.context.services.translationService.translate },
-                { action: 'toggle', titleKey: 'enable', iconKey: 'UI_TOGGLE_OFF', pluginId: pluginId, translate: this.context.services.translationService.translate },
-                { action: 'uninstall', titleKey: 'uninstall', iconKey: 'UI_DELETE', pluginId: pluginId, extraClasses: ['btn-icon-danger'], translate: this.context.services.translationService.translate }
-            ],
-            translate: this.context.services.translationService.translate
+            actionButtons: actionButtons,
+            translate: this.context.services.translationService.translate,
+            detailsHtml: `<div class="plugin-details-content-wrapper p-1"></div>`
         });
         this.cardElement.id = `${pluginId}-integration-card`;
         
-        const detailsContainer = this.cardElement.querySelector('.card-details')!;
-        this.viewWrapper = document.createElement('div');
-        this.viewWrapper.className = 'plugin-view-content-wrapper p-1';
-        detailsContainer.appendChild(this.viewWrapper);
+        const detailsContainer = this.cardElement.querySelector('.plugin-details-content-wrapper')!;
+        this.#viewWrapper = document.createElement('div');
+        this.#formWrapper = document.createElement('div');
+        this.#formWrapper.className = "hidden w-full";
+        detailsContainer.append(this.#viewWrapper, this.#formWrapper);
+
+        this.renderView();
     }
 
-    public initialize(): void {
-        if (this.#isInitialized) return;
-
-        if (this.manifest.capabilities.hasGlobalSettings) {
-            const formElement = this.renderForm();
-            this.cardElement.querySelector('.card-details')?.appendChild(formElement);
-
-            this.editableCard = new EditableCard({
-                cardElement: this.cardElement,
-                viewElementsContainer: this.viewWrapper,
-                formElement: formElement,
-                saveButton: formElement.querySelector('.save-btn'),
-                cancelButton: formElement.querySelector('.cancel-btn'),
-                onEnterEditMode: () => this.populateForm(this.initialConfig),
-                onSave: this.save,
-                onCancel: () => this.populateForm(this.initialConfig)
-            });
+    public getElement(): HTMLElement { return this.cardElement; }
+    
+    public getFormValues(): TConfig {
+        const settings: Record<string, unknown> = {};
+        for (const field of this.fieldDescriptors) {
+            const element = this.formElements[field.id];
+            if (element instanceof HTMLInputElement && element.type === 'checkbox') {
+                settings[field.id] = element.checked;
+            } else if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) {
+                settings[field.id] = element.value.trim();
+            } else if (element instanceof HTMLSelectElement) {
+                settings[field.id] = element.value;
+            }
         }
-        
-        this.testButton = this.cardElement.querySelector('.test-btn-header') as HTMLButtonElement;
-        this.attachEventListeners();
-        pubsub.subscribe(`${PLUGIN_CONFIG_UPDATED_EVENT_PREFIX}${this.manifest.id}`, this.#boundConfigUpdateHandler);
-        
-        this.#updateUI();
-        this.applyTranslations();
-        
-        this.#isInitialized = true;
+        return settings as TConfig;
     }
 
-    protected renderFormFields(): void {
-        this.formFieldsContainer = document.createElement('div');
-        this.formElements = renderFormFields(this.formFieldsContainer, this.fieldDescriptors, this.manifest.id, this.context);
-    }
-
-    public renderForm(): HTMLFormElement {
-        const form = document.createElement('form');
-        form.className = 'plugin-global-settings-form hidden p-1';
-        form.onsubmit = () => false;
-
-        this.renderFormFields();
-        this.populateForm(this.initialConfig);
-        form.appendChild(this.formFieldsContainer);
-
-        const saveButton = createButton({ action: 'save', textKey: 'save', iconKey: 'UI_SAVE', extraClasses: ['btn-primary', 'save-btn'], translate: this.context.services.translationService.translate });
-        const cancelButton = createButton({ action: 'cancel', textKey: 'cancel', iconKey: 'UI_CANCEL', extraClasses: ['btn-secondary', 'cancel-btn'], translate: this.context.services.translationService.translate });
-
-        const actionsDiv = document.createElement('div');
-        actionsDiv.className = 'mt-4 flex justify-end gap-2';
-        actionsDiv.append(cancelButton, saveButton);
-        form.appendChild(actionsDiv);
-
-        return form;
-    }
-
-    protected renderViewContent(): void {
+    protected renderView(): void {
         const translate = this.context.services.translationService.translate;
         const description = translate(this.manifest.descriptionKey || '', { defaultValue: '' });
         const descIcon = document.createElement('span'); setIcon(descIcon, 'UI_NOTES'); descIcon.className = 'material-icons card-detail-icon'; descIcon.title = translate('descriptionOptionalLabel');
@@ -128,141 +107,125 @@ export class BasePluginGlobalSettingsComponent<TConfig extends object> implement
             const fieldIcon = document.createElement('span'); setIcon(fieldIcon, 'UI_KEY'); fieldIcon.className = 'material-icons card-detail-icon';
             contentHtml += `<div class="card-detail-line">${fieldIcon.outerHTML}<span class="card-detail-value ${valueClass}">${displayValue}</span></div>`;
         });
-        this.viewWrapper.innerHTML = `<div class="card-details">${contentHtml}</div>`;
-    }
-
-    protected getFormValues = (): TConfig => { const s: Record<string,unknown>={}; for(const f of this.fieldDescriptors){const e=this.formElements[f.id] as HTMLInputElement|HTMLTextAreaElement; if(e)s[f.id]=e.value.trim();} return s as TConfig;};
-    protected populateForm = (c:TConfig|null):void=>{for(const f of this.fieldDescriptors){const e=this.formElements[f.id] as HTMLInputElement|HTMLTextAreaElement; if(e)e.value=c?String((c as Record<string,unknown>)[f.id]||''):'';}};
-    protected validateForm = ():{isValid:boolean,errors?:string[]}=>({isValid:true});
-    
-    protected attachEventListeners(): void {
-        this.testButton?.addEventListener('click', this.handleTestConnection);
-    }
-    
-    public save = async (): Promise<boolean> => {
-        const validation = this.validateForm();
-        if (!validation.isValid) {
-            pubsub.publish(UI_EVENTS.SHOW_ERROR, { messageKey: 'correctErrors', substitutions: { errors: `\n- ${validation.errors?.join('\n- ') || 'Invalid fields.'}` } });
-            return false;
-        }
-        const result = await this.context.pluginUIService.savePluginGlobalConfig(this.manifest.id, this.getFormValues());
-        if (result.success) {
-            pubsub.publish(UI_EVENTS.SHOW_NOTIFICATION, { messageKey: "notificationItemSaved", substitutions: { item: "Configuration" }, type: "success" });
-        } else {
-            pubsub.publish(UI_EVENTS.SHOW_ERROR, { messageKey: result.message ?? 'errorSavingConfig' });
-        }
-        return result.success;
-    };
-    
-    protected handleTestConnection = async (event: MouseEvent): Promise<void> => {
-        event.stopPropagation();
-        const configToTest = this.editableCard?.isEditing() ? this.getFormValues() : this.initialConfig;
-        if (!configToTest || !Object.values(configToTest).some(v => v)) {
-            pubsub.publish(UI_EVENTS.SHOW_ERROR, { messageKey: "pluginTestConfigMissing" }); return;
-        }
-        this.isTestingConnection = true; this.#updateUI();
-        try {
-            this.lastTestResult = await this.context.pluginUIService.sendPluginTestConnectionRequest?.(this.manifest.id, configToTest) || null;
-            if (this.lastTestResult?.success === false) {
-                pubsub.publish(UI_EVENTS.SHOW_ERROR, { 
-                    messageKey: this.lastTestResult.messageKey ?? 'haConnectionFailed', 
-                    substitutions: { ...(this.lastTestResult.error ?? {}) }, type: 'error' 
-                });
-            }
-        } catch (error) {
-            this.lastTestResult = { pluginId: this.manifest.id, success: false, messageKey: 'TEST_FAILED', error: { message: (error as Error).message } };
-            pubsub.publish(UI_EVENTS.SHOW_ERROR, { messageKey: 'TEST_FAILED', substitutions: { message: (error as Error).message } });
-        } finally {
-            this.isTestingConnection = false; this.#updateUI();
-            if (this.testButtonTimeout) clearTimeout(this.testButtonTimeout);
-            this.testButtonTimeout = window.setTimeout(() => { this.lastTestResult = null; this.#updateUI(); }, this.lastTestResult?.success ? 3000 : 7000);
-        }
-    };
-    
-    #updateUI(): void {
-        if (!this.#isInitialized) return;
-        this.renderViewContent();
         
-        const isEnabled = this.manifest.status === 'enabled';
-        const toggleBtn = this.cardElement.querySelector<HTMLButtonElement>('button[data-action="toggle"]');
-        if (toggleBtn) {
-            toggleBtn.title = this.context.services.translationService.translate(isEnabled ? 'disable' : 'enable');
-            toggleBtn.disabled = this.isPending;
-            setIcon(toggleBtn, this.isPending ? 'UI_HOURGLASS' : (isEnabled ? 'UI_TOGGLE_ON' : 'UI_TOGGLE_OFF'));
-        }
-        this.cardElement.querySelector<HTMLButtonElement>('button[data-action="uninstall"]')!.disabled = this.isPending;
-        
-        const configToTest = this.initialConfig;
-        const canTest = !!configToTest && Object.values(configToTest).some(v => v);
-        this.testButton.disabled = this.isTestingConnection || !canTest;
-        
-        this.testButton.classList.remove("bg-success", "bg-error", "text-on-primary", "border-transparent");
-        
-        if (this.isTestingConnection) {
-            setIcon(this.testButton, 'UI_HOURGLASS');
-            this.testButton.title = this.context.services.translationService.translate("testingConnection");
-        } else if (this.lastTestResult) {
-            const { success, messageKey, error } = this.lastTestResult;
-            if (success) this.testButton.classList.add("bg-success", "text-on-primary", "border-transparent");
-            else this.testButton.classList.add("bg-error", "text-on-primary", "border-transparent");
-            
-            setIcon(this.testButton, success ? "UI_CONFIRM" : "UI_ERROR");
-            this.testButton.title = this.context.services.translationService.translate(messageKey ?? (success ? 'haConnectionSuccess' : 'haConnectionFailed'), { message: error?.message ?? '' });
-        } else {
-            setIcon(this.testButton, 'UI_NETWORK_CHECK');
-            this.testButton.title = this.context.services.translationService.translate("testConnectionTooltip");
-        }
-    }
-
-    public update(c: TConfig | null, x: PluginUIContext, extraState: { isPending?: boolean, isEditing?: boolean } = {}): void {
-        this.context = x;
-        this.isPending = extraState.isPending || false;
-        const newManifest = this.context.pluginUIService.getPluginManifest(this.manifest.id);
-        if (newManifest) this.manifest = newManifest;
-        
-        this.cardElement.classList.toggle('config-item-disabled', this.manifest.status !== 'enabled');
-        this.cardElement.classList.toggle('is-pending', this.isPending);
-
-        if (this.editableCard) {
-            if (extraState.isEditing) {
-                this.editableCard.switchToEditMode();
-            } else {
-                this.editableCard.switchToViewMode();
-            }
-        }
-        
-        this.onConfigUpdate(c);
-    }
-
-    public onConfigUpdate(newConfig: TConfig | null): void {
-        if (JSON.stringify(this.initialConfig) !== JSON.stringify(newConfig)) {
-            this.initialConfig = newConfig ? JSON.parse(JSON.stringify(newConfig)) : null;
-            if (this.#isInitialized) {
-                this.#updateUI();
-            }
-        }
-    }
-    
-    public applyTranslations(): void {
-        const translate = this.context.services.translationService.translate;
-        const titleEl = this.cardElement.querySelector<HTMLElement>('.card-title');
-        if (titleEl) titleEl.textContent = translate(this.manifest.nameKey, { defaultValue: this.manifest.id });
+        this.#viewWrapper.innerHTML = contentHtml;
         
         const footerConfig: CardFooterConfig = { mainText: `v${this.manifest.version} by ${this.manifest.author || 'Unknown'}`, statusIconKey: 'UI_INFO' };
         const footerHtml = buildFooterHtml(footerConfig);
-        const existingFooter = this.cardElement.querySelector('.card-footer');
-        if (footerHtml && existingFooter) existingFooter.innerHTML = footerHtml;
+        let existingFooter = this.cardElement.querySelector('.card-footer');
+        if (!existingFooter) {
+            existingFooter = document.createElement('div');
+            existingFooter.className = 'card-footer';
+            this.cardElement.appendChild(existingFooter);
+        }
+        existingFooter.innerHTML = footerHtml;
+    }
+    
+    protected renderForm(): void {
+        if (this.#formWrapper.hasChildNodes()) {
+            for (const field of this.fieldDescriptors) {
+                const element = this.formElements[field.id];
+                if (element instanceof HTMLInputElement && element.type === 'checkbox') {
+                    element.checked = this.initialConfig ? !!(this.initialConfig as Record<string, unknown>)[field.id] : false;
+                } else if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement) {
+                    element.value = this.initialConfig ? String((this.initialConfig as Record<string, unknown>)[field.id] || '') : '';
+                }
+            }
+            return;
+        }
 
-        this.renderViewContent();
+        const form = document.createElement('form');
+        form.className = 'plugin-global-settings-form w-full';
+        form.onsubmit = () => false;
+
+        this.formElements = renderFormFields(form, this.fieldDescriptors, this.manifest.id, this.context);
+        
+        for (const field of this.fieldDescriptors) {
+            const element = this.formElements[field.id];
+            if (element instanceof HTMLInputElement && element.type === 'checkbox') {
+                element.checked = this.initialConfig ? !!(this.initialConfig as Record<string, unknown>)[field.id] : false;
+            } else if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement) {
+                element.value = this.initialConfig ? String((this.initialConfig as Record<string, unknown>)[field.id] || '') : '';
+            }
+        }
+        
+        const saveButton = createButton({ action: 'save', textKey: 'save', iconKey: 'UI_SAVE', extraClasses: ['btn-primary', 'save-btn'], translate: this.context.services.translationService.translate });
+        const cancelButton = createButton({ action: 'cancel', textKey: 'cancel', iconKey: 'UI_CANCEL', extraClasses: ['btn-secondary', 'cancel-btn'], translate: this.context.services.translationService.translate });
+        const actionsDiv = document.createElement('div');
+        actionsDiv.className = 'mt-4 flex justify-end gap-2';
+        actionsDiv.append(cancelButton, saveButton);
+        form.appendChild(actionsDiv);
+        
+        this.#formWrapper.innerHTML = '';
+        this.#formWrapper.appendChild(form);
+    }
+    
+    public switchToEditMode(): void {
+        if (this.#isEditing) return;
+        this.#isEditing = true;
+        this.cardElement.classList.add("is-editing-highlight");
+        this.renderForm();
+        this.#viewWrapper.classList.add('hidden');
+        this.#formWrapper.classList.remove('hidden');
     }
 
-    public destroy(): void {
-        this.cardElement.remove();
-        pubsub.unsubscribe(`${PLUGIN_CONFIG_UPDATED_EVENT_PREFIX}${this.manifest.id}`, this.#boundConfigUpdateHandler);
+    public switchToViewMode(): void {
+        if (!this.#isEditing) return;
+        this.#isEditing = false;
+        this.cardElement.classList.remove("is-editing-highlight");
+        this.#viewWrapper.classList.remove('hidden');
+        this.#formWrapper.classList.add('hidden');
+        this.renderView();
+    }
+
+    public updateToggleButtonState(): void {
+        const isEnabled = this.manifest.status === 'enabled';
+        const toggleButton = this.cardElement.querySelector<HTMLButtonElement>('button[data-action="toggle"]');
+        if (!toggleButton) return;
+
+        const titleKey = isEnabled ? 'disable' : 'enable';
+        const iconKey = isEnabled ? 'UI_TOGGLE_ON' : 'UI_TOGGLE_OFF';
+        
+        const title = this.context.services.translationService.translate(titleKey);
+        toggleButton.title = title;
+        toggleButton.setAttribute('aria-label', title);
+        setIcon(toggleButton.querySelector('.btn-icon-span'), iconKey);
+    }
+
+    public updateTestState(isTesting: boolean, result?: PluginTestConnectionResultPayload | null): void {
+        this.isTestingConnection = isTesting;
+        if (result !== undefined) this.lastTestResult = result;
+        
+        const testButton = this.cardElement.querySelector<HTMLButtonElement>('.test-btn-header');
+        if (!testButton) return;
+        
+        testButton.disabled = this.isTestingConnection;
+        const iconSpan = testButton.querySelector('.btn-icon-span');
+        if (!iconSpan) return;
+
+        if (this.isTestingConnection) {
+            setIcon(iconSpan, 'UI_HOURGLASS');
+        } else if (this.lastTestResult) {
+            setIcon(iconSpan, this.lastTestResult.success ? 'UI_CONFIRM' : 'UI_ERROR');
+        } else {
+            setIcon(iconSpan, 'UI_NETWORK_CHECK');
+        }
+
         if (this.testButtonTimeout) clearTimeout(this.testButtonTimeout);
+        if (!isTesting && this.lastTestResult) {
+            this.testButtonTimeout = window.setTimeout(() => { 
+                this.lastTestResult = null;
+                this.updateTestState(false, null);
+            }, this.lastTestResult.success ? 3000 : 7000);
+        }
     }
 
-    public getElement(): HTMLElement {
-        return this.cardElement;
+    public isEditing = (): boolean => this.#isEditing;
+    public update(newConfig?: TConfig | null): void {
+        if(newConfig !== undefined) this.initialConfig = newConfig;
+        this.renderView();
     }
+    public destroy(): void { this.cardElement.remove(); if (this.testButtonTimeout) clearTimeout(this.testButtonTimeout); }
+    public onConfigUpdate(): void {}
+    public applyTranslations(): void { this.renderView(); this.#formWrapper.innerHTML = ''; this.renderForm(); }
 }

@@ -37,6 +37,13 @@ export function connectLogic(this: WebSocketService): void {
 export function disconnectLogic(this: WebSocketService, allowReconnect = true, resetGlobalReconnectAttempts = false): void {
   const wsToClose = this._state.ws;
 
+  // Reject any pending requests as the connection is lost.
+  if (this._state.pendingRequests.size > 0) {
+    const disconnectError = new Error("WebSocket disconnected.");
+    this._state.pendingRequests.forEach(req => req.reject(disconnectError));
+    this._state.pendingRequests.clear();
+  }
+  
   stopPingTimerLogic.call(this); clearReconnectTimerLogic.call(this);
   this._state.isConnected = false; this._state.isConnecting = false;
   this._state.ws = null;
@@ -72,6 +79,13 @@ function handleWsOpenLogic(this: WebSocketService, event: Event): void {
   this._state.isConnected = true; this._state.isConnecting = false; this._state.reconnectAttempts = 0;
   appStore.getState().actions.setWsConnectionStatus(true);
   startPingTimerLogic.call(this);
+
+  // Send any queued messages upon successful connection.
+  if (this._state.messageQueue.length > 0) {
+      console.log(`[WS] Connection restored. Sending ${this._state.messageQueue.length} queued messages.`);
+      this._state.messageQueue.forEach(msg => this.sendMessage(msg));
+      this._state.messageQueue = [];
+  }
 }
 
 function handleWsCloseLogic(this: WebSocketService, event: CloseEvent): void {

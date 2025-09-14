@@ -1,6 +1,6 @@
 /* FILE: packages/frontend/src/ui/components/plugins/plugin-install-manager.ts */
 import { UI_EVENTS, pubsub } from '#shared/index.js';
-import { createButton } from '#frontend/ui/utils/card-utils.js';
+import { createButton } from '#frontend/ui/helpers/card-utils.js';
 import type { UIController } from '#frontend/ui/ui-controller-core.js';
 import type { TranslationService } from '#frontend/services/translation.service.js';
 

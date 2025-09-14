@@ -54,8 +54,6 @@ export class GestureTimerManager {
 
   startGlobalCooldown = (now: number = Date.now()): void => {
     this.#globalCooldownEndTime = now + this.#globalCooldownMs;
-    // REMOVED: The pubsub.publish call was here, which caused the flicker.
-    // The main processing loop is now the single source of truth for progress updates.
   };
 
   resetGlobalCooldown = (): void => {

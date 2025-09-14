@@ -12,7 +12,6 @@ import { RtspSettingsTab } from "../tabs/rtsp-settings-tab.js";
 import { ThemeSettingsTab } from "../tabs/theme-settings-tab.js";
 import { PluginsTab } from "../tabs/plugins-tab.js"; 
 
-import type { FullConfiguration } from '#shared/index.js';
 import type { ModalManager } from "#frontend/ui/managers/modal-manager.js"; 
 
 export class GlobalSettingsModalManager {
@@ -24,7 +23,6 @@ export class GlobalSettingsModalManager {
     #tabs: Record<string, BaseSettingsTab<TabElements> > = {};
     #contentContainer: HTMLElement | null = null;
     #originalContentCache: Node[] = [];
-    #unsubscribeStore: () => void;
     #unsubscribeLang: () => void;
     
     #mainSettingsModal: HTMLElement | null;
@@ -51,7 +49,6 @@ export class GlobalSettingsModalManager {
         }
         
         this.#tabs = {
-            // FIX: Removed the third 'elementQueries' argument from all constructors
             general: new GeneralSettingsTab(this._appStore, this._uiControllerRef),
             plugins: new PluginsTab(this._appStore, this._uiControllerRef), 
             rtsp: new RtspSettingsTab(this._appStore, this._uiControllerRef),
@@ -59,12 +56,8 @@ export class GlobalSettingsModalManager {
             customGestures: new CustomGesturesTab(this._appStore, this._uiControllerRef)
         };
         
-        this.#unsubscribeStore = this._appStore.subscribe((state) => {
-            if (state.isInitialConfigLoaded && this.#mainSettingsModal?.classList.contains('visible')) {
-                const activeTabKey = this._tabManagerApi?.getCurrentTab();
-                if (activeTabKey) this._loadContentForTab(activeTabKey);
-            }
-        });
+        // This faulty subscription was causing the unconditional refresh. It is now removed.
+        // this.#unsubscribeStore = this._appStore.subscribe(...);
 
         this.#unsubscribeLang = this._appStore.subscribe((state, prevState) => {
             if (state.languagePreference !== prevState.languagePreference) {
@@ -78,7 +71,6 @@ export class GlobalSettingsModalManager {
     }
     
     destroy(): void {
-        this.#unsubscribeStore();
         this.#unsubscribeLang();
     }
 
@@ -168,20 +160,9 @@ export class GlobalSettingsModalManager {
         await this._loadContentForTab(currentTabKey);
     };
 
-    _handleCloseClick = () => { this.saveSettings(); this._modalManagerRef?.closeSettingsModal(); }
+    _handleCloseClick = () => this._modalManagerRef?.closeSettingsModal();
     public closeModal = () => this._modalManagerRef?.closeSettingsModal();
     
-    saveSettings = () => {
-        let patchData: Partial<FullConfiguration> = {};
-        for (const key in this.#tabs) {
-            patchData = { ...patchData, ...this.#tabs[key].getSettingsToSave() };
-        }
-        
-        if (Object.keys(patchData).length > 0) {
-            this._appStore.getState().actions.requestBackendPatch(patchData);
-        }
-    }
-
     applyTranslations = async () => {
         if (this._isApplyingTranslations) return; this._isApplyingTranslations = true;
         const translate = this._uiControllerRef.translationService.translate;

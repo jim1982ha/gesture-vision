@@ -1,7 +1,7 @@
 /* FILE: packages/shared/types/ws.protocol.ts */
 import type { FullConfiguration } from './config.types.js';
 import type { PluginManifest } from './plugin.types.js';
-import type { ValidationErrorDetail } from './api.types.js';
+import type { ValidationErrorDetail } from '../validation/index.js';
 
 export interface WebSocketMessage<T = unknown> {
     type: string;
