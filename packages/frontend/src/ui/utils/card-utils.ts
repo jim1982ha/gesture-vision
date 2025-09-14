@@ -1,9 +1,9 @@
 /* FILE: packages/frontend/src/ui/utils/card-utils.ts */
 // Utility for creating card UI elements using a declarative template.
-import { createFromTemplate } from "./template-renderer.js";
-import { setIcon } from '#frontend/ui/helpers/index.js';
-import { translate } from '#shared/services/translations.js';
-import { clsx } from '../helpers/ui-dom-helpers.js';
+import { setIcon, clsx } from '#frontend/ui/helpers/index.js';
+import type { Substitutions } from '#shared/services/translations.js';
+
+type TranslateFn = (key: string, substitutions?: Substitutions) => string;
 
 export interface CardFooterConfig {
     mainText?: string;
@@ -17,47 +17,49 @@ export interface CardContent {
   iconName: string; 
   iconType?: 'material-icons' | 'mdi';
   title: string;
-  actionButtonsHtml?: string;
+  translate: TranslateFn;
+  id?: string;
+  actionButtons?: ActionButtonConfig[];
   detailsHtml?: string;
   footerConfig?: CardFooterConfig;
   itemClasses?: string; 
   datasetAttributes?: Record<string, string>;
   titleAttribute?: string; 
-  ariaLabel?: string;    
 }
 
-interface ActionButtonConfig {
-    action: string;
+export interface ButtonConfig {
+    id?: string;
+    action?: string;
+    value?: string;
     title?: string;
     titleKey?: string;
-    iconKey: string;
+    titleSubstitutions?: Substitutions;
+    iconKey?: string;
     extraClasses?: string[];
     pluginId?: string;
     text?: string;
     textKey?: string;
+    translate: TranslateFn;
 }
 
-/**
- * Creates a standardized icon button element for use in card actions.
- * @param config - The configuration for the button.
- * @returns The generated HTMLButtonElement.
- */
-export function createCardActionButton(config: ActionButtonConfig): HTMLButtonElement {
+export type ActionButtonConfig = Omit<ButtonConfig, 'id' | 'value'>;
+
+export function createButton(config: ButtonConfig): HTMLButtonElement {
     const button = document.createElement('button');
     button.type = 'button';
+    const translate = config.translate;
+
+    if (config.id) button.id = config.id;
+    if (config.action) button.dataset.action = config.action;
+    if (config.pluginId) button.dataset.pluginId = config.pluginId;
+    if (config.value) button.dataset.value = config.value;
 
     const hasText = !!(config.text || config.textKey);
-    const finalClasses = clsx(
-        "btn",
-        !hasText && "btn-icon", // Only add btn-icon if there is no text
-        ...(config.extraClasses || [])
-    );
+    const finalClasses = clsx("btn", !hasText && "btn-icon", ...(config.extraClasses || []));
     button.className = finalClasses;
 
-    if (config.pluginId) button.dataset.pluginId = config.pluginId;
-    button.dataset.action = config.action;
-    
-    const title = config.title || (config.titleKey ? translate(config.titleKey) : '');
+    const titleSubstitutions = { ...(config.titleSubstitutions || {}) };
+    const title = config.title || (config.titleKey ? translate(config.titleKey, titleSubstitutions) : '');
     button.title = title;
     button.setAttribute('aria-label', title);
     
@@ -69,12 +71,16 @@ export function createCardActionButton(config: ActionButtonConfig): HTMLButtonEl
     button.innerHTML = innerHTML;
 
     const iconSpan = button.querySelector('.btn-icon-span');
-    if (iconSpan) setIcon(iconSpan, config.iconKey);
+    if (iconSpan && config.iconKey) setIcon(iconSpan, config.iconKey);
     
     return button;
 }
 
-function buildFooterHtml(config?: CardFooterConfig): string {
+export function createCardActionButton(config: ActionButtonConfig): HTMLButtonElement {
+    return createButton(config);
+}
+
+export function buildFooterHtml(config?: CardFooterConfig): string {
     if (!config) return '';
 
     const mainTextParts: string[] = [];
@@ -95,56 +101,69 @@ function buildFooterHtml(config?: CardFooterConfig): string {
     }
     
     const mainContentHtml = `<div class="flex items-center gap-1 min-w-0">${mainTextParts.join('')}</div>`;
-    
     const pillsHtml = config.pillsHtml ? `<div class="footer-pills-wrapper flex items-center gap-1">${config.pillsHtml}</div>` : '';
     
     return `${mainContentHtml}${pillsHtml}`;
 }
 
-
 export function createCardElement(content: CardContent): HTMLDivElement {
-    const template = `
-      <div 
-        class="card-item {itemClasses}" 
-        title="{titleAttribute}" 
-        aria-label="{ariaLabel}"
-        data-attributes-placeholder
-      >
-        <div class="card-header">
-            <div class="flex items-center gap-3 w-full">
-              <span class="{iconClasses} card-icon">{iconContent}</span>
-              <span class="card-title">{title}</span>
-              <div class="card-item-actions" data-if="hasActionButtons" data-html-key="actionButtonsHtml"></div>
-            </div>
-        </div>
-        <div class="card-details" data-if="hasDetails" data-html-key="detailsHtml"></div>
-        <div class="card-footer" data-if="hasFooter" data-html-key="footerHtml"></div>
-      </div>
-    `;
-
-    const isMdi = content.iconType === 'mdi' || content.iconName.startsWith('mdi-');
-    const data = {
-        itemClasses: content.itemClasses || '',
-        titleAttribute: content.titleAttribute || '',
-        ariaLabel: content.ariaLabel || '',
-        iconClasses: isMdi ? `mdi ${content.iconName}` : 'material-icons',
-        iconContent: isMdi ? '' : content.iconName,
-        title: content.title,
-        hasActionButtons: !!content.actionButtonsHtml,
-        actionButtonsHtml: content.actionButtonsHtml || '',
-        hasDetails: !!content.detailsHtml,
-        detailsHtml: content.detailsHtml || '',
-        hasFooter: !!content.footerConfig,
-        footerHtml: buildFooterHtml(content.footerConfig)
-    };
-    
-    const element = createFromTemplate(template, data);
-
-    if (element && content.datasetAttributes) {
+    const cardElement = document.createElement('div');
+    cardElement.className = clsx('card-item', content.itemClasses);
+    if (content.id) cardElement.id = content.id;
+    if (content.titleAttribute) {
+        cardElement.title = content.titleAttribute;
+        cardElement.setAttribute('aria-label', content.titleAttribute);
+    }
+    if (content.datasetAttributes) {
         Object.entries(content.datasetAttributes).forEach(([key, value]) => {
-            element.dataset[key] = value;
+            cardElement.dataset[key] = value;
         });
     }
 
-    return element as HTMLDivElement;
+    // --- Header ---
+    const header = document.createElement('div');
+    header.className = 'card-header';
+    const headerContentWrapper = document.createElement('div');
+    headerContentWrapper.className = 'flex items-center gap-3 w-full';
+    
+    const iconSpan = document.createElement('span');
+    iconSpan.className = 'card-icon';
+    setIcon(iconSpan, content.iconName);
+    if (content.iconType === 'mdi') iconSpan.classList.add('mdi', content.iconName);
+    
+    const titleSpan = document.createElement('span');
+    titleSpan.className = 'card-title';
+    titleSpan.textContent = content.title;
+    
+    headerContentWrapper.append(iconSpan, titleSpan);
+
+    if (content.actionButtons && content.actionButtons.length > 0) {
+        const actionsContainer = document.createElement('div');
+        actionsContainer.className = 'card-item-actions';
+        content.actionButtons.forEach(buttonConfig => {
+            const button = createCardActionButton({...buttonConfig, translate: content.translate});
+            actionsContainer.appendChild(button);
+        });
+        headerContentWrapper.appendChild(actionsContainer);
+    }
+    header.appendChild(headerContentWrapper);
+    cardElement.appendChild(header);
+    
+    // --- Details ---
+    const detailsContainer = document.createElement('div');
+    detailsContainer.className = 'card-details';
+    if (content.detailsHtml) {
+        detailsContainer.innerHTML = content.detailsHtml;
+    }
+    cardElement.appendChild(detailsContainer);
+
+    // --- Footer ---
+    if (content.footerConfig) {
+        const footer = document.createElement('div');
+        footer.className = 'card-footer';
+        footer.innerHTML = buildFooterHtml(content.footerConfig);
+        cardElement.appendChild(footer);
+    }
+    
+    return cardElement;
 }

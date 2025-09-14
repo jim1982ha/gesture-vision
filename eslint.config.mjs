@@ -1,4 +1,4 @@
-//* FILE: eslint.config.mjs */
+/* FILE: eslint.config.mjs */
 import path from "path";
 import { fileURLToPath } from "url";
 

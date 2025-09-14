@@ -6,20 +6,15 @@ import {
   type TabElements,
 } from '../base-settings-tab.js';
 import type { FullConfiguration } from '#shared/index.js';
+import type { UIController } from '#frontend/ui/ui-controller-core.js';
 
 export interface GeneralSettingsTabElements extends TabElements {
+  container?: HTMLElement | null;
   globalCooldownSlider?: HTMLInputElement | null;
   globalCooldownValue?: HTMLElement | null;
   resolutionSelectGroup?: HTMLElement | null;
   targetFpsSelectGroup?: HTMLElement | null;
   telemetryToggleGroup?: HTMLElement | null;
-  globalCooldownLabel?: HTMLElement | null;
-  resolutionPrefLabel?: HTMLElement | null;
-  resolutionHelp?: HTMLElement | null;
-  targetFpsLabel?: HTMLElement | null;
-  telemetryEnabledLabel?: HTMLElement | null;
-  targetFpsHelp?: HTMLElement | null;
-  telemetryEnabledHelp?: HTMLElement | null;
 }
 
 const RESOLUTION_OPTIONS: Readonly<ButtonGroupOption[]> = [
@@ -36,11 +31,9 @@ const TELEMETRY_OPTIONS: Readonly<ButtonGroupOption[]> = [
 ];
 
 export class GeneralSettingsTab extends BaseSettingsTab<GeneralSettingsTabElements> {
-  constructor(appStore: AppStore, elementQueries: { [K in keyof GeneralSettingsTabElements]: string }) {
-    super(appStore, elementQueries);
-    // Add specific classes to the FPS group for styling and responsive behavior
-    this._elements.targetFpsSelectGroup?.classList.add('btn-group-sm-text');
-    this.#renderAllButtonGroups();
+  constructor(appStore: AppStore, uiControllerRef: UIController) {
+    super(appStore, uiControllerRef, { container: '[data-tab-content="general"]' });
+    this.#renderLayout();
   }
 
   protected _doesConfigUpdateAffectThisTab(
@@ -55,12 +48,42 @@ export class GeneralSettingsTab extends BaseSettingsTab<GeneralSettingsTabElemen
     );
   }
 
-  #renderAllButtonGroups = (): void => {
-    this._renderButtonGroup(this._elements.resolutionSelectGroup, RESOLUTION_OPTIONS);
-    this._renderButtonGroup(this._elements.targetFpsSelectGroup, FPS_OPTIONS);
-    this._renderButtonGroup(this._elements.telemetryToggleGroup, TELEMETRY_OPTIONS);
-  };
+  #renderLayout(): void {
+    const container = this._elements.container;
+    if (!container) return;
+    container.innerHTML = `
+      <div class="form-section" id="general-settings-cooldown-section">
+        <label class="form-label" data-translate-key="globalCooldown"></label>
+        <div class="slider-group">
+          <output for="globalCooldownSlider" id="globalCooldownValue" class="slider-output">2.0s</output>
+          <div class="slider-container"><input type="range" id="globalCooldownSlider" class="form-slider" min="0" max="10" step="0.5" value="2.0"></div>
+        </div>
+      </div>
+      <div class="form-section" id="general-settings-resolution-section">
+        <label class="form-label" data-translate-key="processingResolutionLabel"></label>
+        <div id="resolutionSelectGroup" class="button-toggle-group w-full" role="radiogroup"></div>
+        <small class="form-help-text" data-translate-key="resolutionHelpWebcamOnly"></small>
+      </div>
+      <div class="form-section" id="general-settings-fps-section">
+        <label class="form-label" data-translate-key="targetFpsLabel"></label>
+        <div id="targetFpsSelectGroup" class="button-toggle-group w-full desktop:w-auto btn-group-sm-text" role="radiogroup"></div>
+        <small class="form-help-text" data-translate-key="targetFpsHelp"></small>
+      </div>
+      <div class="form-section" id="general-settings-telemetry-section">
+        <label class="form-label" data-translate-key="telemetryEnabledLabel"></label>
+        <div id="telemetryToggleGroup" class="button-toggle-group w-full" role="radiogroup"></div>
+        <small class="form-help-text" data-translate-key="telemetryEnabledHelp"></small>
+      </div>
+    `;
 
+    // Re-query elements after rendering the layout and assign them to the _elements map.
+    this._elements.globalCooldownSlider = container.querySelector('#globalCooldownSlider');
+    this._elements.globalCooldownValue = container.querySelector('#globalCooldownValue');
+    this._elements.resolutionSelectGroup = container.querySelector('#resolutionSelectGroup');
+    this._elements.targetFpsSelectGroup = container.querySelector('#targetFpsSelectGroup');
+    this._elements.telemetryToggleGroup = container.querySelector('#telemetryToggleGroup');
+  }
+  
   protected _initializeSpecificEventListeners(): void {
     this._addEventListenerHelper('globalCooldownSlider', 'change', this.#handleSliderChange);
     this._addEventListenerHelper('globalCooldownSlider', 'input', this.#handleSliderInput);
@@ -142,21 +165,17 @@ export class GeneralSettingsTab extends BaseSettingsTab<GeneralSettingsTabElemen
 
   public applyTranslations(): void {
     this._applyTranslationsHelper([
-      { element: this._elements.globalCooldownLabel, config: 'globalCooldown' },
-      {
-        element: this._elements.resolutionPrefLabel,
-        config: 'processingResolutionLabel',
-      },
-      { element: this._elements.resolutionHelp, config: 'resolutionHelpWebcamOnly' },
-      { element: this._elements.targetFpsLabel, config: { key: 'targetFpsLabel' } },
-      {
-        element: this._elements.telemetryEnabledLabel,
-        config: { key: 'telemetryEnabledLabel' },
-      },
-      { element: this._elements.targetFpsHelp, config: 'targetFpsHelp' },
-      { element: this._elements.telemetryEnabledHelp, config: 'telemetryEnabledHelp' },
+        { element: this._elements.container?.querySelector('[data-translate-key="globalCooldown"]'), config: "globalCooldown" },
+        { element: this._elements.container?.querySelector('[data-translate-key="processingResolutionLabel"]'), config: "processingResolutionLabel" },
+        { element: this._elements.container?.querySelector('[data-translate-key="resolutionHelpWebcamOnly"]'), config: "resolutionHelpWebcamOnly" },
+        { element: this._elements.container?.querySelector('[data-translate-key="targetFpsLabel"]'), config: "targetFpsLabel" },
+        { element: this._elements.container?.querySelector('[data-translate-key="targetFpsHelp"]'), config: "targetFpsHelp" },
+        { element: this._elements.container?.querySelector('[data-translate-key="telemetryEnabledLabel"]'), config: "telemetryEnabledLabel" },
+        { element: this._elements.container?.querySelector('[data-translate-key="telemetryEnabledHelp"]'), config: "telemetryEnabledHelp" },
     ]);
-    this.#renderAllButtonGroups();
+    this._renderButtonGroup(this._elements.resolutionSelectGroup, RESOLUTION_OPTIONS);
+    this._renderButtonGroup(this._elements.targetFpsSelectGroup, FPS_OPTIONS);
+    this._renderButtonGroup(this._elements.telemetryToggleGroup, TELEMETRY_OPTIONS);
     this.loadSettings();
   }
 }

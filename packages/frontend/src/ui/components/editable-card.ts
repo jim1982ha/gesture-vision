@@ -22,6 +22,7 @@ export class EditableCard {
   #saveButton: HTMLButtonElement | null;
   #cancelButton: HTMLButtonElement | null;
   #isEditing = false;
+  #isSaving = false;
   #onEnterEditMode?: () => void; 
   #onSave: () => Promise<boolean> | boolean; 
   #onCancel?: () => void; 
@@ -35,8 +36,7 @@ export class EditableCard {
     onEnterEditMode,
     onSave,
     onCancel,
-  }: EditableCardConfig) { // Destructure config with type
-    // Initialize properties to satisfy strictPropertyInitialization
+  }: EditableCardConfig) {
     this.#cardElement = cardElement!;
     this.#viewElementsContainer = viewElementsContainer;
     this.#formElement = formElement;
@@ -50,7 +50,7 @@ export class EditableCard {
       !cardElement || !viewElementsContainer || !formElement || !saveButton || !cancelButton || typeof onSave !== "function"
     ) {
       console.error(
-        "[EditableCard] Insufficient elements or missing onSave callback provided to constructor for card:",
+        "[EditableCard] Insufficient elements or missing onSave callback for card:",
         cardElement?.id
       );
       return;
@@ -77,16 +77,28 @@ export class EditableCard {
     this.#cancelButton?.addEventListener("click", this.#handleCancel);
   }
 
+  #setSavingState(isSaving: boolean): void {
+    this.#isSaving = isSaving;
+    if (this.#saveButton) this.#saveButton.disabled = isSaving;
+    if (this.#cancelButton) this.#cancelButton.disabled = isSaving;
+    this.#cardElement.classList.toggle('is-pending', isSaving);
+  }
+
   #handleSave = async (): Promise<void> => {
+    if (this.#isSaving) return;
+    this.#setSavingState(true);
+
     let saveSuccessful = false;
     try {
-      saveSuccessful = await Promise.resolve(this.#onSave()); // Ensure it works with sync/async onSave
+      saveSuccessful = await Promise.resolve(this.#onSave());
     } catch (error: unknown) {
       console.error(
         `[EditableCard ${this.#cardElement.id}] Error during onSave callback:`,
         error
       );
       saveSuccessful = false;
+    } finally {
+      this.#setSavingState(false);
     }
 
     if (saveSuccessful) {
@@ -95,6 +107,7 @@ export class EditableCard {
   };
 
   #handleCancel = (): void => {
+    if (this.#isSaving) return;
     if (typeof this.#onCancel === "function") {
       this.#onCancel();
     }
@@ -127,7 +140,7 @@ export class EditableCard {
     this.#formElement.classList.add("hidden");
   }
 
-  isEditing(): boolean {
+  public isEditing(): boolean {
     return this.#isEditing;
   }
 }

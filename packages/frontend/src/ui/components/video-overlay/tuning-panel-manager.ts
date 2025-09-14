@@ -40,16 +40,16 @@ export class TuningPanelManager {
   }
 
   public show(): void {
-    setElementVisibility(this.#panelElement, true, 'flex');
+    setElementVisibility(this.#panelElement, true);
   }
 
   public hide(): void {
-    setElementVisibility(this.#panelElement, false, 'flex');
+    setElementVisibility(this.#panelElement, false);
   }
 
   public toggle(): void {
     const isVisible = !this.#panelElement.classList.contains('hidden');
-    setElementVisibility(this.#panelElement, !isVisible, 'flex');
+    setElementVisibility(this.#panelElement, !isVisible);
   }
 
   public isActive(): boolean {

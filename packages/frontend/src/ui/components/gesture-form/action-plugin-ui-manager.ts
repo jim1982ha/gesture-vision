@@ -2,7 +2,6 @@
 import type { UIController } from '#frontend/ui/ui-controller-core.js';
 import { setElementVisibility } from '#frontend/ui/helpers/index.js';
 import { DEFAULT_ACTION_PLUGIN_ID_NONE } from '#frontend/constants/app-defaults.js';
-import { translate } from '#shared/services/translations.js';
 import type { PluginManifest } from '#shared/index.js';
 import type { IPluginActionSettingsComponent } from '#frontend/types/index.js';
 
@@ -30,7 +29,8 @@ export class ActionPluginUIManager {
     const selectEl = this.#actionTypeSelect;
     const pluginUIService = this.#uiControllerRef.pluginUIService;
     if (!selectEl || !pluginUIService) return;
-
+    
+    const translate = this.#uiControllerRef.translationService.translate;
     const currentVal = selectEl.value;
     selectEl.innerHTML = '';
     const noneOption = document.createElement('option');
@@ -48,11 +48,9 @@ export class ActionPluginUIManager {
       selectEl.appendChild(option);
     });
     
-    // Check if the previously selected value is still a valid, available plugin.
     const stillValid = actionPlugins.some((p: PluginManifest) => p.id === currentVal);
     selectEl.value = stillValid ? currentVal : DEFAULT_ACTION_PLUGIN_ID_NONE;
     
-    // If the value was reset to 'none', we need to trigger a UI update.
     if (!stillValid && currentVal !== DEFAULT_ACTION_PLUGIN_ID_NONE) {
         this.loadPluginUI(DEFAULT_ACTION_PLUGIN_ID_NONE, null);
     }
@@ -65,7 +63,6 @@ export class ActionPluginUIManager {
     let currentSettings: Record<string, unknown> | null = null;
     if (editingIndex !== null) {
         const gestureConfig = this.#uiControllerRef.getGestureConfigsSnapshot()[editingIndex];
-        // Only provide settings if the plugin ID matches the one being edited
         if (gestureConfig?.actionConfig?.pluginId === selectedPluginId) {
             currentSettings = gestureConfig.actionConfig.settings as Record<string, unknown> | null;
         }
@@ -105,7 +102,6 @@ export class ActionPluginUIManager {
         );
         setElementVisibility(this.#actionFieldsContainer, true);
       } else {
-        // This case handles if a plugin is selected but fails to create a component.
         setElementVisibility(this.#actionFieldsContainer, false);
       }
     } else {

@@ -1,12 +1,20 @@
 /* FILE: packages/frontend/src/ui/components/plugins/generic-plugin-action-settings.component.ts */
-import { translate } from '#shared/services/translations.js';
 import type {
   ActionSettingFieldDescriptor,
+  ActionSettingFieldOption,
 } from '#shared/index.js';
 import type {
   IPluginActionSettingsComponent,
   PluginUIContext,
 } from '#frontend/types/index.js';
+import { renderFormFields } from '#frontend/ui/helpers/index.js';
+
+// Define the expected function signature for clarity and type safety.
+type OptionsSourceFn = (
+  context: PluginUIContext,
+  currentSettings?: Record<string, unknown>,
+  filterText?: string
+) => Promise<ActionSettingFieldOption[]>;
 
 export class GenericPluginActionSettingsComponent
   implements IPluginActionSettingsComponent
@@ -41,14 +49,25 @@ export class GenericPluginActionSettingsComponent
     currentActionSpecificSettings: Record<string, unknown> | null
   ): HTMLElement {
     this.#currentSettings = currentActionSpecificSettings;
-    this.#uiContainer.innerHTML = '';
-    this.#formElements = {};
+    
+    // Use the new FormRenderer utility
+    this.#formElements = renderFormFields(this.#uiContainer, this.#fieldDescriptors, this.#pluginId, this.#context);
 
+    // Populate and attach listeners after rendering
     this.#fieldDescriptors.forEach((field) => {
+      const element = this.#formElements[field.id];
       const value = this.#getNestedValue(this.#currentSettings || {}, field.id);
-      const formGroup = this.#createFormGroup(field, value);
-      if (formGroup) this.#uiContainer.appendChild(formGroup);
+      
+      if (element instanceof HTMLInputElement && element.type === 'checkbox') {
+        element.checked = !!value;
+      } else if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) {
+        element.value = (typeof value === 'string' || typeof value === 'number') ? String(value) : '';
+      } else if (element instanceof HTMLSelectElement) {
+        this.#populateSelectOptions(element, field.optionsSource, value);
+        element.addEventListener('change', () => this.#handleDependencyChange(field.id));
+      }
     });
+
     return this.#uiContainer;
   }
 
@@ -77,139 +96,65 @@ export class GenericPluginActionSettingsComponent
         obj
       );
   };
+  
+  async #populateSelectOptions(
+    select: HTMLSelectElement,
+    optionsSource: ActionSettingFieldDescriptor['optionsSource'],
+    selectedValue: unknown
+  ): Promise<void> {
+    if (typeof optionsSource !== 'function') return;
 
-  #createFormGroup(
-    field: ActionSettingFieldDescriptor,
-    value: unknown
-  ): HTMLElement | null {
-    const formGroup = document.createElement('div');
-    const isCheckbox = field.type === 'checkbox';
-    formGroup.className = isCheckbox
-      ? 'form-group form-group-checkbox-inline'
-      : 'form-group';
-    const label = document.createElement('label');
-    label.htmlFor = `${this.#pluginId}-${field.id}`;
-    label.textContent = translate(field.labelKey, { defaultValue: field.labelKey });
-
-    let inputElement: HTMLElement;
-    switch (field.type) {
-      case 'checkbox': {
-        const checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        checkbox.id = `${this.#pluginId}-${field.id}`;
-        checkbox.checked = !!value;
-        this.#formElements[field.id] = checkbox;
-        inputElement = checkbox;
-        formGroup.appendChild(inputElement);
-        formGroup.appendChild(label);
-        break;
-      }
-      case 'select': {
-        formGroup.appendChild(label);
-        const select = document.createElement('select');
-        select.id = `${this.#pluginId}-${field.id}`;
-        select.className = 'form-control';
-        this.#formElements[field.id] = select;
-
-        select.addEventListener('change', () => this.#handleDependencyChange(field.id));
-        
-        this.#populateSelectOptions(select, field.optionsSource, value);
-
-        inputElement = select;
-        formGroup.appendChild(inputElement);
-        break;
-      }
-      case 'textarea': {
-        formGroup.appendChild(label);
-        const textarea = document.createElement('textarea');
-        textarea.id = `${this.#pluginId}-${field.id}`;
-        textarea.className = 'form-control';
-        textarea.rows = field.rows || 3;
-        textarea.placeholder = field.placeholderKey
-          ? translate(field.placeholderKey)
-          : '';
-        textarea.value = typeof value === 'string' ? value : '';
-        this.#formElements[field.id] = textarea;
-        inputElement = textarea;
-        formGroup.appendChild(inputElement);
-        break;
-      }
-      default: {
-        formGroup.appendChild(label);
-        const input = document.createElement('input');
-        input.type = field.type;
-        input.id = `${this.#pluginId}-${field.id}`;
-        input.className = 'form-control';
-        input.placeholder = field.placeholderKey
-          ? translate(field.placeholderKey)
-          : '';
-        input.value =
-          typeof value === 'string' || typeof value === 'number'
-            ? String(value)
-            : '';
-        if (field.type === 'password') input.autocomplete = 'new-password';
-        this.#formElements[field.id] = input;
-        inputElement = input;
-        formGroup.appendChild(inputElement);
-      }
-    }
-
-    if (field.helpTextKey) {
-      const helpText = document.createElement('small');
-      helpText.textContent = translate(field.helpTextKey);
-      helpText.className = 'form-help-text';
-      formGroup.appendChild(helpText);
-    }
-    return formGroup;
-  }
-
-  async #populateSelectOptions(select: HTMLSelectElement, optionsSource: ActionSettingFieldDescriptor['optionsSource'], selectedValue: unknown): Promise<void> {
-    if (!optionsSource) return;
-
+    const translate = this.#context.services.translationService.translate;
     select.innerHTML = `<option disabled>${translate('loading')}...</option>`;
     select.disabled = true;
 
     try {
-        const options = await optionsSource(this.#context, this.getActionSettingsToSave() || {});
-        select.innerHTML = '';
-        let valueFound = false;
-        let isFirstOption = true;
+      // FIX: Assert the type of the function to guide the TypeScript compiler.
+      const typedOptionsSource = optionsSource as OptionsSourceFn;
+      const options = await typedOptionsSource(
+        this.#context,
+        this.getActionSettingsToSave() || {},
+        undefined
+      );
 
-        if (options.length === 0 || (options.length === 1 && options[0].disabled)) {
-            const placeholder = document.createElement('option');
-            placeholder.textContent = options[0]?.label || translate('noItemsToDisplay');
-            placeholder.disabled = true;
-            placeholder.selected = true;
-            select.appendChild(placeholder);
-        } else {
-             options.forEach(opt => {
-                const optionEl = document.createElement('option');
-                optionEl.value = opt.value;
-                optionEl.textContent = opt.label;
-                optionEl.disabled = opt.disabled || false;
-                if (String(opt.value) === String(selectedValue)) {
-                    optionEl.selected = true;
-                    valueFound = true;
-                }
-                // FIX: If no saved value is found, automatically select the first valid option.
-                else if (!selectedValue && isFirstOption && !opt.disabled) {
-                    optionEl.selected = true;
-                    valueFound = true; // Treat this as if a value was found to trigger the change event.
-                }
-                if (!opt.disabled) isFirstOption = false;
-                select.appendChild(optionEl);
-            });
-        }
-        
-        if (valueFound) {
-            select.dispatchEvent(new Event('change'));
-        }
+      select.innerHTML = '';
+      let valueFound = false;
+      let isFirstOption = true;
 
+      if (options.length === 0 || (options.length === 1 && options[0].disabled)) {
+        const placeholder = document.createElement('option');
+        placeholder.textContent = options[0]?.label || translate('noItemsToDisplay');
+        placeholder.disabled = true;
+        placeholder.selected = true;
+        select.appendChild(placeholder);
+      } else {
+        options.forEach((opt) => {
+          const optionEl = document.createElement('option');
+          optionEl.value = opt.value;
+          optionEl.textContent = opt.label;
+          optionEl.disabled = opt.disabled || false;
+          if (String(opt.value) === String(selectedValue)) {
+            optionEl.selected = true;
+            valueFound = true;
+          } else if (!selectedValue && isFirstOption && !opt.disabled) {
+            optionEl.selected = true;
+            valueFound = true;
+          }
+          if (!opt.disabled) isFirstOption = false;
+          select.appendChild(optionEl);
+        });
+      }
+
+      if (valueFound) {
+        select.dispatchEvent(new Event('change'));
+      }
     } catch (e) {
-        console.error(`Error populating select options for ${select.id}:`, e);
-        select.innerHTML = `<option disabled selected>${translate('errorGeneric')}</option>`;
+      console.error(`Error populating select options for ${select.id}:`, e);
+      select.innerHTML = `<option disabled selected>${translate(
+        'errorGeneric'
+      )}</option>`;
     } finally {
-        select.disabled = false;
+      select.disabled = false;
     }
   }
 
@@ -277,6 +222,7 @@ export class GenericPluginActionSettingsComponent
 
   validate(): { isValid: boolean; errors?: string[] } {
     const errors: string[] = [];
+    const translate = this.#context.services.translationService.translate;
     for (const field of this.#fieldDescriptors) {
       if (field.required) {
         const element = this.#formElements[field.id] as
@@ -292,9 +238,13 @@ export class GenericPluginActionSettingsComponent
 
   applyTranslations(): void {
     if (!this.#uiContainer.isConnected) return;
+    const translate = this.#context.services.translationService.translate;
     
     this.#fieldDescriptors.forEach(field => {
-        const label = this.#uiContainer.querySelector<HTMLLabelElement>(`label[for="${this.#pluginId}-${field.id}"]`);
+        const formGroup = this.#uiContainer.querySelector(`[data-field-id="${field.id}"]`);
+        if (!formGroup) return;
+
+        const label = formGroup.querySelector<HTMLLabelElement>('label');
         if (label) label.textContent = translate(field.labelKey);
 
         const input = this.#formElements[field.id] as HTMLInputElement | HTMLTextAreaElement | undefined;
@@ -302,7 +252,7 @@ export class GenericPluginActionSettingsComponent
             input.placeholder = translate(field.placeholderKey);
         }
 
-        const helpTextEl = this.#uiContainer.querySelector<HTMLElement>(`#${this.#pluginId}-${field.id} ~ .form-help-text`);
+        const helpTextEl = formGroup.querySelector<HTMLElement>('.form-help-text');
         if (helpTextEl && field.helpTextKey) {
             helpTextEl.textContent = translate(field.helpTextKey);
         }

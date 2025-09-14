@@ -2,6 +2,7 @@
 import WebSocket from 'ws';
 
 const COMPANION_APP_PORT = 9003;
+const CONNECTION_TIMEOUT_MS = 5000;
 
 /**
  * Establishes a WebSocket connection to a companion app instance.
@@ -23,7 +24,7 @@ export async function connectToCompanion(host: string): Promise<WebSocket> {
                 ws.terminate();
                 reject(new Error(`Companion connection timed out to ${targetUrl}.`));
             }
-        }, 5000);
+        }, CONNECTION_TIMEOUT_MS);
 
         const cleanupListeners = () => {
             ws.removeAllListeners('open');
@@ -40,12 +41,19 @@ export async function connectToCompanion(host: string): Promise<WebSocket> {
             }
         });
 
-        ws.on('error', (err) => {
+        ws.on('error', (err: Error & { code?: string }) => {
             if (!resolved) {
                 resolved = true;
                 clearTimeout(connectTimeout);
                 cleanupListeners();
-                reject(new Error(`Companion connection failed: ${err.message || 'Unknown WebSocket error'}`));
+                // REFACTOR: Add specific error messages for common network issues.
+                if (err.code === 'ECONNREFUSED') {
+                    reject(new Error(`Companion connection refused. Is the Companion App running on ${host}?`));
+                } else if (err.code === 'ENOTFOUND') {
+                    reject(new Error(`Companion host not found. Could not resolve DNS for '${host}'.`));
+                } else {
+                    reject(new Error(`Companion connection failed: ${err.message || 'Unknown WebSocket error'}`));
+                }
             }
         });
 

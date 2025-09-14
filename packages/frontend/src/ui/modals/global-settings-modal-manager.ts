@@ -2,7 +2,7 @@
 import type { AppStore } from '#frontend/core/state/app-store.js';
 import { initializeTabs } from '#frontend/ui/components/tab-manager.js';
 import type { UIController } from '#frontend/ui/ui-controller-core.js';
-import { UI_EVENTS, pubsub, translate } from '#shared/index.js';
+import { UI_EVENTS, pubsub } from '#shared/index.js';
 import { setIcon } from '#frontend/ui/helpers/index.js';
 
 import { type TabElements, BaseSettingsTab } from "../base-settings-tab.js"; 
@@ -27,7 +27,6 @@ export class GlobalSettingsModalManager {
     #unsubscribeStore: () => void;
     #unsubscribeLang: () => void;
     
-    // Core Elements
     #mainSettingsModal: HTMLElement | null;
     #mainSettingsCloseButton: HTMLButtonElement | null;
     #settingsTabsDesktopNav: HTMLElement | null;
@@ -45,7 +44,6 @@ export class GlobalSettingsModalManager {
         this.#settingsTabsMobileSelect = document.getElementById("settingsTabsMobileSelect") as HTMLSelectElement | null;
         this.#settingsModalTitle = document.getElementById("settingsModalTitle");
         
-        // This logic moves the original scrollable content into our new layout container
         const scrollableContent = this.#mainSettingsModal?.querySelector('.modal-scrollable-content');
         this.#contentContainer = document.getElementById("settingsTabContentContainer");
         if (this.#contentContainer && scrollableContent) {
@@ -53,21 +51,12 @@ export class GlobalSettingsModalManager {
         }
         
         this.#tabs = {
-            general: new GeneralSettingsTab(this._appStore, {
-                globalCooldownSlider: "#globalCooldownSlider", globalCooldownValue: "#globalCooldownValue", resolutionSelectGroup: "#resolutionSelectGroup", targetFpsSelectGroup: "#targetFpsSelectGroup", telemetryToggleGroup: "#telemetryToggleGroup", globalCooldownLabel: "#globalCooldownLabel", resolutionPrefLabel: "#resolutionPrefLabel", resolutionHelp: "#resolutionHelp", targetFpsLabel: "#targetFpsLabel", telemetryEnabledLabel: "#telemetryEnabledLabel", targetFpsHelp: "#targetFpsHelp", telemetryEnabledHelp: "#telemetryEnabledHelp", featureToggleGroup: "#featureToggleGroup", detectionFeaturesHelp: "#detectionFeaturesHelp", detectionFeaturesTitle: "#detectionFeaturesTitle",
-            }),
-            plugins: new PluginsTab(this._appStore, this._uiControllerRef, {
-                pluginsListContainer: '#pluginsListContainer', pluginsListPlaceholder: '#pluginsListPlaceholder', pluginInstallUrl: '#pluginInstallUrl', pluginInstallBtn: '#pluginInstallBtn', pluginInstallUrlLabel: '#pluginInstallUrlLabel', pluginDevInfoText: '#pluginDevInfoText', openPluginDevDocsBtn: '#openPluginDevDocsBtn'
-            }), 
-            rtsp: new RtspSettingsTab(this._appStore, this._uiControllerRef, {
-                rtspSourceListContainer: "#rtspSourceListContainer", rtspListPlaceholder: "#rtspListPlaceholder", rtspAddNewButton: "#rtspAddNewButton", rtspAddNewButtonLabel: "#rtspAddNewButtonLabel", rtspAddEditFormContainer: "#rtspAddEditFormContainer", rtspFormTitle: "#rtspFormTitle", rtspEditIndex: "#rtspEditIndex", rtspSourceName: "#rtspSourceName", rtspSourceUrl: "#rtspSourceUrl", rtspNameLabel: "#rtspNameLabel", rtspUrlLabel: "#rtspUrlLabel", rtspUrlHelp: "#rtspUrlHelp", rtspSaveSourceButton: "#rtspSaveSourceButton", rtspSaveButtonLabel: "#rtspSaveButtonLabel", rtspCancelEditButton: "#rtspCancelEditButton", rtspSourceOnDemand: "#rtspSourceOnDemand", rtspSourceOnDemandLabel: "#rtspSourceOnDemandLabel", rtspRoiSettingsLabel: "#rtspRoiSettingsLabel", rtspRoiX: "#rtspRoiX", rtspRoiY: "#rtspRoiY", rtspRoiWidth: "#rtspRoiWidth", rtspRoiHeight: "#rtspRoiHeight", rtspRoiXLabel: "#rtspRoiXLabel", rtspRoiYLabel: "#rtspRoiYLabel", rtspRoiWidthLabel: "#rtspRoiWidthLabel", rtspRoiHeightLabel: "#rtspRoiHeightLabel", rtspRoiHelp: "#rtspRoiHelp", rtspListActionsContainer: "#rtspListActionsContainer",
-            }),
-            appearance: new ThemeSettingsTab(this._uiControllerRef, {
-                colorModeSelectionLabel: "#colorModeSelectionLabel", colorModeToggleGroup: "#colorModeToggleGroup", themeToggleGroup: "#themeToggleGroup", themeSelectionLabel: "#themeSelectionLabel"
-            }),
-            customGestures: new CustomGesturesTab(this._appStore, this._uiControllerRef, {
-                uploadCustomGestureFileBtn: "#upload-custom-gesture-file-btn", customGestureFile: "#customGestureFile", uploadCustomGestureBtn: "#uploadCustomGestureBtn", cancelCustomGestureImportBtn: "#cancelCustomGestureImportBtn", customHandGestureListContainer: "#customHandGestureListContainer", customHandGestureListPlaceholder: "#customHandGestureListPlaceholder", customPoseGestureListContainer: "#customPoseGestureListContainer", customPoseGestureListPlaceholder: "#customPoseGestureListPlaceholder", savedHandGesturesTitleElement: "#savedHandGesturesTitleElement", savedPoseGesturesTitleElement: "#savedPoseGesturesTitleElement", customGestureImportActions: "#custom-gesture-import-actions", customGestureImportPreview: "#custom-gesture-import-preview", importPreviewTitle: "#importPreviewTitle", importPreviewNameInput: "#importPreviewNameInput", importPreviewNameLabel: "#importPreviewNameLabel", importPreviewDescTextarea: "#importPreviewDescTextarea", importPreviewDescLabel: "#importPreviewDescLabel", importPreviewTypeLabel: "#importPreviewTypeLabel", importPreviewTypeValue: "#importPreviewTypeValue", actionsSlot: "#custom-gestures-actions-slot", openPluginDevDocsBtn: "#openPluginDevDocsBtn"
-            })
+            // FIX: Removed the third 'elementQueries' argument from all constructors
+            general: new GeneralSettingsTab(this._appStore, this._uiControllerRef),
+            plugins: new PluginsTab(this._appStore, this._uiControllerRef), 
+            rtsp: new RtspSettingsTab(this._appStore, this._uiControllerRef),
+            appearance: new ThemeSettingsTab(this._appStore, this._uiControllerRef),
+            customGestures: new CustomGesturesTab(this._appStore, this._uiControllerRef)
         };
         
         this.#unsubscribeStore = this._appStore.subscribe((state) => {
@@ -110,7 +99,6 @@ export class GlobalSettingsModalManager {
     _initializeTabManager() {
         const tabsContainer = this.#settingsTabsDesktopNav;
         if (tabsContainer && this.#contentContainer) {
-            // The content container for the tab manager is now the one that holds the scrollable area
             this._tabManagerApi = initializeTabs({ tabsContainer, contentContainer: this.#contentContainer, defaultTabKey: 'general', onTabChange: this._handleTabChange });
         } else console.error("[GlobalSettingsModalManager] Tab manager init failed: containers not found.");
     }
@@ -196,6 +184,7 @@ export class GlobalSettingsModalManager {
 
     applyTranslations = async () => {
         if (this._isApplyingTranslations) return; this._isApplyingTranslations = true;
+        const translate = this._uiControllerRef.translationService.translate;
         try {
             const titleSpan = this.#settingsModalTitle?.querySelector(".header-title");
             if (titleSpan) titleSpan.textContent = translate("configurationTitle");
@@ -217,6 +206,7 @@ export class GlobalSettingsModalManager {
     }
 
     #renderNavigation() {
+        const translate = this._uiControllerRef.translationService.translate;
         const tabsInfo = [
             { key: 'general', titleKey: 'generalSettingsTitle', iconKey: 'UI_SETTINGS' },
             { key: 'customGestures', titleKey: 'customGesturesTabButton', iconKey: 'UI_GESTURE' },
@@ -232,7 +222,7 @@ export class GlobalSettingsModalManager {
                 button.className = 'btn settings-tab-nav-button';
                 button.dataset.tab = tab.key;
                 const icon = document.createElement('span');
-                setIcon(icon, tab.iconKey);
+                setIcon(icon, tab.iconKey as string);
                 const text = document.createElement('span');
                 text.textContent = translate(tab.titleKey, { defaultValue: tab.key });
                 button.append(icon, text);

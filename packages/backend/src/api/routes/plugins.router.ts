@@ -1,10 +1,15 @@
 /* FILE: packages/backend/src/api/routes/plugins.router.ts */
 import { Router, type Request, type Response, type NextFunction } from 'express';
+import { z } from 'zod';
 
 import type { PluginManagerService } from '../../services/plugin-manager.service.js';
 
 const asyncHandler = (fn: (req: Request, res: Response, next: NextFunction) => Promise<unknown>) =>
     (req: Request, res: Response, next: NextFunction) => { Promise.resolve(fn(req, res, next)).catch(next); };
+
+const InstallPluginBodySchema = z.object({
+    url: z.string().url({ message: "A valid Git repository URL is required." }),
+});
 
 export default function createPluginsRouter(pluginManager: PluginManagerService): Router {
     const router = Router();
@@ -15,10 +20,11 @@ export default function createPluginsRouter(pluginManager: PluginManagerService)
     }));
     
     router.post('/manage/install', asyncHandler(async (req, res) => {
-        const { url } = req.body;
-        if (!url || typeof url !== 'string') {
-            return res.status(400).json({ success: false, message: 'Missing or invalid "url" in request body.' });
+        const validation = InstallPluginBodySchema.safeParse(req.body);
+        if (!validation.success) {
+            return res.status(400).json({ success: false, message: validation.error.issues[0].message });
         }
+        const { url } = validation.data;
         const result = await pluginManager.installPlugin(url);
         res.status(result.success ? 200 : 400).json(result);
     }));
@@ -51,7 +57,7 @@ export default function createPluginsRouter(pluginManager: PluginManagerService)
         }
     });
 
-    // --- Core config routes that use :pluginId must come after the dynamic mounts ---
+    // --- Core config and test routes that use :pluginId must come after the dynamic mounts ---
     router.get('/:pluginId/config', asyncHandler(async (req, res) => {
         const config = await pluginManager.getPluginGlobalConfig(req.params.pluginId);
         const manifest = pluginManager.getPluginManifest(req.params.pluginId);
@@ -87,6 +93,24 @@ export default function createPluginsRouter(pluginManager: PluginManagerService)
                 validationErrors: errors,
             });
         }
+    }));
+    
+    // Centralized route for testing a plugin's connection with a given config.
+    router.post('/:pluginId/test', asyncHandler(async (req, res) => {
+        const { pluginId } = req.params;
+        const configToTest = req.body;
+
+        const pluginInstance = pluginManager.getPluginInstance(pluginId);
+        if (!pluginInstance) {
+            return res.status(404).json({ success: false, message: `Plugin '${pluginId}' not found.` });
+        }
+        
+        // The base plugin provides a default testConnection, so this should always exist.
+        const result = await pluginInstance.testConnection!(configToTest);
+        
+        // The result from testConnection already has { success, messageKey, error }.
+        // We add the pluginId for context on the frontend.
+        res.json({ pluginId, ...result });
     }));
 
     return router;

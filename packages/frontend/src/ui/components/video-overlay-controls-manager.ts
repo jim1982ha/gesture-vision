@@ -237,7 +237,7 @@ export class VideoOverlayControlsManager {
 
   public updateAllControls = (): void => {
     const isStreamRunning =
-      this.#uiControllerRef.appStatusManager?.isWebcamRunning() ?? false;
+      this.#uiControllerRef.appStore.getState().isWebcamRunning ?? false;
 
     if (!isStreamRunning) {
       this.closeAllOverlayPanels();
@@ -254,10 +254,9 @@ export class VideoOverlayControlsManager {
     const poseFeatureEnabled = state.enablePoseProcessing;
     setElementVisibility(
       this.#handTuningSliders,
-      anyHandFeatureEnabled,
-      "flex"
+      anyHandFeatureEnabled
     );
-    setElementVisibility(this.#poseTuningSliders, poseFeatureEnabled, "flex");
+    setElementVisibility(this.#poseTuningSliders, poseFeatureEnabled);
   }
 
   public loadSettings(state: FrontendFullState): void {

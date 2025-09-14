@@ -252,5 +252,6 @@
   "action": "动作",
   "filterPlaceholder": "筛选...",
   "errorLoadingDoc": "加载文档时出错。",
-  "studioLaunchError": "无法打开手势工作室。原因: {{reason}}"
+  "studioLaunchError": "无法打开手势工作室。原因: {{reason}}",
+  "rtspRoiInvalid": "ROI 值无效。偏移量和尺寸之和（X+宽度 或 Y+高度）不能超过100。"
 }

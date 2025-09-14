@@ -1,4 +1,5 @@
 /* FILE: packages/backend/src/websocket-handlers/handler-dependencies.type.ts */
+import type { ActionDispatcherService } from '../services/action-dispatcher.service.js';
 import type { ConfigService } from '../services/config.service.js';
 import type { PluginManagerService } from '../services/plugin-manager.service.js';
 import type { MtxMonitorService } from '../services/mtx-monitor.service.js';
@@ -10,4 +11,5 @@ export interface HandlerDependencies {
     configService: ConfigService | null;
     pluginManagerService: PluginManagerService | null;
     mtxMonitorService: MtxMonitorService | null;
+    actionDispatcher: ActionDispatcherService | null;
 }

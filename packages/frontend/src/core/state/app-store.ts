@@ -29,7 +29,8 @@ export type FrontendFullState = FullConfiguration & {
   streamStatus: Map<string, string>;
   isInitialConfigLoaded: boolean;
   isWsConnected: boolean;
-  isWebcamRunning: boolean; // NEW: Centralized stream running state
+  isWebcamRunning: boolean;
+  isStreamConnecting: boolean;
   customGestureMetadataList: CustomGestureMetadata[];
   pluginManifests: PluginManifest[];
   pluginGlobalConfigs: Map<string, unknown>;
@@ -69,7 +70,8 @@ const getInitialState = (): FrontendFullState => ({
   streamStatus: new Map<string, string>(),
   isInitialConfigLoaded: false,
   isWsConnected: false,
-  isWebcamRunning: false, // NEW: Initial state
+  isWebcamRunning: false,
+  isStreamConnecting: false,
   customGestureMetadataList: [],
   pluginManifests: [],
   pluginGlobalConfigs: new Map<string, unknown>(),
@@ -90,6 +92,7 @@ interface AppStoreActions {
   requestBackendPatch: (patchData: Partial<FullConfiguration>) => Promise<void>;
   setStreamStatus: (pathName: string, status: string) => void;
   setPluginExtData: (pluginId: string, data: unknown) => void;
+  clearPluginExtData: (pluginId: string) => void;
   setLowLightSettings: (payload: { lowLightBrightness?: number; lowLightContrast?: number; }) => void;
   addHistoryEntry: (entry: Partial<HistoryEntry>) => void;
   updateHistoryEntryStatus: (result: ActionResultPayload) => void;
@@ -97,7 +100,8 @@ interface AppStoreActions {
   setModelLoadingStatus: (status: { hand?: boolean, pose?: boolean }) => void;
   setIsActionDispatchSuppressed: (isSuppressed: boolean) => void;
   setWsConnectionStatus: (isConnected: boolean) => void;
-  setWebcamRunningStatus: (isRunning: boolean) => void; // NEW: Action to set stream status
+  setWebcamRunningStatus: (isRunning: boolean) => void;
+  setIsStreamConnecting: (isConnecting: boolean) => void;
 }
 
 export type AppStore = ReturnType<typeof createAppStore>;
@@ -170,6 +174,17 @@ export function createAppStore(initialState: FrontendFullState) {
             return { pluginExtDataCache: newCache };
           });
         },
+        // NEW: Action to clear extended data for a specific plugin.
+        clearPluginExtData: (pluginId: string) => {
+            set((state) => {
+                const newCache = new Map(state.pluginExtDataCache);
+                if (newCache.has(pluginId)) {
+                    newCache.delete(pluginId);
+                    return { pluginExtDataCache: newCache };
+                }
+                return state; 
+            });
+        },
         setLowLightSettings: (payload: { lowLightBrightness?: number; lowLightContrast?: number; }) => {
           set(payload);
         },
@@ -217,8 +232,11 @@ export function createAppStore(initialState: FrontendFullState) {
         setWsConnectionStatus: (isConnected: boolean) => {
           set({ isWsConnected: isConnected });
         },
-        setWebcamRunningStatus: (isRunning: boolean) => { // NEW: Action implementation
+        setWebcamRunningStatus: (isRunning: boolean) => {
             set({ isWebcamRunning: isRunning });
+        },
+        setIsStreamConnecting: (isConnecting: boolean) => {
+            set({ isStreamConnecting: isConnecting });
         },
       },
     })

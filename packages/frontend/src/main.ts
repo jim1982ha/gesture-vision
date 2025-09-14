@@ -4,7 +4,6 @@ import { registerSW } from "virtual:pwa-register";
 
 import { App } from "./core/app.js";
 import { appStore } from "./core/state/app-store.js";
-import { TranslationService } from "./services/translation.service.js";
 import './index.css'; // Import Tailwind CSS entry point
 
 declare global {
@@ -20,12 +19,8 @@ async function initializeApplication() {
   try {
     console.info("[Init] Starting application initialization...");
     registerSW({ immediate: true });
-
-    const translationService = new TranslationService();
-
-    console.info("[Init] DOM elements will be queried by their components.");
-
-    appInstance = new App(appStore, translationService);
+    
+    appInstance = new App(appStore);
 
     await appInstance.initializeAppSequence();
 

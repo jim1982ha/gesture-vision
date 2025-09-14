@@ -7,32 +7,74 @@ import {
   UI_EVENTS,
   WEBCAM_EVENTS,
   PERMISSION_EVENTS,
+  normalizeNameForMtx,
 } from '#shared/index.js';
 import { pubsub } from '#shared/core/pubsub.js';
 import { secureStorage } from '#shared/services/security-utils.js';
-import {
-  createRtspDeviceMap,
-  createWebcamDeviceMap,
-} from './logic/source-map-utils.js';
 import {
   checkPermissionsAndEnumerate,
   publishDeviceList,
 } from './logic/permission-helpers.js';
 import type { CameraManager } from '#frontend/camera/camera-manager.js';
-
 import type { RtspSourceConfig } from '#shared/index.js';
+import type { TranslationService } from '#frontend/services/translation.service.js';
 
 interface DeviceInfo {
   id: string;
   label: string;
 }
 
-// FIX: Define a type for the payload which can be a string or an object
 type CameraClickPayload = string | { deviceId: string; isFlip: boolean };
+
+/**
+ * Creates a map of RTSP sources from the application configuration.
+ * @param rtspSourcesCache - The array of RTSP source configurations.
+ * @returns A Map where the key is the generated device ID (e.g., 'rtsp:living_room') and the value is the display name.
+ */
+function createRtspDeviceMap(rtspSourcesCache: RtspSourceConfig[] | undefined): Map<string, string> {
+    const rtspMap = new Map<string, string>();
+    (rtspSourcesCache || []).forEach((rtspSrc) => {
+      if (rtspSrc?.name) {
+        const normalizedName = normalizeNameForMtx(rtspSrc.name);
+        const rtspDeviceId = `rtsp:${normalizedName}`;
+        rtspMap.set(rtspDeviceId, rtspSrc.name);
+      }
+    });
+    return rtspMap;
+  }
+  
+/**
+ * Creates a map of webcam devices from the browser's enumerated devices.
+ * On mobile, it consolidates all webcams under a single "Webcam" entry.
+ * @param devices - The array of MediaDeviceInfo objects.
+ * @param isMobile - A boolean indicating if the device is considered mobile.
+ * @returns A Map where the key is the deviceId and the value is its user-friendly label.
+ */
+function createWebcamDeviceMap(devices: DeviceInfo[], isMobile: boolean, translationService: TranslationService): Map<string, string> {
+    const webcamMap = new Map<string, string>();
+    const validWebcams = Array.isArray(devices) ? devices.filter(d => d?.id && typeof d.id === 'string' && d.id.length > 0) : [];
+  
+    if (isMobile && validWebcams.length > 0) {
+      webcamMap.set("webcam:mobile_default", translationService.translate("Webcam", { defaultValue: "Webcam" }));
+    } else {
+      validWebcams.forEach((d, index) => {
+        let deviceLabel = d?.label;
+        if (!deviceLabel || deviceLabel.trim() === "") {
+          deviceLabel = translationService.translate("Camera", {
+            defaultValue: `Camera ${index + 1}`
+          });
+        }
+        deviceLabel = deviceLabel.replace(/\s\([\s\S]*?\)$/, '');
+        webcamMap.set(d.id, deviceLabel);
+      });
+    }
+    return webcamMap;
+}
 
 export class CameraSourceManager {
   #selectedCameraSource = '';
   #appStore: AppStore;
+  #translationService: TranslationService;
   #combinedDeviceMap = new Map<string, string>();
   #lastWebcamDevices: DeviceInfo[] = [];
   #rtspSourcesCache: RtspSourceConfig[] = [];
@@ -40,8 +82,9 @@ export class CameraSourceManager {
   #mockCameraManager: Partial<CameraManager>;
   #unsubscribeStore: () => void;
 
-  constructor(appStore: AppStore) {
+  constructor(appStore: AppStore, translationService: TranslationService) {
     this.#appStore = appStore;
+    this.#translationService = translationService;
     this.#isMobile = window.matchMedia('(any-pointer: coarse)').matches;
     this.#loadState();
     this.#rtspSourcesCache = this.#appStore.getState().rtspSources || [];
@@ -63,10 +106,10 @@ export class CameraSourceManager {
   public async refreshDeviceList(): Promise<void> {
     try {
       const devices = await checkPermissionsAndEnumerate(this.#mockCameraManager as CameraManager);
-      publishDeviceList(this.#mockCameraManager as CameraManager, devices);
+      publishDeviceList(this.#mockCameraManager as CameraManager, devices, this.#translationService);
     } catch (error) {
       console.error('[SourceMgr] Device enumeration failed:', error);
-      publishDeviceList(this.#mockCameraManager as CameraManager, []);
+      publishDeviceList(this.#mockCameraManager as CameraManager, [], this.#translationService);
     }
   }
 
@@ -112,18 +155,19 @@ export class CameraSourceManager {
 
   #rebuildAndValidate = (): void => {
     this.#rebuildCombinedMap();
-    this.#validateAndPublishMapIfNeeded();
+    this.#validateAndPublishMap();
   };
 
   #rebuildCombinedMap = (): void => {
-    const webcamMap = createWebcamDeviceMap(this.#lastWebcamDevices, this.#isMobile);
+    const webcamMap = createWebcamDeviceMap(this.#lastWebcamDevices, this.#isMobile, this.#translationService);
     const rtspMap = createRtspDeviceMap(this.#rtspSourcesCache);
     this.#combinedDeviceMap = new Map([...webcamMap, ...rtspMap]);
   };
 
-  #validateAndPublishMapIfNeeded = (): void => {
+  #validateAndPublishMap = (): void => {
     if (this.#selectedCameraSource && !this.#combinedDeviceMap.has(this.#selectedCameraSource)) {
-      this.#setSelectedSource('');
+      this.#selectedCameraSource = '';
+      secureStorage.set(STORAGE_KEY_SELECTED_CAMERA_SOURCE, '');
     }
     pubsub.publish(CAMERA_SOURCE_EVENTS.MAP_UPDATED, new Map(this.#combinedDeviceMap));
   };
@@ -138,16 +182,20 @@ export class CameraSourceManager {
     const newSource = deviceId?.trim() ?? '';
     const isStreamActive = this.#appStore.getState().isWebcamRunning;
 
-    // FIX: Add `!isFlip` to the condition to allow the camera flip action to proceed even if the source ID is the same.
     if (this.#selectedCameraSource === newSource && isStreamActive && !isFlip) {
-        console.log(`[LOG] SourceManager: Clicked same active source ('${newSource}'), ignoring restart.`);
         return; 
     }
-    console.log(`[LOG] SourceManager: Selection changed to '${newSource}' or stream is inactive. Publishing CHANGED event.`);
 
     this.#selectedCameraSource = newSource;
     secureStorage.set(STORAGE_KEY_SELECTED_CAMERA_SOURCE, newSource);
     pubsub.publish(CAMERA_SOURCE_EVENTS.CHANGED, newSource);
+  }
+
+  public triggerInitialStreamIfNeeded(): void {
+    const streamIsActive = this.#appStore.getState().isWebcamRunning;
+    if (this.#selectedCameraSource && !streamIsActive) {
+      pubsub.publish(CAMERA_SOURCE_EVENTS.CHANGED, this.#selectedCameraSource);
+    }
   }
 
   public getSelectedCameraSource = (): string => this.#selectedCameraSource;

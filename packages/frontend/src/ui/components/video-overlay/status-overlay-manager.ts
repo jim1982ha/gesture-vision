@@ -1,5 +1,4 @@
 /* FILE: packages/frontend/src/ui/components/video-overlay/status-overlay-manager.ts */
-import { translate } from '#shared/index.js';
 import { setIcon, setElementVisibility } from '#frontend/ui/helpers/index.js';
 import type { UIController } from '#frontend/ui/ui-controller-core.js';
 
@@ -58,6 +57,7 @@ export class StatusOverlayManager {
   public setState(newState: VideoOverlayState): void {
     if (this.#currentState === newState) return;
     this.#currentState = newState;
+    const translate = this.#uiControllerRef.translationService.translate;
 
     const isOverlayVisibleAndActive = newState === 'OFFLINE_IDLE' || newState === 'INITIAL_CONNECTING';
     
@@ -87,8 +87,8 @@ export class StatusOverlayManager {
         break;
     }
 
-    setElementVisibility(this.#textContainer, showText, 'flex');
-    setElementVisibility(this.#iconContainer, showIcon, 'flex');
+    setElementVisibility(this.#textContainer, showText);
+    setElementVisibility(this.#iconContainer, showIcon);
     if (this.#iconElement && iconKey) setIcon(this.#iconElement, iconKey);
     if (this.#textElement) this.#textElement.textContent = textContent;
   }

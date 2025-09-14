@@ -58,7 +58,8 @@
     font-size: theme('fontSize.xs');
   }
   .header-dropdown-panel {
-    @apply absolute top-full mt-1 z-dropdown bg-surface border border-border rounded-md shadow-lg p-1 flex-col gap-1 max-h-[250px] overflow-y-auto opacity-0 invisible transition-all;
+    @apply absolute top-full mt-1 z-dropdown bg-surface border border-border rounded-md shadow-lg p-1 flex-col gap-1 max-h-[250px] overflow-y-auto opacity-0 transition-all;
+    visibility: hidden;
   }
   .header-dropdown-panel.visible {
     visibility: visible;

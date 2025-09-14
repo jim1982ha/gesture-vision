@@ -4,13 +4,14 @@ import {
   DEFAULT_WEBCAM_FACING_MODE,
   MOBILE_WEBCAM_PLACEHOLDER_ID,
   STORAGE_KEY_LAST_WEBCAM_ID,
-  STORAGE_KEY_MIRROR_STATE_PER_SOURCE,
   STORAGE_KEY_SELECTED_CAMERA_SOURCE,
+  STORAGE_KEY_MIRROR_STATE_PER_SOURCE,
 } from '#frontend/constants/app-defaults.js';
 import { secureStorage } from '#shared/services/security-utils.js';
 import type { AppStore } from '#frontend/core/state/app-store.js';
 import type { GestureProcessor } from '#frontend/gestures/processor.js';
 import type { RoiConfig, RtspSourceConfig } from '#shared/index.js';
+import type { TranslationService } from '#frontend/services/translation.service.js';
 
 import { CanvasRenderer } from './canvas-renderer.js';
 import { CameraSourceManager } from './source-manager.js';
@@ -38,13 +39,14 @@ export class CameraManager {
     videoElement: HTMLVideoElement,
     outputCanvasElement: HTMLCanvasElement,
     appStore: AppStore,
-    gestureProcessorRef: GestureProcessor
+    gestureProcessorRef: GestureProcessor,
+    translationService: TranslationService
   ) {
     this.#videoElement = videoElement;
     this.#appStore = appStore;
     this.#gestureProcessorRef = gestureProcessorRef;
 
-    this.#cameraSourceManager = new CameraSourceManager(this.#appStore);
+    this.#cameraSourceManager = new CameraSourceManager(this.#appStore, translationService);
     this.#streamService = new CameraStreamService(this);
 
     this.#canvasRendererRef = new CanvasRenderer(
@@ -93,6 +95,10 @@ export class CameraManager {
         this.#handleLiveRtspConfigUpdate(state.rtspSources);
       }
     });
+
+    pubsub.subscribe(UI_EVENTS.REQUEST_MIRROR_TOGGLE, () => {
+        this.toggleMirroringForCurrentStream();
+    });
   }
 
   #handleLiveRtspConfigUpdate(newSources: RtspSourceConfig[]): void {
@@ -100,16 +106,26 @@ export class CameraManager {
   
     const currentNormalizedName = this.#currentDeviceId.substring(5);
     const newConfig = newSources.find(s => normalizeNameForMtx(s.name) === currentNormalizedName);
-    
-    if (newConfig) {
-      const oldConfig = this.#appStore.getState().rtspSources.find(s => normalizeNameForMtx(s.name) === currentNormalizedName);
-      const newRoi = newConfig.roi || null;
-      const oldRoi = oldConfig?.roi || null;
+    const oldConfig = this.#appStore.getState().rtspSources.find(s => normalizeNameForMtx(s.name) === currentNormalizedName);
+  
+    if (!newConfig) { // Source was deleted
+      pubsub.publish(UI_EVENTS.SHOW_NOTIFICATION, { messageKey: 'notificationStreamStoppedConfigChanged', type: 'warning' });
+      this.stop();
+      return;
+    }
+  
+    if (newConfig.url !== oldConfig?.url) {
+      pubsub.publish(UI_EVENTS.SHOW_NOTIFICATION, { messageKey: 'notificationStreamUrlChanged', type: 'warning' });
+      this.stop();
+      return;
+    }
 
-      if (JSON.stringify(newRoi) !== JSON.stringify(oldRoi)) {
-        this.#canvasRendererRef.updateSourceInfo(this.#currentDeviceId, newRoi);
-        this.#gestureProcessorRef.setActiveStreamRoi(newRoi);
-      }
+    const newRoi = newConfig.roi || null;
+    const oldRoi = oldConfig?.roi || null;
+
+    if (JSON.stringify(newRoi) !== JSON.stringify(oldRoi)) {
+      this.#canvasRendererRef.updateSourceInfo(this.#currentDeviceId, newRoi);
+      this.#gestureProcessorRef.setActiveStreamRoi(newRoi);
     }
   }
 
@@ -206,7 +222,6 @@ export class CameraManager {
       roiForProcessing
     );
     
-    // An initial draw to clear canvas or show first frame. The loop handles subsequent frames.
     this.#canvasRendererRef.drawOutput();
 
     pubsub.publish(WEBCAM_EVENTS.STREAM_START, {
@@ -225,21 +240,15 @@ export class CameraManager {
       ?.classList.remove('video-active');
     this.#performanceStats = { resolution: { width: 0, height: 0 } };
     
-    // Explicitly clear the canvas and its state when stopping the stream.
     this.#canvasRendererRef.clearVideoSource();
 
     if (publishStopEvent) pubsub.publish(WEBCAM_EVENTS.STREAM_STOP);
-  }
-
-  public stopStream(): Promise<void> {
-    return this.stop(true);
   }
 
   public async flipCamera(): Promise<void> {
     if (!this.canFlipCamera()) return;
     this.#currentFacingMode =
       this.#currentFacingMode === 'user' ? 'environment' : 'user';
-    // FIX: Publish an object payload with an `isFlip` flag to bypass the duplicate-click check in the source manager.
     pubsub.publish(UI_EVENTS.CAMERA_LIST_ITEM_CLICKED, {
       deviceId: MOBILE_WEBCAM_PLACEHOLDER_ID,
       isFlip: true,
@@ -273,14 +282,22 @@ export class CameraManager {
   public toggleMirroringForCurrentStream(): void {
     const deviceId = this.#currentDeviceId;
     if (!deviceId) return;
+
     const newState = !this.isMirrored();
     this.#mirrorStateMap.set(deviceId, newState);
     secureStorage.set(
       STORAGE_KEY_MIRROR_STATE_PER_SOURCE,
       Object.fromEntries(this.#mirrorStateMap)
     );
-    this.#canvasRendererRef.setMirroring(newState);
-    this.#canvasRendererRef.drawOutput();
+    
+    if (this.isStreaming()) {
+      // Find the config for the current stream to pass it to the start method
+      const sourceConfig = this.isStreamingRtsp() 
+        ? this.#appStore.getState().rtspSources.find(s => `rtsp:${normalizeNameForMtx(s.name)}` === deviceId) || null
+        : null;
+      this.start(deviceId, sourceConfig).catch(e => console.error("Error restarting stream after mirror toggle:", e));
+    }
+    
     pubsub.publish(UI_EVENTS.REQUEST_BUTTON_STATE_UPDATE);
   }
 

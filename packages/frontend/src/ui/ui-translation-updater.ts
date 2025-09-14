@@ -1,19 +1,18 @@
 /* FILE: packages/frontend/src/ui/ui-translation-updater.ts */
 // Utility for updating UI elements with translated text, supporting various attributes.
-import { translate } from "#shared/services/translations.js";
+import type { TranslationService } from '#frontend/services/translation.service.js';
 
-// Enhanced config for more flexible attribute setting
 export interface TranslationAttributeConfig {
-  key: string; // Translation key
+  key: string;
   substitutions?: Record<string, string | number | undefined | null>;
-  attribute: string; // DOM attribute to set (e.g., 'title', 'aria-label', 'placeholder')
+  attribute: string;
   defaultValue?: string;
 }
 
 export interface TranslationTextContentConfig {
-  key: string; // Translation key
+  key: string;
   substitutions?: Record<string, string | number | undefined | null>;
-  mode?: "textContent" | "innerHTML"; // Defaults to textContent
+  mode?: "textContent" | "innerHTML";
   defaultValue?: string;
 }
 
@@ -22,24 +21,18 @@ export type TranslationConfig =
   | TranslationAttributeConfig
   | TranslationTextContentConfig;
 
-// A single item to be translated
 export interface TranslationConfigItem {
   element: HTMLElement | null | undefined;
   config: TranslationConfig;
+  translationService: TranslationService;
 }
 
-// For mapping multiple configurations to a single element
 export interface MultiTranslationConfigItem {
   element: HTMLElement | null | undefined;
   configs: TranslationConfig[];
+  translationService: TranslationService;
 }
 
-/**
- * Updates translations for a given set of elements and their configurations.
- * Can now handle a mix of simple key strings, attribute configs, and text content configs.
- * @param {Array<TranslationConfigItem | MultiTranslationConfigItem>} items -
- *        An array of items, where each item specifies an element and its translation config(s).
- */
 export function updateTranslationsForComponent(
   items: Array<TranslationConfigItem | MultiTranslationConfigItem>
 ): void {
@@ -52,21 +45,17 @@ export function updateTranslationsForComponent(
     if (!item || !item.element) return;
 
     if ("configs" in item && Array.isArray(item.configs)) {
-      // Handle MultiTranslationConfigItem
-      item.configs.forEach((config) => applyTranslation(item.element, config));
+      item.configs.forEach((config) => applyTranslation(item.element, config, item.translationService));
     } else if ("config" in item && item.config) {
-      // Handle TranslationConfigItem
-      applyTranslation(item.element, item.config);
+      applyTranslation(item.element, item.config, item.translationService);
     }
   });
 }
 
-/**
- * Applies a single translation to an element based on the provided configuration.
- */
 function applyTranslation(
   element: HTMLElement | null | undefined,
-  config: TranslationConfig
+  config: TranslationConfig,
+  translationService: TranslationService
 ): void {
   if (!element) return;
 
@@ -101,7 +90,7 @@ function applyTranslation(
     substitutions.defaultValue = defaultValue;
   }
 
-  const translatedText = translate(translationKey, substitutions);
+  const translatedText = translationService.translate(translationKey, substitutions);
 
   try {
     if (attributeToSet) {
@@ -121,9 +110,8 @@ function applyTranslation(
       }
     } else {
       if (mode === "innerHTML") {
-        element.innerHTML = translatedText; // Use with caution, only if HTML is intended
+        element.innerHTML = translatedText;
       } else {
-        // Default to textContent
         element.textContent = translatedText;
       }
     }

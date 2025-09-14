@@ -9,6 +9,7 @@ import type {
 } from '#shared/index.js';
 import type { CardContent } from '#frontend/ui/utils/card-utils.js';
 import type { Landmark } from '@mediapipe/tasks-vision';
+import type { TranslationService } from '#frontend/services/translation.service.js';
 
 export interface ThemePreference {
   base: string;
@@ -17,7 +18,7 @@ export interface ThemePreference {
 
 export interface FrameAnalysisFrameData {
   videoElement: HTMLVideoElement;
-  imageSourceElement: HTMLVideoElement | HTMLCanvasElement; // New property to specify the analysis source
+  imageSourceElement: HTMLVideoElement | HTMLCanvasElement;
   roiConfig: { x: number; y: number; width: number; height: number } | null;
   timestamp: number;
 }
@@ -27,19 +28,6 @@ export interface TestResultPayload {
   confidence: number;
   landmarks: unknown[] | null;
   gestureType: 'hand' | 'pose';
-}
-
-export interface AppDOMElements {
-  [key: string]:
-    | HTMLElement
-    | SVGElement
-    | HTMLInputElement
-    | HTMLButtonElement
-    | HTMLSelectElement
-    | HTMLTextAreaElement
-    | HTMLFormElement
-    | null
-    | undefined;
 }
 
 export interface HistoryEntry {
@@ -62,6 +50,12 @@ export interface SnapshotPromise {
   reject: (reason?: unknown) => void;
 }
 
+export interface LandmarkVisibilityOverridePayload {
+  hand: boolean;
+  pose: boolean;
+  numHands?: number;
+}
+
 // --- Frontend Plugin Interfaces ---
 export type ActionDisplayDetailsRendererFn = (
   actionPluginSettings: unknown,
@@ -79,30 +73,20 @@ export interface IPluginActionSettingsComponent {
   applyTranslations?(): void;
 }
 
-export type CreatePluginActionSettingsComponentFn = (
-  pluginId: string,
-  manifest: PluginManifest,
-  context: PluginUIContext
-) => IPluginActionSettingsComponent;
-
 export interface IPluginGlobalSettingsComponent {
   getElement(): HTMLElement;
   initialize?(): void;
   update(
     currentPluginGlobalConfig: unknown | null,
     context: PluginUIContext,
-    extraState?: { isPending?: boolean }
+    extraState?: { isPending?: boolean; isEditing?: boolean }
   ): void;
   onConfigUpdate?(newConfig: unknown | null): void;
   destroy?(): void;
   applyTranslations?(): void;
-  getConfigToSave?(): unknown | null;
+  save?(): Promise<boolean>;
+  renderForm?(): HTMLElement;
 }
-export type CreatePluginGlobalSettingsComponentFn = (
-  pluginId: string,
-  manifest: PluginManifest,
-  context: PluginUIContext
-) => IPluginGlobalSettingsComponent;
 
 export interface FrontendPluginModule {
   manifest: PluginManifest;
@@ -111,8 +95,11 @@ export interface FrontendPluginModule {
     | ((context: PluginUIContext) => ActionSettingFieldDescriptor[]);
   init?(context: PluginUIContext): Promise<void>;
   destroy?(): void;
-  createGlobalSettingsComponent?: CreatePluginGlobalSettingsComponentFn;
-  createActionSettingsComponent?: CreatePluginActionSettingsComponentFn;
+  createGlobalSettingsComponent?: (
+    pluginId: string,
+    manifest: PluginManifest,
+    context: PluginUIContext
+  ) => IPluginGlobalSettingsComponent;
   getActionDisplayDetails?: ActionDisplayDetailsRendererFn;
   launchModal?(): void;
 }
@@ -129,7 +116,7 @@ export interface PluginUIContext {
   requestCloseSettingsModal?: () => void;
   data?: Record<string, unknown>;
   services: {
-    translate: (key: string, substitutions?: Record<string, unknown>) => string;
+    translationService: TranslationService;
     pubsub: {
       publish: (event: string, data?: unknown) => void;
       subscribe: (
@@ -140,7 +127,8 @@ export interface PluginUIContext {
   };
   uiComponents: {
     createCardElement: (content: CardContent) => HTMLDivElement;
-    setIcon: unknown;
+    setIcon: (element: Element | null | undefined, iconIdentifier: GestureCategoryIconType | string) => void;
+    setElementVisibility: (element: HTMLElement | null | undefined, isVisible: boolean) => void;
     updateButtonGroupActiveState: (
       groupElement: HTMLElement | null | undefined,
       activeValue: string | number | boolean | null | undefined,

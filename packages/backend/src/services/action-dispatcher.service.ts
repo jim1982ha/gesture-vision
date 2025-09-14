@@ -12,6 +12,9 @@ export class ActionDispatcherService {
   #pluginManager: PluginManagerService;
 
   constructor(pluginManager: PluginManagerService) {
+    if (!pluginManager) {
+      throw new Error("ActionDispatcherService requires a PluginManagerService instance.");
+    }
     this.#pluginManager = pluginManager;
   }
 

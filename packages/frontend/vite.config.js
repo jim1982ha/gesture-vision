@@ -50,11 +50,7 @@ export default defineConfig(({ mode }) => {
     enforce: "pre",
     transformIndexHtml(html) {
       const partials = {
-        "<!-- general-settings-tab-inject -->": readPartial("_modal_settings_tab_general.html"),
-        "<!-- plugins-settings-tab-inject -->": readPartial("_modal_settings_tab_plugins.html"),
-        "<!-- rtsp-settings-tab-inject -->": readPartial("_modal_settings_tab_rtsp.html"),
-        "<!-- theme-settings-tab-inject -->": readPartial("_modal_settings_tab_theme.html"),
-        "<!-- custom-gestures-settings-tab-inject -->": readPartial("_modal_settings_tab_custom_gestures.html"),
+        // FIX: Removed all settings tab injectors. They are now rendered from TS.
         "<!-- header-inject -->": readPartial("_header.html"),
         "<!-- main-content-inject -->": readPartial("_main_content.html"),
         "<!-- history-sidebar-inject -->": readPartial("_history_sidebar.html"),
@@ -84,9 +80,6 @@ export default defineConfig(({ mode }) => {
   if (mode !== "apk") {
     plugins.push(VitePWA({
       workbox: {
-        // Exclude large WASM files from being precached by the service worker.
-        // The default limit is 2MB, and MediaPipe's WASM files are ~10MB.
-        // They are loaded on-demand by the app and should not be precached.
         maximumFileSizeToCacheInBytes: 10 * 1024 * 1024, // 10 MB
       },
     }));

@@ -1,7 +1,5 @@
 /* FILE: packages/frontend/src/camera/rendering/landmark-drawer.ts */
-import { HandLandmarker, PoseLandmarker, type Landmark } from "@mediapipe/tasks-vision";
-
-import { ROICoordinates } from "./roi-drawer.js"; 
+import { HandLandmarker, PoseLandmarker } from "@mediapipe/tasks-vision";
 
 export interface DrawingOptions {
     color: string;
@@ -10,74 +8,46 @@ export interface DrawingOptions {
     connections?: Array<{start: number; end: number}>;
 }
 
+export interface TransformedLandmark {
+    x: number; // Final canvas X coordinate
+    y: number; // Final canvas Y coordinate
+    color: string; // Final color for this specific landmark point
+}
+
 export class LandmarkDrawer {
     constructor() {}
 
+    /**
+     * Draws pre-transformed landmarks and their connections onto the canvas.
+     * This method is "dumb" and only handles drawing, not coordinate calculations.
+     * @param ctx The 2D rendering context of the canvas.
+     * @param transformedLandmarksSet An array of landmark sets (e.g., for multiple hands). Each set is an array of transformed points or nulls.
+     * @param options General drawing options like default color, line width, and radius.
+     */
     public draw(
         ctx: CanvasRenderingContext2D,
-        landmarksSet: Landmark[][],
-        targetRectXOnCanvas: number,
-        targetRectYOnCanvas: number,
-        targetRectWidthOnCanvas: number,
-        targetRectHeightOnCanvas: number,
-        options: DrawingOptions,
-        _fullVideoWidth: number, 
-        _fullVideoHeight: number,
-        activeRoiPercent: ROICoordinates | null,
-        isMirrored: boolean,
-        focusPoints: Set<number> | null,
-        focusColor: string
+        transformedLandmarksSet: (TransformedLandmark | null)[][],
+        options: DrawingOptions
     ): void {
-        if (
-            !landmarksSet || !Array.isArray(landmarksSet) || landmarksSet.length === 0 ||
-            targetRectWidthOnCanvas <= 0 || targetRectHeightOnCanvas <= 0
-        ) {
-            return;
-        }
+        if (!transformedLandmarksSet || transformedLandmarksSet.length === 0) return;
 
-        ctx.save(); 
+        ctx.save();
         ctx.globalAlpha = 1.0;
         ctx.globalCompositeOperation = "source-over";
         const { connections, lineWidth = 2, radius = 4 } = options;
-        const defaultColor = options.color; 
-        
-        const bodyStyles = getComputedStyle(document.body);
-        const inRoiColor = bodyStyles.getPropertyValue("--success").trim() || "green";
 
-        for (const singleInstanceLandmarks of landmarksSet) {
-            if (!Array.isArray(singleInstanceLandmarks) || singleInstanceLandmarks.length === 0) continue;
-            
-            const pointsToDraw = singleInstanceLandmarks.map((lm, index) => {
-                if (typeof lm?.x !== "number" || typeof lm?.y !== "number" || isNaN(lm.x) || isNaN(lm.y)) return null;
-                
-                const normX = lm.x;
-                const normY = lm.y;
-                let pointColor = defaultColor;
+        for (const singleInstanceLandmarks of transformedLandmarksSet) {
+            if (!singleInstanceLandmarks || singleInstanceLandmarks.length === 0) continue;
 
-                if (activeRoiPercent) {
-                    pointColor = inRoiColor; 
-                }
-                
-                // Landmarks are normalized to the source frame (either full or ROI).
-                // Target rect is the pixel area on canvas where that source is drawn.
-                const scaledX = targetRectXOnCanvas + (isMirrored ? (1 - normX) : normX) * targetRectWidthOnCanvas;
-                const scaledY = targetRectYOnCanvas + normY * targetRectHeightOnCanvas;
-                
-                if (focusPoints && focusPoints.has(index)) {
-                    pointColor = focusColor;
-                }
-                
-                return { x: scaledX, y: scaledY, color: pointColor };
-
-            }).filter((p): p is { x: number; y: number, color: string } => p !== null);
-
+            // Draw connections first using the default color from options
             if (connections && Array.isArray(connections)) {
-                ctx.strokeStyle = defaultColor;
+                ctx.strokeStyle = options.color;
                 ctx.lineWidth = lineWidth;
                 for (const connection of connections) {
-                    if (connection.start < pointsToDraw.length && connection.end < pointsToDraw.length) {
-                        const start = pointsToDraw[connection.start];
-                        const end = pointsToDraw[connection.end];
+                    const start = singleInstanceLandmarks[connection.start];
+                    const end = singleInstanceLandmarks[connection.end];
+                    // Ensure both points for a connection exist before drawing
+                    if (start && end) {
                         ctx.beginPath();
                         ctx.moveTo(start.x, start.y);
                         ctx.lineTo(end.x, end.y);
@@ -86,14 +56,17 @@ export class LandmarkDrawer {
                 }
             }
 
-            for (const point of pointsToDraw) {
-                ctx.fillStyle = point.color;
-                ctx.beginPath();
-                ctx.arc(point.x, point.y, radius, 0, 2 * Math.PI);
-                ctx.fill();
+            // Draw individual landmark points on top
+            for (const point of singleInstanceLandmarks) {
+                if (point) {
+                    ctx.fillStyle = point.color;
+                    ctx.beginPath();
+                    ctx.arc(point.x, point.y, radius, 0, 2 * Math.PI);
+                    ctx.fill();
+                }
             }
         }
-        ctx.restore(); 
+        ctx.restore();
     }
 
     public static getHandConnections(): Array<{start: number; end: number}> | undefined { return HandLandmarker?.HAND_CONNECTIONS; }

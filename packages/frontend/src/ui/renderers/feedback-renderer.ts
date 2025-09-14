@@ -1,7 +1,7 @@
 /* FILE: packages/frontend/src/ui/renderers/feedback-renderer.ts */
 import type { AppStore } from '#frontend/core/state/app-store.js';
-import { translate } from '#shared/index.js';
-import { formatGestureNameForDisplay } from '#frontend/ui/helpers/index.js';
+import { getGestureDisplayInfo, setIcon } from '#frontend/ui/helpers/index.js';
+import type { TranslationService } from '#frontend/services/translation.service.js';
 
 interface GestureStatusData {
   gesture: string;
@@ -20,38 +20,49 @@ interface GestureProgressData {
 
 export function updateStatusDisplay(
   elements: Partial<{
-    topCenterStatus: HTMLElement | null;
+    gestureFeedbackOverlay: HTMLElement | null;
     currentGestureSpan: HTMLElement | null;
     confidenceBar: HTMLElement | null;
-    holdTimeDisplay: HTMLElement | null;
-    holdTimeMetric: HTMLElement | null;
   }>,
   status: Partial<GestureStatusData> = {},
-  _appStore?: AppStore | null
+  appStore?: AppStore | null,
+  translationService?: TranslationService | null
 ): void {
   const {
-    topCenterStatus,
+    gestureFeedbackOverlay,
     currentGestureSpan,
     confidenceBar,
   } = elements;
   if (
-    !topCenterStatus ||
+    !gestureFeedbackOverlay ||
     !currentGestureSpan ||
-    !confidenceBar
+    !confidenceBar ||
+    !appStore ||
+    !translationService
   )
     return;
 
+  const translate = translationService.translate;
   const isCooldownActive = status.isCooldownActive === true;
   const rawGestureName = status.gesture || '-';
+  
+  const { formattedName } = getGestureDisplayInfo(rawGestureName, appStore.getState().customGestureMetadataList || []);
+  
   const gestureTextToDisplay =
     rawGestureName !== '-'
-      ? translate(formatGestureNameForDisplay(rawGestureName), {
-          defaultValue: formatGestureNameForDisplay(rawGestureName),
-        })
-      : translate('NONE');
+      ? translate(formattedName, { defaultValue: formattedName })
+      : translate('None');
 
   const showGestureInfo = rawGestureName !== '-' && !isCooldownActive;
-  topCenterStatus.style.display = showGestureInfo ? 'flex' : 'none';
+  gestureFeedbackOverlay.classList.toggle('hidden', !showGestureInfo);
+  gestureFeedbackOverlay.classList.toggle('flex', showGestureInfo);
+  gestureFeedbackOverlay.classList.toggle('flex-row', showGestureInfo);
+
+
+  const feedbackContainer = document.getElementById('gesture-feedback-container');
+  if (feedbackContainer) {
+    feedbackContainer.classList.toggle('pointer-events-auto', showGestureInfo);
+  }
 
   currentGestureSpan.textContent = gestureTextToDisplay;
   
@@ -78,7 +89,7 @@ export function updateProgressRings(
     cooldownProgressCircle: SVGCircleElement | null;
     holdTimeDisplay: HTMLElement | null;
     holdTimeMetric: HTMLElement | null;
-    progressTimersContainer: HTMLElement | null;
+    progressRingsOverlay: HTMLElement | null;
   }>,
   progress: Partial<GestureProgressData> = {}
 ): void {
@@ -87,14 +98,14 @@ export function updateProgressRings(
     cooldownProgressCircle,
     holdTimeDisplay,
     holdTimeMetric,
-    progressTimersContainer,
+    progressRingsOverlay,
   } = elements;
   if (
     !gestureProgressCircle ||
     !cooldownProgressCircle ||
     !holdTimeDisplay ||
     !holdTimeMetric ||
-    !progressTimersContainer
+    !progressRingsOverlay
   )
     return;
 
@@ -106,24 +117,28 @@ export function updateProgressRings(
   } = progress;
   
   const areRingsVisible = holdPercent > 0 || cooldownPercent > 0;
-  progressTimersContainer.classList.toggle('visible', areRingsVisible);
+  progressRingsOverlay.classList.toggle('visible', areRingsVisible);
   
   const circGesture = 2 * Math.PI * 31.5;
   const circCooldown = 2 * Math.PI * 36.5;
 
-  gestureProgressCircle.style.strokeDashoffset = String(
-    circGesture * (1 - Math.max(0, Math.min(1, holdPercent)))
-  );
+  const safeHoldPercent = Math.max(0, Math.min(1, holdPercent));
+  gestureProgressCircle.style.strokeDashoffset = String(circGesture * (1 - safeHoldPercent));
   gestureProgressCircle.style.opacity = holdPercent > 0 ? '1' : '0';
 
-  cooldownProgressCircle.style.strokeDashoffset = String(
-    circCooldown * Math.max(0, Math.min(1, cooldownPercent))
-  );
+  // The color is now handled by the CSS class `.gesture-progress` in _overlays.css
+  // This removes the buggy, complex gradient logic.
+  gestureProgressCircle.style.stroke = '';
+
+  const safeCooldownPercent = Math.max(0, Math.min(1, cooldownPercent));
+  cooldownProgressCircle.style.strokeDashoffset = String(circCooldown * (1 - safeCooldownPercent));
   cooldownProgressCircle.style.opacity = cooldownPercent > 0 ? '1' : '0';
 
   const showHoldInfo = holdPercent > 0 && cooldownPercent === 0 && requiredHoldMs > 0;
-  holdTimeMetric.style.display = showHoldInfo ? 'inline-flex' : 'none';
+  holdTimeMetric.classList.toggle('hidden', !showHoldInfo);
+  
   if (showHoldInfo) {
+    setIcon(holdTimeMetric.querySelector('.material-icons'), 'UI_TIMER');
     holdTimeDisplay.textContent = `${((currentHoldMs || 0) / 1000).toFixed(1)}/${(
       (requiredHoldMs || 0) / 1000
     ).toFixed(1)}s`;

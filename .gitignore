@@ -105,6 +105,7 @@ codebase*.md
 output.txt
 tools/update_code.sh
 tools/update_plugins.sh
+tools/*.log
 packages/shared/dist-types/
 packages/frontend/public/local-bundles/
 packages/*/node_modules/

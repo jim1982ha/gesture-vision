@@ -1,6 +1,6 @@
 /* FILE: packages/frontend/src/ui/components/searchable-dropdown.ts */
 // Generic utility for creating and managing a searchable dropdown.
-import { translate } from "#shared/services/translations.js"; 
+import type { TranslationService } from '#frontend/services/translation.service.js';
 
 interface DropdownItem {
     value: string;
@@ -14,6 +14,7 @@ interface SearchableDropdownConfig {
     valueElement: HTMLInputElement; 
     fetchItemsFn: (filterText: string) => Promise<DropdownItem[]>;
     onItemSelectFn: (value: string, label: string) => void;
+    translationService: TranslationService;
     inputPlaceholder?: string;
     disabledPlaceholder?: string;
 }
@@ -28,14 +29,15 @@ function renderDropdownListItems(
     listElement: HTMLElement, 
     items: DropdownItem[], 
     onItemSelectCallback: (value: string, label: string) => void,
-    inputToBlurOnSelect: HTMLInputElement
+    inputToBlurOnSelect: HTMLInputElement,
+    translationService: TranslationService
 ): void {
   if (!listElement) return;
   listElement.innerHTML = ""; 
 
   if (!items || items.length === 0) {
     const placeholderDiv = document.createElement("div");
-    placeholderDiv.textContent = translate("noItemsToDisplay");
+    placeholderDiv.textContent = translationService.translate("noItemsToDisplay");
     placeholderDiv.classList.add("dropdown-list-item", "disabled");
     listElement.appendChild(placeholderDiv);
     return;
@@ -71,7 +73,7 @@ function showDropdown(listElement: HTMLElement | null, show: boolean): void {
 }
 
 export function createSearchableDropdown(config: SearchableDropdownConfig): SearchableDropdown {
-  const { inputElement, listElement, valueElement, fetchItemsFn, onItemSelectFn, inputPlaceholder = "filterPlaceholder", disabledPlaceholder = "Not available" } = config;
+  const { inputElement, listElement, valueElement, fetchItemsFn, onItemSelectFn, translationService, inputPlaceholder = "filterPlaceholder", disabledPlaceholder = "Not available" } = config;
   const currentInputPlaceholderKey = inputPlaceholder;
   let currentDisabledPlaceholderKey = disabledPlaceholder;
 
@@ -84,17 +86,16 @@ export function createSearchableDropdown(config: SearchableDropdownConfig): Sear
         valueElement.value = value; 
         showDropdown(listElement, false); 
         onItemSelectFn(value, label); 
-      }, inputElement); 
+      }, inputElement, translationService); 
     } catch (error: unknown) {
       console.error("[SearchableDropdown] Error fetching items:", error);
-      renderDropdownListItems(listElement, [{ value: "", label: translate("errorGeneric"), disabled: true }], () => {}, inputElement);
+      renderDropdownListItems(listElement, [{ value: "", label: translationService.translate("errorGeneric"), disabled: true }], () => {}, inputElement, translationService);
     }
   };
 
-  const applyCurrentTranslations = () => { inputElement.placeholder = inputElement.disabled ? translate(currentDisabledPlaceholderKey) : translate(currentInputPlaceholderKey); };
+  const applyCurrentTranslations = () => { inputElement.placeholder = inputElement.disabled ? translationService.translate(currentDisabledPlaceholderKey) : translationService.translate(currentInputPlaceholderKey); };
   applyCurrentTranslations(); 
 
-  // Use mousedown to prevent programmatic focus from triggering the dropdown.
   inputElement.addEventListener("mousedown", async () => {
     if (inputElement.disabled) return;
     if (!listElement.classList.contains("visible")) {
@@ -133,7 +134,7 @@ export function createSearchableDropdown(config: SearchableDropdownConfig): Sear
       if (isDisabled) { 
         inputElement.value = ""; 
         valueElement.value = ""; 
-        renderDropdownListItems(listElement, [{ value: "", label: translate(currentDisabledPlaceholderKey), disabled: true }], () => {}, inputElement); 
+        renderDropdownListItems(listElement, [{ value: "", label: translationService.translate(currentDisabledPlaceholderKey), disabled: true }], () => {}, inputElement, translationService); 
         showDropdown(listElement, false); 
       }
     },

@@ -1,9 +1,5 @@
 /* FILE: packages/frontend/src/ui/renderers/theme-tab-renderer.ts */
-import type { ThemeSettingsTabElements } from '#frontend/ui/tabs/theme-settings-tab.js';
- 
-import { translate } from "#shared/services/translations.js"; 
 import { setIcon } from "../helpers/index.js";
-
 import type { UIController } from "../ui-controller-core.js"; 
 
 interface ThemeInfo {
@@ -19,7 +15,7 @@ interface ThemeInfo {
  * @param {UIController | null} uiControllerRef - Reference to UIController instance.
  */
 export function renderThemeSelectionTab(
-    elements: Partial<ThemeSettingsTabElements>, 
+    elements: Partial<{ themeToggleGroup?: HTMLElement | null }>, 
     uiControllerRef: UIController | null
 ): void {
   const themeListContainer = elements.themeToggleGroup; 
@@ -30,6 +26,7 @@ export function renderThemeSelectionTab(
   }
 
   const themeMgr = uiControllerRef._themeManager;
+  const translate = uiControllerRef.translationService.translate;
 
   if (!themeListContainer || !themeMgr) {
     if (themeListContainer) themeListContainer.innerHTML = `<div class="list-placeholder">Error loading themes (Mgr/Els missing).</div>`;
@@ -48,7 +45,7 @@ export function renderThemeSelectionTab(
   availableBaseThemes.forEach((theme: ThemeInfo) => {
     const button = document.createElement("button");
     button.classList.add("btn", "btn-secondary", "theme-item-btn"); 
-    button.dataset.value = theme.id; // Use data-value for the helper
+    button.dataset.value = theme.id;
     button.dataset.themeId = theme.id;
     button.setAttribute("role", "radio"); 
     

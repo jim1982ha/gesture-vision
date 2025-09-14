@@ -19,7 +19,7 @@ import {
   type RoiConfig,
 } from '#shared/index.js';
 
-import { getGestureDisplayInfo, } from '#frontend/ui/helpers/index.js';
+import { getGestureDisplayInfo } from '#frontend/ui/helpers/index.js';
 
 import { GestureTimerManager } from './logic/gesture-timer-manager.js';
 import { webSocketService } from '../services/websocket-service.js';
@@ -64,7 +64,6 @@ export class GestureStateLogic {
   #isActionDispatchSuppressed = false;
   #activeStreamRoi: RoiConfig | null = null;
 
-  // --- Bound event handlers for pubsub ---
   #boundHandleActionResult: (data?: unknown) => void;
   #boundHandleStreamStop: () => void;
   #boundHandleTimersReset: (data?: unknown) => void;
@@ -82,7 +81,6 @@ export class GestureStateLogic {
       this.#appStore.getState().customGestureMetadataList || [];
     this.#isInitialized = true;
 
-    // Bind event handlers to this instance
     this.#boundHandleActionResult = (data?: unknown) => this.#handleActionResult(data as ActionResultPayload | undefined);
     this.#boundHandleStreamStop = () => { this.#currentlyDisplayedGesture = null; this.#timerManager.resetAllTimersAndStates(); };
     this.#boundHandleTimersReset = (_data?: unknown) => { this.#publishProgress({ holdPercent: 0, cooldownPercent: this.#timerManager.getGlobalCooldownPercent(), }); };
@@ -350,6 +348,12 @@ export class GestureStateLogic {
 
     this.#currentlyDisplayedGesture = candidateGestureForDisplay;
 
+    this.#updateUIDisplay(
+      actionableDetections,
+      isCooldownActive,
+      highestHoldPercentForDisplay
+    );
+    
     if (triggeredGestureName && triggeredConfig) {
       this.#triggerAction(
         triggeredGestureName,
@@ -357,15 +361,9 @@ export class GestureStateLogic {
         actionableDetections,
         now
       );
-      highestHoldPercentForDisplay = 0;
+      // FIX: Resetting this *after* the UI update for the triggered frame.
       this.#currentlyDisplayedGesture = null;
     }
-
-    this.#updateUIDisplay(
-      actionableDetections,
-      isCooldownActive,
-      triggeredGestureName ? 0 : highestHoldPercentForDisplay
-    );
   }
 
   #triggerAction(
@@ -422,19 +420,15 @@ export class GestureStateLogic {
       configuredThreshold: null,
       isCooldownActive,
     };
-    let currentHoldMsForDisplay = 0;
-    let requiredHoldMsForDisplay = 0;
-
+    
     if (this.#currentlyDisplayedGesture && !isCooldownActive && !this.#isActionDispatchSuppressed) {
       const heldInfo = this.#currentlyDisplayedGesture;
-      displayStatus.gesture = heldInfo.name; // Keep internal name for logic
+      displayStatus.gesture = heldInfo.name;
       displayStatus.realtimeConfidence = heldInfo.confidence;
       displayStatus.configuredThreshold =
         typeof heldInfo.config.confidence === 'number'
           ? heldInfo.config.confidence / 100.0
           : null;
-      currentHoldMsForDisplay = heldInfo.currentHoldMs;
-      requiredHoldMsForDisplay = heldInfo.requiredHoldMs;
     } else if (!isCooldownActive && !this.#isActionDispatchSuppressed && currentDetections.length > 0) {
       const topActiveGesture = currentDetections
         .filter((d) => d.confidence > 0)
@@ -449,7 +443,7 @@ export class GestureStateLogic {
           topActiveGesture.name
         );
         if (config) {
-          displayStatus.gesture = topActiveGesture.name; // Keep internal name
+          displayStatus.gesture = topActiveGesture.name;
           displayStatus.realtimeConfidence = topActiveGesture.confidence;
           displayStatus.configuredThreshold =
             typeof config.confidence === 'number'
@@ -465,8 +459,8 @@ export class GestureStateLogic {
     this.#publishProgress({
       holdPercent: this.#isActionDispatchSuppressed ? 0 : currentMaxHoldPercent,
       cooldownPercent: this.#timerManager.getGlobalCooldownPercent(),
-      currentHoldMs: currentHoldMsForDisplay,
-      requiredHoldMs: requiredHoldMsForDisplay,
+      currentHoldMs: this.#currentlyDisplayedGesture?.currentHoldMs || 0,
+      requiredHoldMs: this.#currentlyDisplayedGesture?.requiredHoldMs || 0,
       remainingCooldownMs: this.#timerManager.getRemainingCooldownMs(),
     });
   }

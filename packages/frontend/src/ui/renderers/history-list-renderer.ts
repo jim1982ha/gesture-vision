@@ -2,10 +2,12 @@
 import type { AppStore } from '#frontend/core/state/app-store.js';
 import { createCardElement, type CardFooterConfig } from '#frontend/ui/utils/card-utils.js';
 import type { PluginUIService } from '#frontend/services/plugin-ui.service.js';
-import { getGestureCategoryIconDetails, getGestureDisplayInfo, setIcon } from '#frontend/ui/helpers/index.js';
-import { translate } from '#shared/services/translations.js';
+import { getGestureDisplayInfo, setIcon } from '#frontend/ui/helpers/index.js';
+import type { Substitutions } from '#shared/services/translations.js';
 import type { ActionConfig, ActionDisplayDetail } from '#shared/index.js';
 import type { HistoryEntry } from '#frontend/types/index.js';
+
+type TranslateFn = (key: string, substitutions?: Substitutions) => string;
 
 async function getDetailsHtml(entry: HistoryEntry, puiRef: PluginUIService | null | undefined): Promise<string> {
     if (entry.success === false) {
@@ -39,7 +41,8 @@ export async function renderHistoryList(
     container: HTMLElement,
     historyItems: HistoryEntry[] | undefined,
     pluginUIServiceRef: PluginUIService | null | undefined,
-    appStore: AppStore | null | undefined
+    appStore: AppStore | null | undefined,
+    translate: TranslateFn
 ): Promise<void> {
     if (!container || !appStore) return;
 
@@ -57,7 +60,6 @@ export async function renderHistoryList(
         for (const entry of itemsToRender) {
             const time = new Date(entry.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
             const { statusIconKey, statusClass, title } = getStatusInfo(entry);
-            const detailsHtml = await getDetailsHtml(entry, pluginUIServiceRef);
             const { formattedName } = getGestureDisplayInfo(entry.gesture, appStore.getState().customGestureMetadataList || []);
             
             const actionDisplay = entry.actionType !== "none" 
@@ -71,13 +73,20 @@ export async function renderHistoryList(
             };
             
             const card = createCardElement({
-                ...getGestureCategoryIconDetails(entry.gestureCategory),
+                ...getGestureDisplayInfo(entry.gesture, appStore.getState().customGestureMetadataList).iconDetails,
                 title: translate(formattedName, { defaultValue: formattedName }),
-                detailsHtml,
                 footerConfig: footerConfig,
                 itemClasses: `history-item status-${statusClass}`,
                 titleAttribute: title,
+                translate,
             });
+
+            // Populate details after card creation
+            const detailsContainer = card.querySelector('.card-details');
+            if (detailsContainer) {
+                detailsContainer.innerHTML = await getDetailsHtml(entry, pluginUIServiceRef);
+            }
+
             listFragment.appendChild(card);
         }
     }

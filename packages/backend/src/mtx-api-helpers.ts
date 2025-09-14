@@ -60,8 +60,10 @@ export async function callMtxApi<T = unknown>(endpoint: string, method: string =
     
             if (typeof responseBody === 'object' && responseBody !== null) {
                 return responseBody as T;
-            } else {
+            } else if (response.ok && !canHaveBody) {
                 return null;
+            } else {
+                return responseBody as T;
             }
         } catch (error: unknown) {
             clearTimeout(timeoutId);

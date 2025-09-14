@@ -252,5 +252,6 @@
   "action": "Action",
   "filterPlaceholder": "Filter...",
   "errorLoadingDoc": "Error loading document.",
-  "studioLaunchError": "Could not open Gesture Studio. Reason: {{reason}}"
+  "studioLaunchError": "Could not open Gesture Studio. Reason: {{reason}}",
+  "rtspRoiInvalid": "Invalid ROI values. The sum of offset and dimension (X+Width or Y+Height) cannot exceed 100."
 }

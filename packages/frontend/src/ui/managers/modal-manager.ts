@@ -1,5 +1,5 @@
 /* FILE: packages/frontend/src/ui/managers/modal-manager.ts */
-import { UI_EVENTS, pubsub, translate } from '#shared/index.js';
+import { UI_EVENTS, pubsub } from '#shared/index.js';
 import { toggleElementClass, setIcon } from '#frontend/ui/helpers/index.js';
 import type { UIController } from '#frontend/ui/ui-controller-core.js';
 
@@ -45,6 +45,7 @@ export class ModalManager {
   }
 
   public applyTranslations(): void {
+    const translate = this.#uiControllerRef.translationService.translate;
     const cameraModalTitle = document.getElementById("cameraModalTitleText");
     if (cameraModalTitle) cameraModalTitle.textContent = translate('selectCameraSource');
     setIcon(document.getElementById("cameraModalHeader")?.querySelector('.header-icon'), 'UI_WEBCAM');
@@ -83,7 +84,7 @@ export class ModalManager {
     }
 
     toggleElementClass(modalElement, 'visible', shouldBeVisible);
-    toggleElementClass(document.body, `modal-${id}-open`, shouldBeVisible);
+    document.body.classList.toggle(`modal-${id}-open`, shouldBeVisible);
     pubsub.publish(UI_EVENTS.MODAL_VISIBILITY_CHANGED, {
       modalId: id,
       isVisible: shouldBeVisible,

@@ -191,7 +191,6 @@ export async function deleteCustomGestureHandler(
   }
 
   try {
-    // FIX: The missing call to delete the file is now added.
     const deleteResult = await deleteCustomGestureFile(id);
     let cleanupSuccess = false;
     let configMessage: string | undefined = undefined;
@@ -214,7 +213,6 @@ export async function deleteCustomGestureHandler(
         cleanupSuccess = true;
       }
     } else {
-      // If file deletion failed, we don't proceed with config cleanup.
       cleanupSuccess = false;
     }
 

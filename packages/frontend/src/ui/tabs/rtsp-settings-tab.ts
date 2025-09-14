@@ -1,68 +1,46 @@
 /* FILE: packages/frontend/src/ui/tabs/rtsp-settings-tab.ts */
 import type { AppStore, FrontendFullState } from '#frontend/core/state/app-store.js';
 import type { UIController } from '#frontend/ui/ui-controller-core.js';
-import { type TranslationConfigItem, type MultiTranslationConfigItem } from '#frontend/ui/ui-translation-updater.js';
-import { createCardElement, createCardActionButton } from '#frontend/ui/utils/card-utils.js';
-import { setIcon } from '#frontend/ui/helpers/index.js';
+import { createButton } from '#frontend/ui/utils/card-utils.js';
 import { BaseSettingsTab, type TabElements } from "#frontend/ui/base-settings-tab.js";
 import { SharedFormManager } from '../components/shared-form-manager.js';
+import { RtspFormManager } from '../components/rtsp/rtsp-form-manager.js';
+import { createRtspSourceCard } from '../components/rtsp/rtsp-source-card.js';
 
-import { UI_EVENTS, pubsub, translate } from "#shared/index.js";
+import { UI_EVENTS, pubsub } from "#shared/index.js";
 import { normalizeNameForMtx } from "#shared/utils/index.js";
-
-import type { RtspSourceConfig, RoiConfig, FullConfiguration } from "#shared/index.js";
+import type { RtspSourceConfig, FullConfiguration } from "#shared/index.js";
 
 type HTMLElementOrNull = HTMLElement | null;
 export interface RtspSettingsTabElements extends TabElements {
+    container?: HTMLElementOrNull;
     rtspSourceListContainer?: HTMLElementOrNull;
     rtspListPlaceholder?: HTMLElementOrNull;
-    rtspAddNewButton?: HTMLButtonElement | null;
-    rtspAddNewButtonLabel?: HTMLElementOrNull;
-    rtspAddEditFormContainer?: HTMLElementOrNull;
-    rtspFormTitle?: HTMLElementOrNull;
-    rtspEditIndex?: HTMLInputElement | null;
-    rtspSourceName?: HTMLInputElement | null;
-    rtspSourceUrl?: HTMLInputElement | null;
-    rtspNameLabel?: HTMLElementOrNull;
-    rtspUrlLabel?: HTMLElementOrNull;
-    rtspUrlHelp?: HTMLElementOrNull;
-    rtspSaveSourceButton?: HTMLButtonElement | null;
-    rtspSaveButtonLabel?: HTMLElementOrNull;
-    rtspCancelEditButton?: HTMLButtonElement | null;
-    rtspSourceOnDemand?: HTMLInputElement | null;
-    rtspSourceOnDemandLabel?: HTMLElementOrNull;
-    rtspRoiSettingsLabel?: HTMLElementOrNull;
-    rtspRoiX?: HTMLInputElement | null;
-    rtspRoiY?: HTMLInputElement | null;
-    rtspRoiWidth?: HTMLInputElement | null;
-    rtspRoiHeight?: HTMLInputElement | null;
-    rtspRoiXLabel?: HTMLElementOrNull;
-    rtspRoiYLabel?: HTMLElementOrNull;
-    rtspRoiWidthLabel?: HTMLElementOrNull;
-    rtspRoiHeightLabel?: HTMLElementOrNull;
-    rtspRoiHelp?: HTMLElementOrNull;
     rtspListActionsContainer?: HTMLElementOrNull; 
+    rtspAddEditFormContainer?: HTMLElementOrNull;
 }
-
-const DEFAULT_ROI_FORM_VALUES: RoiConfig = { x: 0, y: 0, width: 100, height: 100 };
 
 export class RtspSettingsTab extends BaseSettingsTab<RtspSettingsTabElements> {
   #uiControllerRef: UIController;
-  #formManager: SharedFormManager | null = null;
+  #listManager: SharedFormManager | null = null;
+  #formManager: RtspFormManager | null = null;
 
-  constructor(appStore: AppStore, uiControllerRef: UIController, elementQueries: { [K in keyof RtspSettingsTabElements]: string }) {
-    super(appStore, elementQueries);
+  constructor(appStore: AppStore, uiControllerRef: UIController) {
+    super(appStore, uiControllerRef, { container: '[data-tab-content="rtsp"]' });
     if (!uiControllerRef) throw new Error("RtspSettingsTab requires a UIController reference.");
     this.#uiControllerRef = uiControllerRef;
+    this.#renderLayout();
   }
 
   protected async _additionalInitializationChecks(): Promise<void> {
-    this.#formManager = new SharedFormManager({
+    this.#formManager = new RtspFormManager(this._elements.rtspAddEditFormContainer!, this.#uiControllerRef);
+    
+    this.#listManager = new SharedFormManager({
       formContainer: this._elements.rtspAddEditFormContainer!,
-      listContainer: this._elements.rtspSourceListContainer!,
+      listContainer: this._elements.container!.querySelector('#rtsp-list-view')!,
       addNewButton: this._elements.rtspListActionsContainer!,
-      onEnterAddMode: () => this.#populateRtspForm(null),
-      onEnterEditMode: (index) => this.#populateRtspForm(this._appStore.getState().rtspSources[index]),
+      onEnterAddMode: () => this.#handleEnterAddMode(),
+      onEnterEditMode: (index) => this.#handleEnterEditMode(index),
       onSave: this.#handleSaveSource,
       onCancel: () => this.#uiControllerRef.setEditingRtspSourceIndex(null),
     });
@@ -73,13 +51,33 @@ export class RtspSettingsTab extends BaseSettingsTab<RtspSettingsTabElements> {
   }
   
   protected _initializeSpecificEventListeners(): void {
-    this._addEventListenerHelper("rtspAddNewButton", "click", () => this.#formManager?.startNew());
-    this._addEventListenerHelper("rtspSourceListContainer", "click", this.#handleSourceListClick);
-    this._addEventListenerHelper("rtspSaveSourceButton", "click", () => this.#formManager?.save());
-    this._addEventListenerHelper("rtspCancelEditButton", "click", () => this.#formManager?.cancel());
+    this._elements.rtspListActionsContainer?.addEventListener("click", (e) => {
+        if ((e.target as HTMLElement).closest('#rtspAddNewButton')) {
+            this.#listManager?.startNew();
+        }
+    });
+
+    this._elements.rtspSourceListContainer?.addEventListener("click", this.#handleSourceListClick);
   }
 
   public getSettingsToSave(): Partial<FullConfiguration> { return {}; }
+
+  #handleEnterAddMode(): void {
+    this.#formManager?.render();
+    this.#formManager?.populate(null);
+    this.#attachFormEventListeners();
+  }
+
+  #handleEnterEditMode(index: number): void {
+    this.#formManager?.render();
+    this.#formManager?.populate(this._appStore.getState().rtspSources[index]);
+    this.#attachFormEventListeners();
+  }
+
+  #attachFormEventListeners(): void {
+    this.#formManager?.getSaveButton()?.addEventListener('click', () => this.#listManager?.save());
+    this.#formManager?.getCancelButton()?.addEventListener('click', () => this.#listManager?.cancel());
+  }
 
   #handleSourceListClick = (event: MouseEvent): void => {
     const target = event.target as HTMLElement;
@@ -92,7 +90,7 @@ export class RtspSettingsTab extends BaseSettingsTab<RtspSettingsTabElements> {
     if (target.closest('.delete-rtsp-btn')) {
         this.#handleDeleteSourceClick(index);
     } else if (cardItem.classList.contains('card-item-clickable')) {
-        this.#formManager?.startEdit(index);
+        this.#listManager?.startEdit(index);
     }
   };
 
@@ -101,9 +99,10 @@ export class RtspSettingsTab extends BaseSettingsTab<RtspSettingsTabElements> {
     if (index < 0 || index >= sources.length) return;
     const sourceToDelete = sources[index];
     const confirmationManager = this.#uiControllerRef._confirmationModalMgr;
+    
     if (confirmationManager?.isReady()) {
         confirmationManager.show({ messageKey: "confirmDeleteMessage", messageSubstitutions: {item: sourceToDelete.name }, confirmTextKey: 'delete', onConfirm: () => this.#proceedWithDelete(sources, index) });
-    } else if (window.confirm(translate("confirmDeleteMessage", { item: sourceToDelete.name }))) {
+    } else if (window.confirm(this._translate("confirmDeleteMessage", { item: sourceToDelete.name }))) {
         this.#proceedWithDelete(sources, index);
     }
   };
@@ -114,147 +113,76 @@ export class RtspSettingsTab extends BaseSettingsTab<RtspSettingsTabElements> {
   };
 
   #handleSaveSource = async (): Promise<boolean> => {
-    const newSource = this.#getRtspFormData();
+    const newSource = this.#formManager?.getFormData();
     if (!newSource) return false;
 
     const sources = this._appStore.getState().rtspSources;
-    const editingIndex = this.#formManager?.getEditingIndex() ?? null;
+    const editingIndex = this.#listManager?.getEditingIndex() ?? null;
     
-    const isNameDuplicate = sources.some((source: RtspSourceConfig, index: number) => normalizeNameForMtx(source.name) === normalizeNameForMtx(newSource.name) && index !== editingIndex);
+    const isNameDuplicate = sources.some((source, index) => normalizeNameForMtx(source.name) === normalizeNameForMtx(newSource.name) && index !== editingIndex);
     if (isNameDuplicate) {
         pubsub.publish(UI_EVENTS.SHOW_ERROR, { messageKey: "configExists", substitutions: { name: newSource.name } }); 
-        this._getElement<HTMLInputElement>("rtspSourceName")?.setAttribute("aria-invalid", "true"); 
         return false;
     }
-    this._getElement<HTMLInputElement>("rtspSourceName")?.removeAttribute("aria-invalid");
-
-    const updatedSources = editingIndex !== null ? sources.map((s: RtspSourceConfig, i: number) => (i === editingIndex ? newSource : s)) : [...sources, newSource];
+    
+    const updatedSources = editingIndex !== null ? sources.map((s, i) => (i === editingIndex ? newSource : s)) : [...sources, newSource];
     await this._appStore.getState().actions.requestBackendPatch({ rtspSources: updatedSources });
     return true;
   };
-
-  #populateRtspForm(source: RtspSourceConfig | null): void {
-    const editingIndex = this.#formManager?.getEditingIndex() ?? null;
-    this.#uiControllerRef.setEditingRtspSourceIndex(editingIndex);
-    const isEditing = editingIndex !== null;
-
-    const el = this._elements;
-    if (el.rtspFormTitle) el.rtspFormTitle.textContent = translate(isEditing ? "editXTitle" : "addXTitle", { item: "RTSP Source" });
-    if (el.rtspSourceName) el.rtspSourceName.value = source?.name || "";
-    if (el.rtspSourceUrl) el.rtspSourceUrl.value = source?.url || ""; 
-    if (el.rtspSourceOnDemand) el.rtspSourceOnDemand.checked = source?.sourceOnDemand ?? false;
-    const roi = source?.roi || DEFAULT_ROI_FORM_VALUES;
-    if (el.rtspRoiX) el.rtspRoiX.value = String(roi.x);
-    if (el.rtspRoiY) el.rtspRoiY.value = String(roi.y);
-    if (el.rtspRoiWidth) el.rtspRoiWidth.value = String(roi.width);
-    if (el.rtspRoiHeight) el.rtspRoiHeight.value = String(roi.height);
-    if (el.rtspSaveButtonLabel) el.rtspSaveButtonLabel.textContent = translate(isEditing ? "update" : "add");
-    setIcon(el.rtspSaveSourceButton, isEditing ? "UI_SAVE" : "UI_ADD");
-  }
-
-  #getRtspFormData(): RtspSourceConfig | null {
-    const el = this._elements;
-    const name = el.rtspSourceName?.value.trim()||"";
-    const url = el.rtspSourceUrl?.value.trim()||"";
-    let valid=true;
-    if(!name){el.rtspSourceName?.setAttribute("aria-invalid","true");valid=false;}else{el.rtspSourceName?.removeAttribute("aria-invalid");}
-    if(!url||!url.toLowerCase().startsWith("rtsp://")){el.rtspSourceUrl?.setAttribute("aria-invalid","true");valid=false;}else{el.rtspSourceUrl?.removeAttribute("aria-invalid");}
-    if(!valid){pubsub.publish(UI_EVENTS.SHOW_ERROR,{messageKey:"rtspNameUrlRequired"});return null;} 
-    const onDemand=el.rtspSourceOnDemand?.checked??false;
-    let roi:RoiConfig={...DEFAULT_ROI_FORM_VALUES};
-    const { rtspRoiX, rtspRoiY, rtspRoiWidth, rtspRoiHeight } = el;
-    if(rtspRoiX && rtspRoiY && rtspRoiWidth && rtspRoiHeight){
-      const x=parseFloat(rtspRoiX.value||""+DEFAULT_ROI_FORM_VALUES.x), y=parseFloat(rtspRoiY.value||""+DEFAULT_ROI_FORM_VALUES.y);
-      const w=parseFloat(rtspRoiWidth.value||""+DEFAULT_ROI_FORM_VALUES.width), h=parseFloat(rtspRoiHeight.value||""+DEFAULT_ROI_FORM_VALUES.height);
-      roi={x:isNaN(x)?0:Math.max(0,Math.min(100,x)),y:isNaN(y)?0:Math.max(0,Math.min(100,y)),width:isNaN(w)?100:Math.max(1,Math.min(100,w)),height:isNaN(h)?100:Math.max(1,Math.min(100,h))};
-      if(roi.x+roi.width>100)roi.width=100-roi.x;
-      if(roi.y+roi.height>100)roi.height=100-roi.y;
-      roi.width=Math.max(1,roi.width); roi.height=Math.max(1,roi.height);
-    }
-    return {name,url,sourceOnDemand:onDemand,roi};
-  }
-
+  
   public loadSettings(): void {
     const sources = this._appStore.getState().rtspSources;
     const { rtspSourceListContainer: container, rtspListPlaceholder: placeholder } = this._elements;
     if (!container || !placeholder) return;
     container.innerHTML = "";
     if (sources.length === 0) {
-      placeholder.textContent = translate("noRtspSourcesConfigured");
+      placeholder.textContent = this._translate("noRtspSourcesConfigured");
       placeholder.style.display = "block";
     } else {
       placeholder.style.display = "none";
-      sources.forEach((s: RtspSourceConfig, i: number) => container.appendChild(this.#createRtspListItem(s, i)));
+      sources.forEach((s, i) => container.appendChild(createRtspSourceCard(s, i, this.#uiControllerRef.getEditingRtspSourceIndex() === i, this._translate)));
     }
-    if (this.#uiControllerRef.getEditingRtspSourceIndex() === null && this.#formManager?.isEditing()) {
-      this.#formManager.cancel();
+    if (this.#uiControllerRef.getEditingRtspSourceIndex() === null && this.#listManager?.isEditing()) {
+      this.#listManager.cancel();
     }
-  }
-
-  #maskRtspUrlPassword = (url: string): string => url ? url.replace(/(rtsp:\/\/(?:[^:@/]+:)?)([^:@/]+)(@)/, "$1********$3") : "";
-
-  #createRtspListItem(source: RtspSourceConfig, index: number): HTMLDivElement {
-    const editingIndex = this.#uiControllerRef.getEditingRtspSourceIndex();
-    const onDemandText = source.sourceOnDemand ? ` (${translate("rtspOnDemandIndicator")})` : "";
-    const roi = source.roi;
-    const hasCustomRoi = roi && (roi.x !== 0 || roi.y !== 0 || roi.width !== 100 || roi.height !== 100);
-    
-    const urlIcon = document.createElement('span'); setIcon(urlIcon, 'UI_LINK');
-    let detailsHtml = `<div class="card-detail-line">${urlIcon.outerHTML}<span class="card-detail-value rtsp-url-display">${this.#maskRtspUrlPassword(source.url)}</span></div>`;
-    if (hasCustomRoi) {
-        const cropIcon = document.createElement('span'); setIcon(cropIcon, 'UI_CROP');
-        detailsHtml += `<div class="card-detail-line">${cropIcon.outerHTML}<span class="card-detail-value">ROI: X:${roi.x}, Y:${roi.y}, W:${roi.width}, H:${roi.height}</span></div>`;
-    }
-    
-    let itemClasses = "rtsp-source-item card-item-clickable";
-    if (editingIndex === index) itemClasses += " is-editing-highlight";
-
-    const deleteButton = createCardActionButton({
-        action: 'delete',
-        title: translate('deleteTooltip', { item: source.name }),
-        iconKey: 'UI_DELETE',
-        extraClasses: ['btn-icon-danger', 'delete-rtsp-btn']
-    });
-    deleteButton.dataset.index = String(index);
-
-    const card = createCardElement({
-        iconName: 'router', title: `${source.name}${onDemandText}`,
-        actionButtonsHtml: deleteButton.outerHTML, detailsHtml,
-        itemClasses: itemClasses, datasetAttributes: { index: String(index) }
-    });
-
-    return card;
   }
 
   public applyTranslations(): void {
-    const editingIndex = this.#uiControllerRef.getEditingRtspSourceIndex();
-    const isEditing = editingIndex !== null;
-    const itemsToTranslate: Array<TranslationConfigItem | MultiTranslationConfigItem>= [
-        { element: this._elements.rtspAddNewButtonLabel, config: "add" },
-        { element: this._elements.rtspAddNewButton, config: { key: "addTooltip", substitutions: { item: translate("rtspSourcesTitle") }, attribute: "title" } },
-        { element: this._elements.rtspNameLabel, config: "nameLabel" },
-        { element: this._elements.rtspSourceName as HTMLInputElement | null, config: { key: "rtspNamePlaceholder", attribute: "placeholder" } },
-        { element: this._elements.rtspUrlLabel, config: "urlLabel" },
-        { element: this._elements.rtspSourceUrl as HTMLInputElement | null, config: { key: "rtspUrlPlaceholder", attribute: "placeholder" } },
-        { element: this._elements.rtspUrlHelp, config: "rtspUrlHelp" },
-        { element: this._elements.rtspSourceOnDemandLabel, config: "rtspSourceOnDemandLabel" },
-        { element: this._elements.rtspRoiSettingsLabel, config: "rtspRoiSettingsLabel" },
-        { element: this._elements.rtspRoiXLabel, config: "roiLeftOffsetLabel" },
-        { element: this._elements.rtspRoiYLabel, config: "roiTopOffsetLabel" },
-        { element: this._elements.rtspRoiWidthLabel, config: "roiWidthLabel" },
-        { element: this._elements.rtspRoiHeightLabel, config: "roiHeightLabel" },
-        { element: this._elements.rtspRoiHelp, config: "rtspRoiHelpUpdated" },
-        { element: this._elements.rtspSaveButtonLabel, config: isEditing ? "update" : "add" },
-        { element: this._elements.rtspCancelEditButton?.querySelector<HTMLElement>('span:not(.material-icons)'), config: "cancel" },
-        { element: this._elements.rtspCancelEditButton, config: { key: "cancelTooltip", attribute: "title" } },
-    ];
-    this._applyTranslationsHelper(itemsToTranslate);
-    
-    setIcon(this._elements.rtspAddNewButton, 'UI_ADD');
-    setIcon(this._elements.rtspSaveSourceButton, isEditing ? "UI_SAVE" : "UI_ADD");
-    setIcon(this._elements.rtspCancelEditButton, 'UI_CANCEL');
-
-    if (this._elements.rtspFormTitle) this._elements.rtspFormTitle.textContent = translate(isEditing ? "editXTitle" : "addXTitle", {item: translate("rtspSourcesTitle")});
+    // Re-render only the button with translated text, not the whole layout.
+    const actionsContainer = this._elements.rtspListActionsContainer;
+    if (actionsContainer) {
+        actionsContainer.innerHTML = '';
+        const addButton = createButton({
+            id: 'rtspAddNewButton',
+            textKey: 'add',
+            titleKey: 'addTooltip',
+            titleSubstitutions: { item: this._translate("rtspSourcesTitle") },
+            iconKey: 'UI_ADD',
+            extraClasses: ['btn-primary'],
+            translate: this._translate
+        });
+        actionsContainer.appendChild(addButton);
+    }
+    // Re-render the list of cards which also contains translated text.
     this.loadSettings();
+  }
+  
+  #renderLayout(): void {
+    const container = this._elements.container;
+    if (!container) return;
+    
+    container.innerHTML = `
+      <div id="rtsp-list-view">
+        <div id="rtspSourceListContainer" class="mb-4 grid grid-cols-1 gap-3"></div>
+        <p id="rtspListPlaceholder" class="list-placeholder"></p>
+        <div id="rtspListActionsContainer" class="flex justify-end mb-4"></div>
+      </div>
+      <div id="rtspAddEditFormContainer" class="hidden mt-4 border border-dashed border-border p-4 rounded-lg bg-background"></div>
+    `;
+
+    this._elements.rtspSourceListContainer = container.querySelector('#rtspSourceListContainer');
+    this._elements.rtspListPlaceholder = container.querySelector('#rtspListPlaceholder');
+    this._elements.rtspListActionsContainer = container.querySelector('#rtspListActionsContainer');
+    this._elements.rtspAddEditFormContainer = container.querySelector('#rtspAddEditFormContainer');
   }
 }

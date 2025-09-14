@@ -1,6 +1,6 @@
 /* FILE: packages/frontend/src/ui/components/video-overlay/toolbar-manager.ts */
-import { UI_EVENTS, pubsub, translate } from '#shared/index.js';
-import { setIcon, setElementVisibility } from '#frontend/ui/helpers/index.js';
+import { UI_EVENTS, pubsub } from '#shared/index.js';
+import { setIcon } from '#frontend/ui/helpers/index.js';
 import type { UIController } from '#frontend/ui/ui-controller-core.js';
 import { secureStorage } from '#shared/services/security-utils.js';
 
@@ -42,7 +42,6 @@ export class ToolbarManager {
     streamActionsGroup.addEventListener('mouseenter', this.clearVisibilityTimeout);
     streamActionsGroup.addEventListener('mouseleave', this.scheduleHide);
     
-    // The state management logic now lives here, where the event originates.
     videoSizeToggleButton.addEventListener('click', () => {
         if (this.#uiControllerRef.sidebarManager?.isMobile) {
             this.#uiControllerRef.layoutManager.toggleVideoFullscreen();
@@ -54,7 +53,7 @@ export class ToolbarManager {
     });
 
     mirrorBtn.addEventListener('click', () =>
-      this.#uiControllerRef.cameraManager.toggleMirroringForCurrentStream()
+      pubsub.publish(UI_EVENTS.REQUEST_MIRROR_TOGGLE)
     );
     flipCameraBtn.addEventListener('click', () =>
       this.#uiControllerRef.cameraManager.flipCamera()
@@ -83,20 +82,16 @@ export class ToolbarManager {
     const isMobile = this.#uiControllerRef.sidebarManager.isMobile;
     const isStreamRunning = camManager.isStreaming();
 
-    // The stream actions group is only visible when a stream is running
-    setElementVisibility(this.#elements.streamActionsGroup, isStreamRunning, 'flex');
+    this.#elements.streamActionsGroup.classList.toggle('hidden', !isStreamRunning);
     
     const canFlip = camManager.canFlipCamera();
     const isRtsp = camManager.isStreamingRtsp();
-    setElementVisibility(
-      this.#elements.flipCameraBtn,
-      canFlip && isMobile && !isRtsp && isStreamRunning,
-      'flex'
-    );
+    this.#elements.flipCameraBtn.classList.toggle('hidden', !canFlip || !isMobile || isRtsp || !isStreamRunning);
     this.#elements.mirrorBtn.classList.toggle('active', camManager.isMirrored());
   }
 
   public applyTranslations(): void {
+    const translate = this.#uiControllerRef.translationService.translate;
     const setTooltip = (el: HTMLElement | null, key: string) => {
       if (el) el.title = translate(key);
     };

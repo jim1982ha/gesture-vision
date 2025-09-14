@@ -80,6 +80,7 @@ keys.json
 # Binary files that are duplicates or macOS specific resource forks
 ._codebase.md
 public/images/._*
+tools/*.log
 
 # Package lock files can be very large and change often; package.json is usually sufficient
 package-lock.json

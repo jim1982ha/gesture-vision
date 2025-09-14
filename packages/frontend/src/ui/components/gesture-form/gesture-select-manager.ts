@@ -4,14 +4,13 @@ import { DEFAULT_GESTURE_SELECT_VALUE } from '#frontend/constants/app-defaults.j
 import {
   BUILT_IN_HAND_GESTURES,
   type GestureCategoryIconType,
+  type GestureConfig,
+  type PoseConfig,
 } from '#shared/index.js';
-import { translate } from '#shared/services/translations.js';
 import {
-  formatGestureNameForDisplay,
-  getGestureCategoryIconDetails,
+  getGestureDisplayInfo,
 } from '#frontend/ui/helpers/index.js';
-
-import type { GestureConfig, PoseConfig } from '#shared/index.js';
+import type { TranslationService } from '#frontend/services/translation.service.js';
 
 interface OptionData {
   name: string;
@@ -21,12 +20,14 @@ interface OptionData {
 export class GestureSelectManager {
   #selectElement: HTMLSelectElement | null;
   #appStore: AppStore;
+  #translationService: TranslationService;
   #unsubscribeStore: () => void;
   #editingGestureName: string | null = null;
 
-  constructor(selectElement: HTMLSelectElement | null, appStore: AppStore) {
+  constructor(selectElement: HTMLSelectElement | null, appStore: AppStore, translationService: TranslationService) {
     this.#selectElement = selectElement;
     this.#appStore = appStore;
+    this.#translationService = translationService;
 
     this.#unsubscribeStore = this.#appStore.subscribe(() => this.render());
     this.render();
@@ -134,15 +135,14 @@ export class GestureSelectManager {
 
     const placeholder = document.createElement('option');
     placeholder.value = DEFAULT_GESTURE_SELECT_VALUE;
-    placeholder.textContent = translate(placeholderKey);
+    placeholder.textContent = this.#translationService.translate(placeholderKey);
     placeholder.disabled = true;
     select.appendChild(placeholder);
 
     options.forEach((opt) => {
       const optionEl = document.createElement('option');
-      const iconDetails = getGestureCategoryIconDetails(opt.type);
-      const formattedName = formatGestureNameForDisplay(opt.name);
-      const displayName = translate(formattedName, { defaultValue: formattedName });
+      const { iconDetails, formattedName } = getGestureDisplayInfo(opt.name, state.customGestureMetadataList);
+      const displayName = this.#translationService.translate(formattedName, { defaultValue: formattedName });
 
       optionEl.value = opt.name;
       optionEl.dataset.gestureType = opt.type;

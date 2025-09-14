@@ -6,17 +6,15 @@ import {
 } from '#frontend/ui/base-settings-tab.js';
 import { renderThemeSelectionTab as renderThemeList } from '#frontend/ui/renderers/theme-tab-renderer.js';
 import type { UIController } from '#frontend/ui/ui-controller-core.js';
-import type { TranslationConfigItem } from '#frontend/ui/ui-translation-updater.js';
 
 import type { FullConfiguration } from '#shared/index.js';
 import type { ThemePreference } from '#frontend/types/index.js';
-import type { FrontendFullState } from '#frontend/core/state/app-store.js';
+import type { AppStore, FrontendFullState } from '#frontend/core/state/app-store.js';
 
 export interface ThemeSettingsTabElements extends TabElements {
-  colorModeSelectionLabel?: HTMLElement | null;
+  container?: HTMLElement | null;
   colorModeToggleGroup?: HTMLElement | null;
   themeToggleGroup?: HTMLElement | null;
-  themeSelectionLabel?: HTMLElement | null;
 }
 
 const COLOR_MODE_OPTIONS: Readonly<ButtonGroupOption[]> = [
@@ -29,12 +27,12 @@ export class ThemeSettingsTab extends BaseSettingsTab<ThemeSettingsTabElements> 
   #uiControllerRef: UIController;
 
   constructor(
-    uiControllerRef: UIController,
-    elementQueries: { [K in keyof ThemeSettingsTabElements]: string }
+    appStore: AppStore,
+    uiControllerRef: UIController
   ) {
-    super(uiControllerRef.appStore, elementQueries);
+    super(appStore, uiControllerRef, { container: '[data-tab-content="appearance"]' });
     this.#uiControllerRef = uiControllerRef;
-    this._renderButtonGroup(this._elements.colorModeToggleGroup, COLOR_MODE_OPTIONS);
+    this.#renderLayout();
   }
 
   protected _doesConfigUpdateAffectThisTab(newState: FrontendFullState, oldState: FrontendFullState): boolean {
@@ -76,21 +74,37 @@ export class ThemeSettingsTab extends BaseSettingsTab<ThemeSettingsTabElements> 
     const themeMgr = this.#uiControllerRef._themeManager;
     if (!themeMgr) return;
     
-    // Render the buttons first
     renderThemeList(this._elements, this.#uiControllerRef);
     
-    // Then apply the active state using the helpers
     this._updateButtonGroupState(this._elements.colorModeToggleGroup, themeMgr.getColorModePreference());
     this._updateButtonGroupState(this._elements.themeToggleGroup, themeMgr.getBaseTheme());
   }
 
   public applyTranslations(): void {
-    const itemsToTranslate: TranslationConfigItem[] = [
-      { element: this._elements.colorModeSelectionLabel, config: 'colorModeLegend' },
-      { element: this._elements.themeSelectionLabel, config: 'themeSelectionLabel' },
-    ];
-    this._applyTranslationsHelper(itemsToTranslate);
+    this._applyTranslationsHelper([
+        { element: this._elements.container?.querySelector('#theme-settings-colormode-section .form-label'), config: "colorModeLegend" },
+        { element: this._elements.container?.querySelector('#theme-settings-theme-section .form-label'), config: "themeSelectionLabel" },
+    ]);
     this._renderButtonGroup(this._elements.colorModeToggleGroup, COLOR_MODE_OPTIONS);
     this.loadSettings();
+  }
+
+  #renderLayout(): void {
+    const container = this._elements.container;
+    if (!container) return;
+    container.innerHTML = `
+      <div id="theme-settings-colormode-section" class="form-section">
+        <div class="form-label" data-translate-key="colorModeLegend"></div>
+        <div id="colorModeToggleGroup" class="button-toggle-group" role="radiogroup"></div>
+      </div>
+      <div id="theme-settings-theme-section" class="form-section">
+        <label for="themeToggleGroup" class="form-label" data-translate-key="themeSelectionLabel"></label>
+        <div id="themeToggleGroup" class="button-toggle-group grid grid-cols-2 desktop:grid-cols-4" role="radiogroup">
+          <div class="list-placeholder col-span-full">Loading themes...</div>
+        </div>
+      </div>
+    `;
+    this._elements.colorModeToggleGroup = container.querySelector('#colorModeToggleGroup');
+    this._elements.themeToggleGroup = container.querySelector('#themeToggleGroup');
   }
 }

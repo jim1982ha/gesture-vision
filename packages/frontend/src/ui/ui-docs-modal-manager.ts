@@ -4,7 +4,6 @@ import {
   DOCS_MODAL_EVENTS,
 } from "#shared/index.js";
 import { pubsub } from "#shared/core/pubsub.js";
-import { type LanguageCode } from '#shared/services/translations.js';
 import { DocsContentLoader } from "./docs/docs-content-loader.js";
 import { DocsTocManager } from "./docs/docs-toc-manager.js";
 import {
@@ -13,7 +12,6 @@ import {
 } from "./ui-translation-updater.js";
 import { setIcon } from "./helpers/index.js";
 import type { UIController } from "./ui-controller-core.js";
-import { translate } from "#shared/services/translations.js";
 import type { FrontendFullState } from '#frontend/core/state/app-store.js';
 
 export interface DocsModalElements {
@@ -129,7 +127,8 @@ export class DocsModalManager {
   ): Promise<void> => {
     const { modalContent: contentArticle, docsModalScrollableContent: scrollContainer, modalTocControls, modalTocList } = this.#elements;
     if (!contentArticle || !scrollContainer || !modalTocControls || !modalTocList || !this.#uiControllerRef.appStore) return;
-
+    
+    const translate = this.#uiControllerRef.translationService.translate;
     const targetDocPath = `docs/${docKey.toUpperCase()}.md`;
     if (!forceReload && this.#currentDocKey === docKey.toUpperCase()) {
       scrollContainer.scrollTop = 0;
@@ -145,7 +144,7 @@ export class DocsModalManager {
     });
 
     try {
-      const currentLang = this.#uiControllerRef.appStore.getState().languagePreference as LanguageCode;
+      const currentLang = this.#uiControllerRef.translationService.getCurrentLanguage();
       contentArticle.innerHTML = await this.#contentLoader.fetchAndProcess(targetDocPath, currentLang);
       requestAnimationFrame(() => {
         this.#tocManager.generate(contentArticle);
@@ -181,6 +180,7 @@ export class DocsModalManager {
   #renderTocControls = (): void => {
     const container = this.#elements.modalTocControls;
     if (!container) return;
+    const translate = this.#uiControllerRef.translationService.translate;
     container.innerHTML = '';
     const controls = [
       { docKey: 'ABOUT', labelKey: 'docsAboutButton' },
@@ -201,8 +201,8 @@ export class DocsModalManager {
   public applyTranslations = (): void => {
     this.#renderTocControls();
     const itemsToTranslate: TranslationConfigItem[] = [
-      { element: this.#elements.docsModalTitleText, config: "documentationTitle" },
-      { element: this.#elements.docsCloseButton, config: { key: "close", attribute: "title" } },
+      { element: this.#elements.docsModalTitleText, config: "documentationTitle", translationService: this.#uiControllerRef.translationService },
+      { element: this.#elements.docsCloseButton, config: { key: "close", attribute: "title" }, translationService: this.#uiControllerRef.translationService },
     ];
     updateTranslationsForComponent(itemsToTranslate);
     setIcon(this.#elements.docsModalIcon, "UI_DOCS");

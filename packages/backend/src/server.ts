@@ -16,6 +16,7 @@ import { PluginManagerService } from './services/plugin-manager.service.js';
 import { MtxMonitorService } from './services/mtx-monitor.service.js';
 import createConfigRouter from './api/routes/config.router.js';
 import createPluginsRouter from './api/routes/plugins.router.js';
+import { ActionDispatcherService } from './services/action-dispatcher.service.js';
 import { RoiConfigSchema, pubsub, BACKEND_INTERNAL_EVENTS, normalizeNameForMtx, type RtspSourceConfig } from '#shared/index.js';
 
 const PORT = parseInt(process.env.PORT || '9001', 10);
@@ -61,6 +62,7 @@ async function startServer() {
     configService: null as ConfigService | null,
     pluginManager: null as PluginManagerService | null,
     mtxMonitor: null as MtxMonitorService | null,
+    actionDispatcher: null as ActionDispatcherService | null,
   };
 
   const gracefulShutdown = () => {
@@ -94,8 +96,9 @@ async function startServer() {
     await services.configService.initializationPromise;
     services.pluginManager = new PluginManagerService(services.configRepository);
     await services.pluginManager.waitUntilInitialized();
-    services.mtxMonitor = new MtxMonitorService(services.configService);
-    services.configService.setMtxMonitorInstance(services.mtxMonitor);
+    services.mtxMonitor = new MtxMonitorService();
+    services.actionDispatcher = new ActionDispatcherService(services.pluginManager);
+    
     await services.mtxMonitor.start();
 
     const app: Express = express();
@@ -109,7 +112,7 @@ async function startServer() {
       gracefulShutdown();
     });
 
-    initializeWebSocketServer(server, services.configService, services.pluginManager, services.mtxMonitor);
+    initializeWebSocketServer(server, services.configService, services.pluginManager, services.mtxMonitor, services.actionDispatcher);
     
     app.use('/api/config', createConfigRouter(services.configService));
     const pluginsRouter = createPluginsRouter(services.pluginManager);

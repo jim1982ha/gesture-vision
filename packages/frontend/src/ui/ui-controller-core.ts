@@ -1,9 +1,5 @@
 /* FILE: packages/frontend/src/ui/ui-controller-core.ts */
 // Main UI orchestrator, initializes and manages UI components and managers.
-import {
-  updateButtonState,
-  updateWsStatusIndicator,
-} from './ui-updater.js';
 import { SidebarManager } from './managers/sidebar-manager.js';
 import { ModalManager } from './managers/modal-manager.js';
 import { LayoutManager } from './managers/layout-manager.js';
@@ -22,17 +18,17 @@ import {
   UI_EVENTS,
   WEBSOCKET_EVENTS,
   WEBCAM_EVENTS,
-  APP_STATUS_EVENTS,
   DOCS_MODAL_EVENTS,
-  translate,
   type GestureConfig,
   type PoseConfig,
+  type GestureCategoryIconType,
 } from '#shared/index.js';
 import type { App } from '#frontend/core/app.js';
 import type { DocsModalManager } from './ui-docs-modal-manager.js';
 import type { ConfirmationModalManager } from './ui-confirmation-modal-manager.js';
 import type { CameraService } from '#frontend/services/camera.service.js';
 import { setIcon } from './helpers/index.js';
+import type { TranslationService } from '#frontend/services/translation.service.js';
 
 /**
  * Main UI orchestrator, responsible for initializing all UI managers and components.
@@ -54,17 +50,10 @@ export class UIController {
   _confirmationModalMgr?: ConfirmationModalManager;
 
   appStore: App['appStore'];
-  appStatusManager: App['appStatusManager'];
   translationService: App['translationService'];
   cameraManager: CameraManager;
   cameraService: CameraService;
   gesture: App['gesture'];
-
-  public updateButtonState: () => void;
-  public updateWsStatusIndicator: (
-    isInitial?: boolean,
-    isConnecting?: boolean
-  ) => void;
 
   _editingConfigIndex: number | null = null;
   _originalNameBeingEdited: string | null = null;
@@ -72,45 +61,34 @@ export class UIController {
 
   constructor(appRef: App) {
     this.appStore = appRef.appStore;
-    this.appStatusManager = appRef.appStatusManager;
     this.translationService = appRef.translationService;
     this.gesture = appRef.gesture;
     this.cameraManager = appRef.cameraManager;
     this.cameraService = appRef.cameraService;
 
-    this.#initializeManagers();
-
-    this.updateWsStatusIndicator = updateWsStatusIndicator.bind(this);
-    this.updateButtonState = () => {
-      updateButtonState.call(this);
-    };
-    
+    this.#initializeManagers(appRef.translationService);
     this.#initializeCoreSubscriptions();
   }
 
-  #initializeManagers(): void {
-    console.log("\x1b[36m[UIController] 🚀 Initializing managers...\x1b[0m");
+  #initializeManagers(translationService: TranslationService): void {
     this.pluginUIService = new PluginUIService(
       this.appStore,
-      this.translationService,
+      translationService
     );
-    console.log(`\x1b[32m[UIController] ✅ PluginUIService instantiated.\x1b[0m`);
     this._renderer = new UIRenderer(this);
-    this._notificationManager = new NotificationManager(this.appStore);
+    this._notificationManager = new NotificationManager(this.appStore, translationService);
     this.sidebarManager = new SidebarManager(this);
     this.modalManager = new ModalManager(this);
     this.layoutManager = new LayoutManager(this);
-    this._languageManager = new LanguageManager(this.appStore);
+    this._languageManager = new LanguageManager(this.appStore, this.translationService);
     this._themeManager = new ThemeManager(this.appStore);
     this._headerTogglesController = new HeaderTogglesController(this.appStore, this);
     this._videoOverlayControlsManager = new VideoOverlayControlsManager(this);
     this._gestureConfigModalManager = new GestureConfigModalManager(this);
     this._globalSettingsForm = new GlobalSettingsModalManager(this, this.modalManager);
-    console.log(`\x1b[32m[UIController] ✅ All managers initialized.\x1b[0m`);
   }
 
   public async initialize(): Promise<void> {
-    console.log("\x1b[36m[UIController] 🚀 Starting main initialization sequence...\x1b[0m");
     this.pluginUIService.setUIController(this);
     this.modalManager.initialize();
     this._gestureConfigModalManager.initialize();
@@ -118,12 +96,12 @@ export class UIController {
     const { ConfirmationModalManager } = await import(
       './ui-confirmation-modal-manager.js'
     );
-    this._confirmationModalMgr = new ConfirmationModalManager();
+    this._confirmationModalMgr = new ConfirmationModalManager(this.translationService);
     await this.getDocsModalManager();
     await this.cameraManager.initialize();
 
     this._renderer.initializePubSubEventListeners();
-    this.updateWsStatusIndicator(true);
+    this.#updateWsStatusIndicator(true);
     this.applyTranslations();
     this.updateButtonState();
 
@@ -132,37 +110,32 @@ export class UIController {
     });
 
     this.#renderContributions();
-    console.log("\x1b[32m[UIController] ✅ Main initialization sequence complete.\x1b[0m");
   }
 
   #initializeCoreSubscriptions = (): void => {
-    console.log("\x1b[36m[UIController] 👂 Initializing core event subscriptions...\x1b[0m");
     this.appStore.subscribe((state, prevState) => {
       if (state.languagePreference !== prevState.languagePreference) {
         this.applyTranslations();
       }
       if (state.isWsConnected !== prevState.isWsConnected)
-        this.updateWsStatusIndicator();
+        this.#updateWsStatusIndicator();
       this.updateButtonState();
       if (state.historyEntries !== prevState.historyEntries)
         this._renderer?.renderHistoryList(state.historyEntries);
     });
-    [
-      APP_STATUS_EVENTS.WEBCAM_STATE_CHANGED,
-      APP_STATUS_EVENTS.MODEL_STATE_CHANGED,
-      APP_STATUS_EVENTS.STREAM_CONNECTING_STATE_CHANGED,
-      UI_EVENTS.REQUEST_SELECTED_CAMERA_DISPLAY_UPDATE,
-    ].forEach((e) => pubsub.subscribe(e, this.updateButtonState));
+
+    pubsub.subscribe(UI_EVENTS.REQUEST_SELECTED_CAMERA_DISPLAY_UPDATE, this.updateButtonState);
+
     pubsub.subscribe(WEBSOCKET_EVENTS.CONNECTING, () =>
-      this.updateWsStatusIndicator(false, true)
+      this.#updateWsStatusIndicator(false, true)
     );
     pubsub.subscribe(WEBCAM_EVENTS.STREAM_START, () => {
-      this.appStatusManager?.setIsStreamConnecting(false);
+      this.appStore.getState().actions.setIsStreamConnecting(false);
       this.updateButtonState();
       this._videoOverlayControlsManager?.setOverlayState('STREAM_ACTIVE');
     });
     pubsub.subscribe(WEBCAM_EVENTS.STREAM_CONNECTION_CANCELLED, () => {
-      this.appStatusManager?.setIsStreamConnecting(false);
+      this.appStore.getState().actions.setIsStreamConnecting(false);
       this.updateButtonState();
       this._videoOverlayControlsManager?.setOverlayState('OFFLINE_IDLE');
     });
@@ -209,7 +182,70 @@ export class UIController {
     setIcon(document.getElementById("docsCloseButton"), 'UI_CLOSE');
     setIcon(document.getElementById("cameraSelectCloseButton"), 'UI_CLOSE');
     setIcon(document.getElementById("historySidebarHeaderCloseBtn"), 'UI_CLOSE');
-    console.log("\x1b[32m[UIController] ✅ Core subscriptions attached.\x1b[0m");
+  };
+
+  #updateWsStatusIndicator(isInitial = false, isConnecting = false): void {
+    const t = document.getElementById("wsStatusIndicator");
+    if (!t) return;
+    const translate = this.translationService.translate;
+  
+    const isConnected = this.appStore.getState().isWsConnected;
+  
+    t.innerHTML = '';
+    t.classList.remove('connected', 'disconnected', 'connecting');
+    t.classList.toggle('clickable', !isConnected || isConnecting);
+    t.style.cursor = !isConnected || isConnecting ? 'pointer' : 'help';
+    let statusText = '',
+      titleKey = '',
+      iconKey: GestureCategoryIconType = 'UI_WS_DISCONNECTED';
+  
+    if (isConnecting) {
+      t.classList.add('connecting');
+      titleKey = 'wsConnecting';
+      statusText = 'CONNECTING';
+      iconKey = 'UI_WS_CONNECTING';
+    } else if (isConnected) {
+      t.classList.add('connected');
+      titleKey = 'wsConnected';
+      statusText = 'CONNECTED';
+      iconKey = 'UI_WS_CONNECTED';
+      if (!isInitial)
+        this._notificationManager?.showNotification(
+          translate('wsConnectedShort'),
+          'success',
+          2000
+        );
+    } else {
+      t.classList.add('disconnected');
+      titleKey = 'wsDisconnected';
+      statusText = 'DISCONNECTED';
+      iconKey = 'UI_WS_DISCONNECTED';
+      if (!isInitial && !isConnecting)
+        this._notificationManager?.showNotification(
+          translate('wsDisconnectedShort'),
+          'warning',
+          3000
+        );
+    }
+  
+    if (iconKey === 'UI_WS_CONNECTED') {
+      const e = document.createElement('img');
+      e.src = '/icons/favicon.svg';
+      e.alt = 'Connected';
+      e.style.width = 'var(--icon-size-status)';
+      e.style.height = 'var(--icon-size-status)';
+      e.style.filter = 'var(--svg-filter-primary)';
+      t.appendChild(e);
+    } else {
+      const iconSpan = document.createElement('span');
+      t.appendChild(iconSpan);
+      setIcon(iconSpan, iconKey);
+    }
+    t.title = translate(titleKey, { defaultValue: `WebSocket ${statusText}` });
+  }
+
+  public updateButtonState = (): void => {
+    this._headerTogglesController?.updateAllButtonStates();
   };
 
   #handleDeleteGestureConfig = (gestureName: string): void => {
@@ -234,17 +270,13 @@ export class UIController {
   #renderContributions = (): void => {
     if (!this.pluginUIService) return;
   
-    // Define all known contribution slots
     const slots = ['header-plugin-contribution-slot', 'custom-gestures-actions-slot'];
   
     slots.forEach(slotId => {
       const slotElement = document.getElementById(slotId);
       if (slotElement) {
-        // Clear the slot first
         slotElement.innerHTML = '';
-        // Get the current, valid contributions for this slot
         const contributions = this.pluginUIService.getContributionsForSlot(slotId);
-        // Append them back to the DOM
         contributions.forEach(element => {
           slotElement.appendChild(element);
         });
@@ -253,6 +285,7 @@ export class UIController {
   };
 
   public applyTranslations = (): void => {
+    const translate = this.translationService.translate;
     document.title = translate('appName');
     const appTitle = document.getElementById("appTitle");
     if (appTitle) appTitle.textContent = translate('appName');

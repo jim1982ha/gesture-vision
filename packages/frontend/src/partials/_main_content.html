@@ -87,8 +87,8 @@
         <div class="pointer-events-auto">
             <!-- This div is intentionally left empty to push the content below it to the bottom -->
         </div>
-        <div class="pointer-events-auto">
-            <div id="topCenterStatus" class="top-center-status hidden mx-auto w-fit">
+        <div id="gesture-feedback-container">
+            <div id="gesture-feedback-overlay" class="hidden mx-auto w-fit">
                 <span id="currentGestureSpan" class="truncate">-</span>
                 <div class="confidence-bar-container">
                     <div id="confidenceBar" class="confidence-bar"></div>
@@ -100,7 +100,13 @@
     </div>
 
     <!-- Full-screen overlays that sit on top of everything else -->
-    <div class="progress-rings w-20 h-20 opacity-0 [&:is(.visible)]:opacity-100 transition-opacity duration-200 z-20 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none"><svg width="80" height="80" viewBox="0 0 80 80"><circle class="cooldown-progress" cx="40" cy="40" r="36.5" stroke-width="7"></circle><circle class="gesture-progress" cx="40" cy="40" r="31.5" stroke-width="7"></circle></svg></div>
+    <div id="progress-rings-overlay" class="progress-rings w-20 h-20 z-20 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none">
+      <svg width="80" height="80" viewBox="0 0 80 80">
+        <defs></defs>
+        <circle class="cooldown-progress" cx="40" cy="40" r="36.5" stroke-width="7"></circle>
+        <circle class="gesture-progress" cx="40" cy="40" r="31.5" stroke-width="7"></circle>
+      </svg>
+    </div>
     <div id="connectingOverlay" class="absolute inset-0 z-20 flex flex-col items-center justify-center rounded-inherit text-on-primary transition-opacity duration-200">
         <div class="overlay-text-container hidden flex-col items-center justify-center"><div class="h-8 w-8 animate-spin rounded-full border-4 border-solid border-white border-r-transparent"></div><div id="connectingText" class="connecting-text"></div></div>
         <div class="overlay-icon-container hidden h-16 w-16 cursor-pointer items-center justify-center rounded-full transition-all duration-200"><span class="material-icons text-4xl"></span></div>

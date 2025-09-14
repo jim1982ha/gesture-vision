@@ -4,7 +4,7 @@ import {
   DEFAULT_GESTURE_CONFIDENCE,
   DEFAULT_GESTURE_DURATION_S,
 } from '#frontend/constants/app-defaults.js';
-import { UI_EVENTS, pubsub, translate, type GestureConfig, type PoseConfig, type ActionConfig } from '#shared/index.js';
+import { UI_EVENTS, pubsub, type GestureConfig, type PoseConfig, type ActionConfig } from '#shared/index.js';
 import { setIcon, setElementVisibility } from '#frontend/ui/helpers/index.js';
 import { GestureSelectManager } from './gesture-select-manager.js';
 import { ActionPluginUIManager } from './action-plugin-ui-manager.js';
@@ -36,7 +36,7 @@ export class GestureConfigForm {
     const actionSelect = document.getElementById('actionTypeSelect') as HTMLSelectElement;
     const actionContainer = document.getElementById('actionFieldsContainer') as HTMLElement;
 
-    this.#gestureSelectManager = new GestureSelectManager(select, this.#uiControllerRef.appStore);
+    this.#gestureSelectManager = new GestureSelectManager(select, this.#uiControllerRef.appStore, this.#uiControllerRef.translationService);
     this.#actionPluginUIManager = new ActionPluginUIManager(actionSelect, actionContainer, this.#uiControllerRef, this.#handleFormInputChange);
     
     this.#attachEventListeners();
@@ -101,6 +101,8 @@ export class GestureConfigForm {
   public validateAndGetData(): { isValid: boolean; configData: (GestureConfig | PoseConfig) | null; errors: string[] } {
     const errors: string[] = [];
     const modal = document.getElementById("gestureConfigModal");
+    const translate = this.#uiControllerRef.translationService.translate;
+
     if (!modal) return { isValid: false, configData: null, errors: ["Modal not found"] };
 
     const gestureSelect = modal.querySelector('#gestureSelect') as HTMLSelectElement;
@@ -140,6 +142,7 @@ export class GestureConfigForm {
   #updateModalUI(isEditing: boolean): void {
     const modal = document.getElementById("gestureConfigModal");
     if (!modal) return;
+    const translate = this.#uiControllerRef.translationService.translate;
 
     const modalTitle = modal.querySelector("#gestureConfigModalTitle") as HTMLElement;
     const modalIcon = modal.querySelector(".header-icon") as HTMLElement;
@@ -193,6 +196,7 @@ export class GestureConfigForm {
   public applyTranslations(): void {
     const modal = document.getElementById("gestureConfigModal");
     if (!modal) return;
+    const translate = this.#uiControllerRef.translationService.translate;
     (modal.querySelector('#gestureLabel') as HTMLElement).textContent = translate('gestures');
     (modal.querySelector('#confidenceLabel') as HTMLElement).textContent = translate('confidenceLabel');
     (modal.querySelector('#durationLabel') as HTMLElement).textContent = translate('durationLabel');

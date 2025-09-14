@@ -22,7 +22,7 @@ export interface PluginManifest {
     defaultGlobalConfigPath?: string;
     backendEntry?: string;
     frontendEntry?: string;
-    frontendStyle?: string;
+    hasFrontendStyle?: boolean; // New optional property
     locales?: Record<string, Record<string, string>>;
     status?: 'enabled' | 'disabled';
     sourceUrl?: string;

@@ -1,10 +1,9 @@
 /* FILE: packages/frontend/src/core/app.ts */
 // Main application class, initializes and coordinates core modules.
-import { AppStatusManager } from './app-status-manager.js';
 import type { AppStore } from './state/app-store.js';
 import { GestureProcessor } from '#frontend/gestures/processor.js';
 import { CameraService } from '#frontend/services/camera.service.js';
-import type { TranslationService } from '#frontend/services/translation.service.js';
+import { TranslationService } from '#frontend/services/translation.service.js';
 import { UIController } from '#frontend/ui/ui-controller-core.js';
 import {
   pubsub,
@@ -12,28 +11,29 @@ import {
   UI_EVENTS,
   CAMERA_SOURCE_EVENTS,
   DOCS_MODAL_EVENTS,
+  GESTURE_EVENTS,
 } from '#shared/index.js';
 import { CameraManager } from '#frontend/camera/camera-manager.js';
+import { AppStatusManager } from './app-status-manager.js';
 
 export class App {
   ui: UIController;
   cameraService: CameraService;
   gesture: GestureProcessor;
-  appStatusManager: AppStatusManager;
   appStore: AppStore;
   translationService: TranslationService;
   cameraManager: CameraManager;
+  statusManager: AppStatusManager;
   #frameAnalysisHandlerId: number | null = null;
   #videoOriginalParent: HTMLElement | null = null;
   #videoOriginalNextSibling: Node | null = null;
 
   constructor(
-    appStore: AppStore,
-    translationService: TranslationService
+    appStore: AppStore
   ) {
     this.appStore = appStore;
-    this.translationService = translationService;
-    this.appStatusManager = new AppStatusManager();
+    this.translationService = new TranslationService(this.appStore);
+    this.statusManager = new AppStatusManager();
 
     const videoElement = document.getElementById("webcam") as HTMLVideoElement;
     const outputCanvas = document.getElementById("output_canvas") as HTMLCanvasElement;
@@ -42,11 +42,13 @@ export class App {
     }
 
     this.gesture = new GestureProcessor(this.appStore);
-    this.cameraManager = new CameraManager(videoElement, outputCanvas, this.appStore, this.gesture);
+    this.cameraManager = new CameraManager(videoElement, outputCanvas, this.appStore, this.gesture, this.translationService);
     this.gesture.setCanvasRenderer(this.cameraManager.getCanvasRenderer());
 
     this.cameraService = new CameraService(this.cameraManager);
     this.ui = new UIController(this);
+    
+    this.statusManager.setAppRef(this);
 
     this.setAppVersionDisplay();
 
@@ -59,24 +61,15 @@ export class App {
     try {
       console.info("[Init Step 1/4] Waiting for Translation Service...");
       await this.translationService.waitUntilInitialized();
-      console.info("[Init Step 1/4] Translation Service is ready.");
 
-      console.info("[Init Step 2/4] Initializing App Status Manager...");
-      this.appStatusManager.setAppRef(this);
-      console.info("[Init Step 2/4] App Status Manager is ready.");
-
-      console.info("[Init Step 3/4] Initializing UI Controller...");
+      console.info("[Init Step 2/4] Initializing UI Controller...");
       await this.ui.initialize();
-      console.info("[Init Step 3/4] UI Controller is ready.");
 
-      console.info('[Init Step 4/4] Setting up core event listeners...');
+      console.info('[Init Step 3/4] Setting up core event listeners...');
       this.setupLifecycleListeners();
-      pubsub.subscribe(WEBCAM_EVENTS.STREAM_START, this.#startFrameUpdates);
-      pubsub.subscribe(WEBCAM_EVENTS.STREAM_STOP, this.#cancelFrameUpdates);
-      pubsub.subscribe(CAMERA_SOURCE_EVENTS.CHANGED, (id?: unknown) =>
-        this.startStreamWithSource(id as string | null | undefined)
-      );
-      console.info('[Init Step 4/4] Core event listeners are active.');
+      
+      console.info('[Init Step 4/4] Triggering initial stream if source is selected...');
+      this.cameraManager.getCameraSourceManager().triggerInitialStreamIfNeeded();
 
     } catch (e) {
       console.error('[App] FATAL Error during initialization:', e);
@@ -96,12 +89,37 @@ export class App {
 
   public setupLifecycleListeners(): void {
     document.addEventListener('visibilitychange', this.#handleVisibilityChange);
+
+    pubsub.subscribe(WEBCAM_EVENTS.STREAM_START, this.#handleStreamStart);
+    pubsub.subscribe(WEBCAM_EVENTS.STREAM_STOP, this.#handleStreamStop);
+    pubsub.subscribe(WEBCAM_EVENTS.ERROR, this.#handleStreamStop);
+    pubsub.subscribe(WEBCAM_EVENTS.STREAM_CONNECTION_CANCELLED, this.#handleStreamStop);
+
+    pubsub.subscribe(CAMERA_SOURCE_EVENTS.CHANGED, (id?: unknown) =>
+      this.startStreamWithSource(id as string | null | undefined)
+    );
+    pubsub.subscribe(CAMERA_SOURCE_EVENTS.REQUESTING_STREAM_START, () => {
+      this.appStore.getState().actions.setIsStreamConnecting(true);
+    });
+
+    pubsub.subscribe(GESTURE_EVENTS.MODEL_LOADED, (status?: unknown) => {
+        this.appStore.getState().actions.setModelLoadingStatus(status as { hand?: boolean; pose?: boolean });
+    });
+    
     pubsub.subscribe(UI_EVENTS.REQUEST_VIDEO_REPARENT, (p?: unknown) =>
       this.#handleVideoReparentRequest(
         p as { placeholderElement?: HTMLElement; release?: boolean }
       )
     );
   }
+
+  #handleStreamStart = (): void => {
+    this.#startFrameUpdates();
+  };
+
+  #handleStreamStop = (): void => {
+    this.#cancelFrameUpdates();
+  };
 
   #handleVisibilityChange = (): void => {
     if (
@@ -139,8 +157,6 @@ export class App {
     pubsub.publish(CAMERA_SOURCE_EVENTS.REQUESTING_STREAM_START, safeTargetId);
 
     try {
-      // The CameraService is now responsible for finding the RTSP config if needed,
-      // simplifying the controller's logic.
       await this.cameraService.startStream({ cameraId: safeTargetId });
     } catch (e) {
       console.error(`[App] Error starting stream for '${safeTargetId}':`, e);
@@ -156,9 +172,7 @@ export class App {
       }
       
       const videoElement = this.cameraManager?.getVideoElement();
-      const canvasElement = this.cameraManager?.getCanvasRenderer()?.getCanvasElement();
-
-      if (videoElement && canvasElement) {
+      if (videoElement) {
         this.cameraManager.getCanvasRenderer().drawOutput();
         this.gesture.processFrame({
             videoElement: videoElement,

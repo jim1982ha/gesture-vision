@@ -45,8 +45,7 @@ This is the most important file. It tells GestureVision what your plugin is, wha
   },
   "globalConfigFileName": "config.my-cool-plugin.json",
   "backendEntry": "backend.plugin.js",
-  "frontendEntry": "frontend/index.js",
-  "frontendStyle": "frontend/style.css"
+  "frontendEntry": "frontend/index.js"
 }
 ```
 
@@ -57,7 +56,7 @@ This is the most important file. It tells GestureVision what your plugin is, wha
     -   `providesActions`: Set to `true` if your plugin adds new options to the "Action Type" dropdown.
     -   `providesUIContribution`: Set to `true` if your plugin adds custom UI elements to designated "slots" in the application UI (e.g., a button in the header).
 -   **`globalConfigFileName`**: If `hasGlobalSettings` is true, this is the name of the JSON file that will store its settings.
--   **`backendEntry` / `frontendEntry` / `frontendStyle`**: Paths to your main backend, frontend, and optional CSS files.
+-   **`backendEntry` / `frontendEntry`**: Paths to your main backend and frontend JavaScript files. For CSS, simply `import './your-style.css'` from within your `frontendEntry` file.
 
 ### Backend Development (`backend.plugin.ts`)
 
@@ -73,11 +72,12 @@ Your backend file must export a default class that extends the `BaseBackendPlugi
 Your frontend module is a standard JavaScript ES Module that exports a default object.
 
 **Key Responsibilities:**
-1.  **Provide UI Component Factories:** If your plugin has settings, you provide functions that define the UI components.
+1.  **Import Stylesheet (Optional):** If your plugin has custom styles, add `import './style.css';` at the top of this file. This ensures Vite processes it correctly with Tailwind.
+2.  **Provide UI Component Factories:** If your plugin has settings, you provide functions that define the UI components.
     -   `createGlobalSettingsComponent`: Creates the UI for the "Plugins" tab.
     -   `actionSettingsFields`: Defines the form fields that appear when a user selects your plugin as an "Action Type".
-2.  **Provide an Action Display Renderer:** The `getActionDisplayDetails` function returns a structured array that defines how a configured action should be displayed on the main gesture cards.
-3.  **Contribute UI (Optional):** The `init` function is called once when the plugin is loaded. If `providesUIContribution` is `true`, you can use the `pluginUIService` from the context to register custom HTML elements into specific UI "slots".
+3.  **Provide an Action Display Renderer:** The `getActionDisplayDetails` function returns a structured array that defines how a configured action should be displayed on the main gesture cards.
+4.  **Contribute UI (Optional):** The `init` function is called once when the plugin is loaded. If `providesUIContribution` is `true`, you can use the `pluginUIService` from the context to register custom HTML elements into specific UI "slots".
     -   **Example:** `context.pluginUIService.registerContribution('header-controls', myButton, manifest.id);`
 
 ## Getting Started: The Plugin Template

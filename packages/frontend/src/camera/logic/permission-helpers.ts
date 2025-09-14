@@ -1,6 +1,6 @@
 /* FILE: packages/frontend/src/camera/logic/permission-helpers.ts */
 import { PERMISSION_EVENTS, WEBCAM_EVENTS, pubsub } from '#shared/index.js';
-import { translate } from '#shared/services/translations.js';
+import type { TranslationService } from '#frontend/services/translation.service.js';
 import type { CameraManager } from '#frontend/camera/camera-manager.js';
 
 const ENUMERATE_TIMEOUT_MS = 5000;
@@ -63,7 +63,8 @@ export async function checkPermissionsAndEnumerate(
  */
 export function publishDeviceList(
   managerInstance: Partial<CameraManager>,
-  devices: MediaDeviceInfo[]
+  devices: MediaDeviceInfo[],
+  translationService: TranslationService
 ): void {
   const videoDevices = devices.filter((d) => d?.kind === 'videoinput');
   const activeDeviceId = managerInstance.getCurrentDeviceId?.();
@@ -71,7 +72,7 @@ export function publishDeviceList(
   const deviceListPayload = {
     devices: videoDevices.map((d, index) => {
       let finalLabel =
-        d.label || translate('Camera', { defaultValue: `Camera ${index + 1}` });
+        d.label || translationService.translate('Camera', { defaultValue: `Camera ${index + 1}` });
       finalLabel = finalLabel.replace(/\s\([\s\S]*?\)$/, '');
       return {
         id: d.deviceId,

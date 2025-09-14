@@ -1,7 +1,7 @@
 {
   "name": "gesture-vision-app",
   "private": true,
-  "version": "3.6.6",
+  "version": "3.6.7",
   "type": "module",
   "scripts": {
     "copy:wasm": "mkdir -p packages/frontend/public/wasm && cp -r node_modules/@mediapipe/tasks-vision/wasm/* packages/frontend/public/wasm/",
@@ -37,7 +37,7 @@
     "cors": "^2.8.5",
     "cssnano": "^7.0.7",
     "express": "^5.1.0",
-    "express-rate-limit": "^7.5.0",
+    "express-rate-limit": "^8.1.0",
     "mqtt": "^5.13.1",
     "node-fetch": "^3.3.2",
     "nodemon": "^3.1.10",
@@ -45,7 +45,7 @@
     "tsx": "^4.20.3",
     "typescript": "^5.8.3",
     "ws": "^8.18.2",
-    "zod": "^4.0.5",
+    "zod": "^4.1.7",
     "zustand": "^4.5.4"
   },
   "devDependencies": {

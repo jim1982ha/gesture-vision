@@ -1,9 +1,8 @@
 /* FILE: packages/frontend/src/ui/renderers/camera-list-renderer.ts */
-import { translate } from "#shared/services/translations.js"; 
 import { normalizeNameForMtx } from "#shared/utils/index.js";
 import { type GestureCategoryIconType } from "#shared/index.js";
 import { createFromTemplate } from "../utils/template-renderer.js";
-import { setIcon } from "#frontend/ui/helpers/icon-helpers.js";
+import { setIcon } from "#frontend/ui/helpers/index.js";
 import type { UIController } from "#frontend/ui/ui-controller-core.js";
 
 export function updateCameraListUI(
@@ -13,7 +12,8 @@ export function updateCameraListUI(
 ): void {
   const { cameraList: listElement, cameraListPlaceholder: placeholderElement } = elements;
   if (!listElement || !placeholderElement || !uiControllerRef?.appStore) { return; }
-
+  
+  const translate = uiControllerRef.translationService.translate;
   listElement.innerHTML = "";
   placeholderElement.style.display = "none";
   const streamStatusMap = uiControllerRef.appStore.getState().streamStatus;

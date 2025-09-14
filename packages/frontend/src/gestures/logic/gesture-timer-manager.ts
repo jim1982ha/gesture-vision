@@ -14,6 +14,7 @@ interface HoldState {
 }
 
 const GESTURE_HOLD_STATE: { [gestureName: string]: HoldState } = {};
+const GESTURE_STATE_PRUNE_MS = 250;
 
 export class GestureTimerManager {
   #globalCooldownMs = 2000;
@@ -40,9 +41,11 @@ export class GestureTimerManager {
     now < this.#globalCooldownEndTime;
 
   getGlobalCooldownPercent = (now: number = Date.now()): number => {
-    if (this.#globalCooldownMs <= 0) return 0;
-    const remaining = this.#globalCooldownEndTime - now;
-    return remaining <= 0 ? 0 : Math.min(1, remaining / this.#globalCooldownMs);
+    if (this.#globalCooldownMs <= 0 || !this.isCooldownActive(now)) return 0;
+    // This calculates the ELAPSED time as a percentage, making it count UP from 0 to 1.
+    const startTime = this.#globalCooldownEndTime - this.#globalCooldownMs;
+    const elapsed = now - startTime;
+    return Math.min(1, elapsed / this.#globalCooldownMs);
   };
 
   getRemainingCooldownMs = (now: number = Date.now()): number => {
@@ -51,11 +54,8 @@ export class GestureTimerManager {
 
   startGlobalCooldown = (now: number = Date.now()): void => {
     this.#globalCooldownEndTime = now + this.#globalCooldownMs;
-    pubsub.publish(GESTURE_EVENTS.UPDATE_PROGRESS, {
-        holdPercent: 0,
-        cooldownPercent: 1.0, // Cooldown is now 100% active
-        remainingCooldownMs: this.#globalCooldownMs
-    });
+    // REMOVED: The pubsub.publish call was here, which caused the flicker.
+    // The main processing loop is now the single source of truth for progress updates.
   };
 
   resetGlobalCooldown = (): void => {
@@ -70,9 +70,9 @@ export class GestureTimerManager {
     if (detectionMetThreshold) {
       if (!GESTURE_HOLD_STATE[gestureKey]) {
         GESTURE_HOLD_STATE[gestureKey] = {
-          startTime: now, // Start hold timer immediately if confidence is met
+          startTime: now,
           lastSeen: now,
-          presenceStartTime: now, // Still set presence for 'lastSeen' pruning
+          presenceStartTime: now,
         };
       } else {
         GESTURE_HOLD_STATE[gestureKey].lastSeen = now;
@@ -89,7 +89,7 @@ export class GestureTimerManager {
 
   pruneExpiredHoldStates = (now: number = Date.now()): void => {
     Object.keys(GESTURE_HOLD_STATE).forEach((key) => {
-      if (now - GESTURE_HOLD_STATE[key].lastSeen > 250) {
+      if (now - GESTURE_HOLD_STATE[key].lastSeen > GESTURE_STATE_PRUNE_MS) {
         delete GESTURE_HOLD_STATE[key];
       }
     });

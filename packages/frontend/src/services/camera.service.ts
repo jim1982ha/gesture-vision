@@ -3,16 +3,14 @@ import {
   CAMERA_SERVICE_EVENTS,
   WEBCAM_EVENTS,
   pubsub,
-  type RtspSourceConfig,
   normalizeNameForMtx,
 } from '#shared/index.js';
 import type { CameraManager } from '#frontend/camera/camera-manager.js';
 import type { Landmark } from '@mediapipe/tasks-vision';
+import type { RtspSourceConfig } from '#shared/index.js';
 
 export interface StartStreamOptions {
   cameraId: string;
-  // This is now optional for the caller, as the service will look it up.
-  rtspSourceConfig?: RtspSourceConfig | null;
 }
 
 /**
@@ -47,18 +45,15 @@ export class CameraService {
 
     if (this.isStreamActive()) {
       await this.stopStream();
+      // Brief pause to allow resources to release before restarting
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
 
-    let rtspConfig: RtspSourceConfig | null = options.rtspSourceConfig || null;
-
-    // FIX: If the stream is RTSP and config is missing, look it up from the AppStore.
-    // This makes the service more robust and decouples callers from needing state access.
-    if (options.cameraId.startsWith('rtsp:') && !rtspConfig) {
+    let rtspConfig: RtspSourceConfig | null = null;
+    if (options.cameraId.startsWith('rtsp:')) {
       const appStore = this.#cameraManager.getAppStore();
       const rtspSources = appStore.getState().rtspSources || [];
       const normalizedPathName = normalizeNameForMtx(options.cameraId.substring(5));
-      
       rtspConfig = rtspSources.find(
         (s) => normalizeNameForMtx(s.name) === normalizedPathName
       ) || null;

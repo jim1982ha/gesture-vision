@@ -1,12 +1,7 @@
 /* FILE: packages/backend/src/services/mtx-monitor.service.ts */
-import { BACKEND_INTERNAL_EVENTS } from '#shared/constants/events.js';
-import { pubsub } from '#shared/core/pubsub.js';
-import { normalizeNameForMtx } from '#shared/utils/index.js';
-
+import { BACKEND_INTERNAL_EVENTS, pubsub, normalizeNameForMtx, type FullConfiguration } from '#shared/index.js';
 import { callMtxApi } from '../mtx-api-helpers.js';
-
 import type { RtspSourceConfig, StreamStatusPayload } from "#shared/index.js";
-import type { ConfigService } from './config.service.js';
 
 interface MtxPathConf {
     name?: string; source?: string; sourceOnDemand?: boolean; runOnReady?: string; runOnNotReady?: string;
@@ -23,34 +18,27 @@ const BACKEND_SERVICE_NAME = process.env.NODE_ENV === 'development' ? 'localhost
 const BACKEND_SERVICE_PORT = process.env.DEV_BACKEND_API_PORT_INTERNAL || '9001';
 
 export class MtxMonitorService {
-    private configService: ConfigService;
     private isRunning = false;
     private streamStatusBroadcaster: BroadcastStreamStatusFn | null = null;
-    private readonly _configUpdateHandler: (data?: unknown) => void;
+    private _configUpdateHandler: (data?: unknown) => void;
 
-    constructor(configService: ConfigService) {
-        if (!configService) throw new Error("MtxMonitorService requires a ConfigService instance.");
-        this.configService = configService;
-        this._configUpdateHandler = (data?: unknown) => this.#handleConfigChangeWrapper(data as { rtspChanged?: boolean } | undefined);
+    constructor() {
+        this._configUpdateHandler = (data?: unknown) => this.#handleConfigChange(data as { updatedConfig: FullConfiguration } | undefined);
         pubsub.subscribe(BACKEND_INTERNAL_EVENTS.CONFIG_PATCHED, this._configUpdateHandler);
         pubsub.subscribe(BACKEND_INTERNAL_EVENTS.CONFIG_RELOADED, this._configUpdateHandler);
     }
 
-    #handleConfigChangeWrapper = (eventData?: { rtspChanged?: boolean }): void => {
-      console.log(`[MtxMonitorService] Config change event. rtspChanged: ${eventData?.rtspChanged ?? 'N/A'}. Triggering sync.`);
-      if (eventData?.rtspChanged !== false) this.syncMtxPathsWithConfig(); 
+    #handleConfigChange = (eventData?: { updatedConfig: FullConfiguration }): void => {
+      if (eventData?.updatedConfig) {
+        this.syncMtxPathsWithConfig(eventData.updatedConfig.rtspSources); 
+      }
     }
 
     async start() {
-        if (this.isRunning || !this.streamStatusBroadcaster) {
-            if (!this.streamStatusBroadcaster) console.error("[MtxMonitorService] Cannot start: StreamStatusBroadcaster not set.");
-            return;
-        }
+        if (this.isRunning) return;
         console.log("[MtxMonitorService] Starting...");
-        await this.configService.initializationPromise; 
-        await this.syncMtxPathsWithConfig();
         this.isRunning = true;
-        console.log(`[MtxMonitorService] Started. Relying on webhooks for status updates.`);
+        console.log(`[MtxMonitorService] Started. Relying on webhooks and config events for status updates.`);
     }
 
     stop() {
@@ -61,10 +49,10 @@ export class MtxMonitorService {
         this.isRunning = false; console.log("[MtxMonitorService] Stopped.");
     }
 
-    async syncMtxPathsWithConfig() {
+    async syncMtxPathsWithConfig(rtspSources: RtspSourceConfig[]) {
         console.log("[MtxMonitorService SYNC_START] Syncing RTSP sources with MediaMTX.");
         try {
-            const desiredPaths = new Map(this.configService.getRtspSources().filter(s => s?.name && s.url).map(s => [normalizeNameForMtx(s.name), s]));
+            const desiredPaths = new Map((rtspSources || []).filter(s => s?.name && s.url).map(s => [normalizeNameForMtx(s.name), s]));
             const mtxPathsData = await callMtxApi<MtxPathConfList>('/v3/config/paths/list');
             const currentPaths = new Map((mtxPathsData?.items || []).filter(p => p.name).map(p => [p.name!, p]));
 
@@ -82,12 +70,20 @@ export class MtxMonitorService {
     }
 
     private createPayload(source: RtspSourceConfig, key: string): MtxPathConfPayload {
-        const getWebhookUrl = (status: 'ready' | 'notReady') => `curl -X POST http://${BACKEND_SERVICE_NAME}:${BACKEND_SERVICE_PORT}/api/mtx-hook/${status}/${encodeURIComponent(key)}`;
+        const getWebhookUrl = (status: 'ready' | 'notReady') => `http://${BACKEND_SERVICE_NAME}:${BACKEND_SERVICE_PORT}/api/mtx-hook/${status}/${encodeURIComponent(key)}`;
         const basePayload: MtxPathConfPayload = { source: source.url, sourceOnDemand: !!source.sourceOnDemand };
+        
         if (basePayload.sourceOnDemand) {
             return { ...basePayload, sourceOnDemandStartTimeout: '15s', sourceOnDemandCloseAfter: '15s' };
         }
-        return { ...basePayload, runOnReady: getWebhookUrl('ready'), runOnNotReady: getWebhookUrl('notReady') };
+
+        // For always-on streams, use runOnReady/NotReady with curl (lighter than wget).
+        // -sS for silent but shows errors, -X POST for method.
+        return {
+            ...basePayload,
+            runOnReady: `sh -c "curl -sS -X POST ${getWebhookUrl('ready')}"`,
+            runOnNotReady: `sh -c "curl -sS -X POST ${getWebhookUrl('notReady')}"`
+        };
     }
 
     async addOrUpdatePathConfig(key: string, source: RtspSourceConfig) {
@@ -99,8 +95,8 @@ export class MtxMonitorService {
         }
     }
     
-    public async connectOnDemandStream(pathName: string) {
-        const sourceConfig = (this.configService.getRtspSources()).find(s => normalizeNameForMtx(s.name) === pathName);
+    public async connectOnDemandStream(pathName: string, rtspSources: RtspSourceConfig[]) {
+        const sourceConfig = rtspSources.find(s => normalizeNameForMtx(s.name) === pathName);
         if (!sourceConfig?.url) throw new Error(`Configuration for RTSP source '${pathName}' not found or URL is missing.`);
         
         try {

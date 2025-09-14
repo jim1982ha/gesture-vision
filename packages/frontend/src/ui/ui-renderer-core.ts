@@ -14,7 +14,7 @@ import {
   normalizeNameForMtx,
 } from '#shared/index.js';
 import type { RoiConfig, RtspSourceConfig } from '#shared/index.js';
-import type { HistoryEntry } from '#frontend/types/index.js';
+import type { HistoryEntry, LandmarkVisibilityOverridePayload } from '#frontend/types/index.js';
 import type { UIController } from '#frontend/ui/ui-controller-core.js';
 
 export interface RendererElements {
@@ -25,17 +25,15 @@ export interface RendererElements {
   gestureProgressCircle: SVGCircleElement | null;
   cooldownProgressCircle: SVGCircleElement | null;
   currentGestureSpan: HTMLElement | null;
-  currentConfidenceSpan: HTMLElement | null;
   confidenceBar: HTMLElement | null;
-  holdTimeDisplay: HTMLElement | null;
   holdTimeMetric: HTMLElement | null;
-  progressTimersContainer: HTMLElement | null;
-  topCenterStatus: HTMLElement | null;
+  holdTimeDisplay: HTMLElement | null;
+  progressRingsOverlay: HTMLElement | null;
+  gestureFeedbackOverlay: HTMLElement | null;
 }
 
 interface GestureStatusData {
   gesture: string;
-  confidence: string;
   realtimeConfidence: number;
   configuredThreshold: number | null;
   isCooldownActive?: boolean;
@@ -50,19 +48,18 @@ interface GestureProgressData {
 interface StreamStartData {
   deviceId?: string | null;
 }
-interface LandmarkVisibilityOverridePayload {
-  hand: boolean;
-  pose: boolean;
-  numHands: number;
-}
 
 export class UIRenderer {
   _elements: Partial<RendererElements> = {};
   _uiControllerRef: UIController;
   _canvasRenderer: CanvasRenderer | null = null;
   _isReady = false;
+
+  // Throttling state
   _lastStatusUpdateTime = 0;
   _lastProgressUpdateTime = 0;
+  _lastStatusGestureName: string | null = null;
+  _lastRingsVisible = false;
   readonly _STATUS_UPDATE_INTERVAL_MS = 100;
   readonly _PROGRESS_UPDATE_INTERVAL_MS = 50;
 
@@ -77,15 +74,14 @@ export class UIRenderer {
         gestureHistoryDiv: document.getElementById("gestureHistory"),
         cameraList: document.getElementById("cameraList"),
         cameraListPlaceholder: document.getElementById("cameraListPlaceholder"),
-        gestureProgressCircle: document.querySelector(".gesture-progress") as SVGCircleElement | null,
-        cooldownProgressCircle: document.querySelector(".cooldown-progress") as SVGCircleElement | null,
+        gestureProgressCircle: document.querySelector<SVGCircleElement>(".gesture-progress"),
+        cooldownProgressCircle: document.querySelector<SVGCircleElement>(".cooldown-progress"),
         currentGestureSpan: document.getElementById("currentGestureSpan"),
-        currentConfidenceSpan: document.getElementById("currentConfidenceSpan"),
         confidenceBar: document.getElementById("confidenceBar"),
-        holdTimeDisplay: document.getElementById("holdTimeDisplay"),
         holdTimeMetric: document.getElementById("holdTimeMetric"),
-        progressTimersContainer: document.querySelector(".progress-rings") as HTMLElement | null,
-        topCenterStatus: document.getElementById("topCenterStatus"),
+        holdTimeDisplay: document.getElementById("holdTimeDisplay"),
+        progressRingsOverlay: document.getElementById("progress-rings-overlay"),
+        gestureFeedbackOverlay: document.getElementById("gesture-feedback-overlay"),
     };
   }
 
@@ -107,13 +103,14 @@ export class UIRenderer {
       GESTURE_EVENTS.UPDATE_STATUS,
       createReadyHandler<GestureStatusData>((status) => {
         const now = performance.now();
+        const newGestureName = status?.gesture || '-';
         if (
-          !status ||
-          status.gesture === '-' ||
+          newGestureName !== this._lastStatusGestureName ||
           now - this._lastStatusUpdateTime > this._STATUS_UPDATE_INTERVAL_MS
         ) {
-          updateStatusDisplay(this._elements, status || ({} as GestureStatusData));
+          updateStatusDisplay(this._elements, status || {}, this._uiControllerRef.appStore, this._uiControllerRef.translationService);
           this._lastStatusUpdateTime = now;
+          this._lastStatusGestureName = newGestureName;
         }
       })
     );
@@ -121,23 +118,18 @@ export class UIRenderer {
       GESTURE_EVENTS.UPDATE_PROGRESS,
       createReadyHandler<GestureProgressData>((progress) => {
         const now = performance.now();
+        const ringsShouldBeVisible = (progress?.holdPercent ?? 0) > 0 || (progress?.cooldownPercent ?? 0) > 0;
         if (
-          !progress ||
-          (progress.holdPercent === 0 && progress.cooldownPercent === 0) ||
+          ringsShouldBeVisible !== this._lastRingsVisible ||
           now - this._lastProgressUpdateTime > this._PROGRESS_UPDATE_INTERVAL_MS
         ) {
           updateProgressRings(this._elements, progress);
           this._lastProgressUpdateTime = now;
+          this._lastRingsVisible = ringsShouldBeVisible;
         }
       })
     );
-    // FIX: Remove the old, redundant alert handler. This is now handled by NotificationManager.
-    // pubsub.subscribe(
-    //   GESTURE_EVENTS.DETECTED_ALERT,
-    //   createReadyHandler<GestureAlertData>((d) =>
-    //     showGestureAlert(this._elements, d, this._uiControllerRef?.pluginUIService)
-    //   )
-    // );
+
     pubsub.subscribe(
       GESTURE_EVENTS.REQUEST_LANDMARK_VISIBILITY_OVERRIDE,
       createReadyHandler<LandmarkVisibilityOverridePayload>((payload) =>
@@ -159,19 +151,11 @@ export class UIRenderer {
       if (sourceId) this._uiControllerRef.updateButtonState();
       
       this._canvasRenderer?.drawOutput();
-
-      if (
-        sourceId === null ||
-        eventType === WEBCAM_EVENTS.STREAM_STOP ||
-        eventType === WEBCAM_EVENTS.ERROR
-      ) {
-        updateStatusDisplay(this._elements, {} as GestureStatusData);
-        updateProgressRings(this._elements, {
-          holdPercent: 0,
-          cooldownPercent: 0,
-        });
-        if (this._elements.progressTimersContainer)
-          this._elements.progressTimersContainer.style.display = 'none';
+      if (sourceId === null || eventType === WEBCAM_EVENTS.STREAM_STOP || eventType === WEBCAM_EVENTS.ERROR) {
+        updateStatusDisplay(this._elements, {});
+        updateProgressRings(this._elements, { holdPercent: 0, cooldownPercent: 0 });
+        this._lastRingsVisible = false;
+        this._lastStatusGestureName = null;
       }
     };
     pubsub.subscribe(
@@ -242,7 +226,8 @@ export class UIRenderer {
       this._elements.gestureHistoryDiv!,
       historyItems,
       this._uiControllerRef.pluginUIService,
-      this._uiControllerRef.appStore
+      this._uiControllerRef.appStore,
+      this._uiControllerRef.translationService.translate
     );
   }
 

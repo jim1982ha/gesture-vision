@@ -1,12 +1,11 @@
 /* FILE: packages/frontend/src/services/language-manager.ts */
 import type { AppStore } from '#frontend/core/state/app-store.js';
 import {
-  translate,
   type LanguageCode,
   translations,
-  defaultLang,
 } from '#shared/services/translations.js';
 import { updateButtonGroupActiveState } from '#frontend/ui/helpers/index.js';
+import type { TranslationService } from './translation.service.js';
 
 const LANGUAGE_OPTIONS: Array<{
   code: LanguageCode;
@@ -20,6 +19,7 @@ const LANGUAGE_OPTIONS: Array<{
 
 export class LanguageManager {
   #appStore: AppStore;
+  #translationService: TranslationService;
   #isInitialized = false;
   #isDropdownOpen = false;
   #unsubscribeStore: () => void;
@@ -28,8 +28,9 @@ export class LanguageManager {
   #dropdownTrigger: HTMLButtonElement | null;
   #dropdownPanel: HTMLElement | null;
 
-  constructor(appStore: AppStore) {
+  constructor(appStore: AppStore, translationService: TranslationService) {
     this.#appStore = appStore;
+    this.#translationService = translationService;
 
     this.#container = null;
     this.#dropdownTrigger = null;
@@ -93,7 +94,7 @@ export class LanguageManager {
       iconSpan.className = 'lang-icon';
       iconSpan.textContent = opt.icon || '';
       const textSpan = document.createElement('span');
-      textSpan.textContent = translate(opt.labelKey, {
+      textSpan.textContent = this.#translationService.translate(opt.labelKey, {
         defaultValue: opt.code.toUpperCase(),
       });
       button.appendChild(iconSpan);
@@ -158,7 +159,7 @@ export class LanguageManager {
       );
       triggerIcon.textContent = currentLangOption?.icon || '🌐';
       if (this.#dropdownTrigger) {
-        this.#dropdownTrigger.title = translate(
+        this.#dropdownTrigger.title = this.#translationService.translate(
           currentLangOption?.labelKey || 'language'
         );
       }
@@ -190,10 +191,7 @@ export class LanguageManager {
   }
 
   public getCurrentLanguage(): LanguageCode {
-    return (
-      (this.#appStore.getState().languagePreference as LanguageCode | undefined) ||
-      defaultLang
-    );
+    return this.#translationService.getCurrentLanguage();
   }
 
   public isDropdownOpen = (): boolean => this.#isDropdownOpen;

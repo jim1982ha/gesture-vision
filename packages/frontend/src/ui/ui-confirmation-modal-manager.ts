@@ -1,6 +1,7 @@
 /* FILE: packages/frontend/src/ui/ui-confirmation-modal-manager.ts */
-import { UI_EVENTS, pubsub, translate } from '#shared/index.js';
+import { UI_EVENTS, pubsub } from '#shared/index.js';
 import { setIcon } from './helpers/index.js';
+import type { TranslationService } from '#frontend/services/translation.service.js';
 
 interface ConfirmationModalOptions {
   titleKey?: string;
@@ -28,8 +29,10 @@ export class ConfirmationModalManager {
   #readyPromise: Promise<void>;
   #resolveReadyPromise?: (() => void) | null;
   #wasAnotherModalOpen = false;
+  #translationService: TranslationService;
 
-  constructor() {
+  constructor(translationService: TranslationService) {
+    this.#translationService = translationService;
     this.#readyPromise = new Promise((resolve) => {
       this.#resolveReadyPromise = resolve;
     });
@@ -37,7 +40,7 @@ export class ConfirmationModalManager {
     this.#queryElements();
     if (!this.#modalElement) {
       console.error(
-        '[ConfirmationModalManager] CRITICAL: Modal element not found after query. Manager will not function.'
+        '[ConfirmationModalManager] CRITICAL: Modal element not found. Manager will not function.'
       );
       if (this.#resolveReadyPromise) {
         this.#resolveReadyPromise();
@@ -108,6 +111,7 @@ export class ConfirmationModalManager {
 
   public applyTranslations = (): void => {
     if (!this.isReady()) return;
+    const translate = this.#translationService.translate;
     if (this.#titleElement && !this.#titleElement.dataset.dynamicTitle) {
       this.#titleElement.textContent = translate('confirmActionTitle');
     }
@@ -163,6 +167,7 @@ export class ConfirmationModalManager {
     onCancel,
     isDangerAction = true,
   }: ConfirmationModalOptions): void {
+    const translate = this.#translationService.translate;
     if (!this.isReady()) {
       if (window.confirm(translate(messageKey, messageSubstitutions))) {
         if (onConfirm) onConfirm();

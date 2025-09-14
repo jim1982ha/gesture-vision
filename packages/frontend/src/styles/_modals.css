@@ -1,7 +1,8 @@
 /* FILE: packages/frontend/src/styles/_modals.css */
 @layer components {
   .modal {
-    @apply fixed inset-0 z-modal-overlay bg-black/50 backdrop-blur-sm flex items-start justify-center p-4 opacity-0 invisible transition-opacity duration-300;
+    @apply fixed inset-0 z-modal-overlay bg-black/50 backdrop-blur-sm flex items-start justify-center p-4 opacity-0 transition-opacity duration-300;
+    visibility: hidden;
   }
   .modal.visible {
     visibility: visible;

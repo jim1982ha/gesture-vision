@@ -2,6 +2,7 @@
 import fs from 'fs/promises';
 
 import type { RtspSourceConfig } from '#shared/index.js';
+import { normalizeNameForMtx } from '#shared/index.js';
 
 const MTX_CONFIG_PATH = '/tmp/generated_mediamtx.yml';
 
@@ -23,9 +24,7 @@ export async function generateMtxConfig(): Promise<void> {
         )
         .map(
           (source) =>
-            `  ${source.name
-              .toLowerCase()
-              .replace(/[^a-z0-9_]/g, '_')}:\n    source: ${JSON.stringify(
+            `  ${normalizeNameForMtx(source.name)}:\n    source: ${JSON.stringify(
               source.url
             )}`
         )

@@ -11,10 +11,12 @@ import { WebSocketRouter } from './websocket-router.js';
 import type { ConfigService } from './services/config.service.js';
 import type { PluginManagerService } from './services/plugin-manager.service.js';
 import type { MtxMonitorService } from './services/mtx-monitor.service.js';
+import type { ActionDispatcherService } from './services/action-dispatcher.service.js';
 
 const clients = new Set<AppWebSocket>();
 let wss: WebSocketServer | null = null;
 let router: WebSocketRouter | null = null;
+let initialStateCache: InitialStatePayload | null = null;
 
 let broadcastManifestsUpdateHandler: () => void;
 interface AppWebSocket extends WebSocket { isAlive?: boolean; }
@@ -29,19 +31,27 @@ const broadcastMessage = (message: WebSocketMessage<unknown>) => {
   });
 };
 
+const invalidateInitialStateCache = () => {
+  initialStateCache = null;
+  console.log('[WS Server] Initial state cache invalidated.');
+};
+
 const _handleBackendConfigReloadedEvent = (data?: unknown) => {
+  invalidateInitialStateCache();
   const eventData = data as BackendConfigChangeEventData | undefined;
   if (eventData?.updatedConfig) {
     broadcastMessage({ type: WEBSOCKET_EVENTS.FULL_CONFIG_UPDATE, payload: { config: eventData.updatedConfig } });
   }
 };
 const _handleBackendPluginConfigChangeEvent = (data?: unknown) => {
+  invalidateInitialStateCache();
   const eventData = data as BackendPluginConfigChangeEventData | undefined;
   if (eventData?.pluginId && eventData.newConfig !== undefined) {
     broadcastMessage({ type: WEBSOCKET_EVENTS.PLUGIN_CONFIG_UPDATED, payload: { pluginId: eventData.pluginId, config: eventData.newConfig } });
   }
 };
 const _broadcastCustomGestureMetadataUpdate = async () => {
+  invalidateInitialStateCache();
   try {
     const metadata: CustomGestureMetadata[] = await scanCustomGesturesDir();
     broadcastMessage({ type: WEBSOCKET_EVENTS.BACKEND_CUSTOM_GESTURES_METADATA_LIST, payload: { definitions: metadata } });
@@ -55,9 +65,10 @@ export function initializeWebSocketServer(
   server: http.Server,
   configService: ConfigService,
   pluginManagerService: PluginManagerService,
-  mtxMonitorService: MtxMonitorService | null
+  mtxMonitorService: MtxMonitorService | null,
+  actionDispatcher: ActionDispatcherService | null
 ): WebSocketServer {
-  const dependencies: HandlerDependencies = { configService, pluginManagerService, mtxMonitorService };
+  const dependencies: HandlerDependencies = { configService, pluginManagerService, mtxMonitorService, actionDispatcher };
   router = new WebSocketRouter(dependencies);
   
   if (configService) configService.setStreamStatusBroadcaster(broadcastStreamStatusUpdate);
@@ -65,6 +76,7 @@ export function initializeWebSocketServer(
   wss = new WebSocketServer({ server });
 
   broadcastManifestsUpdateHandler = async () => {
+    invalidateInitialStateCache();
     const manifests = await pluginManagerService.getAllPluginManifestsWithCapabilities();
     broadcastMessage({ type: WEBSOCKET_EVENTS.PLUGINS_MANIFESTS_UPDATED, payload: { manifests } });
   };
@@ -99,23 +111,34 @@ export function initializeWebSocketServer(
   return wss;
 }
 
-async function sendInitialDataToClient(ws: AppWebSocket, dependencies: HandlerDependencies) {
-  const { configService, pluginManagerService } = dependencies;
-  if (!configService || !pluginManagerService) {
-    await sendErrorMessageToClient(ws, 'SERVER_UNAVAILABLE', 'Core services initializing.');
-    throw new Error('Core services not ready for sendInitialDataToClient');
-  }
-  try {
+async function getOrBuildInitialState(dependencies: HandlerDependencies): Promise<InitialStatePayload> {
+    if (initialStateCache) {
+        return initialStateCache;
+    }
+
+    const { configService, pluginManagerService } = dependencies;
+    if (!configService || !pluginManagerService) {
+        throw new Error('Core services not ready for building initial state.');
+    }
+
+    console.log('[WS Server] Building initial state payload for cache...');
     const globalConfig = await configService.getFullConfig();
     const customGestureMetadata = await scanCustomGesturesDir();
     const manifests: PluginManifest[] = await pluginManagerService.getAllPluginManifestsWithCapabilities();
     const pluginConfigs: Record<string, unknown> = {};
     for (const manifest of manifests) {
-      if (manifest.capabilities.hasGlobalSettings) {
-        pluginConfigs[manifest.id] = (await pluginManagerService.getPluginGlobalConfig(manifest.id)) ?? null;
-      }
+        if (manifest.capabilities.hasGlobalSettings) {
+            pluginConfigs[manifest.id] = (await pluginManagerService.getPluginGlobalConfig(manifest.id)) ?? null;
+        }
     }
-    await sendMessageToClient(ws, { type: WEBSOCKET_EVENTS.INITIAL_STATE, payload: { globalConfig, pluginConfigs, customGestureMetadata, manifests } as InitialStatePayload });
+    initialStateCache = { globalConfig, pluginConfigs, customGestureMetadata, manifests };
+    return initialStateCache;
+}
+
+async function sendInitialDataToClient(ws: AppWebSocket, dependencies: HandlerDependencies) {
+  try {
+    const payload = await getOrBuildInitialState(dependencies);
+    await sendMessageToClient(ws, { type: WEBSOCKET_EVENTS.INITIAL_STATE, payload });
   } catch (error) {
     console.error('[WS SendInitial] Failed:', error);
     await sendErrorMessageToClient(ws, 'SERVER_ERROR', 'Failed to send initial server state.');

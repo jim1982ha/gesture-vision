@@ -3,15 +3,13 @@ import type { AppStore } from '#frontend/core/state/app-store.js';
 import type { CameraService } from '#frontend/services/camera.service.js';
 import { UI_EVENTS, WEBSOCKET_EVENTS, pubsub } from '#shared/index.js';
 import { webSocketService } from './websocket-service.js';
-import { translate } from '#shared/services/translations.js';
-import { setIcon, updateButtonGroupActiveState } from '#frontend/ui/helpers/index.js';
+import { setIcon, updateButtonGroupActiveState, setElementVisibility } from '#frontend/ui/helpers/index.js';
 import { BasePluginGlobalSettingsComponent } from '#frontend/ui/components/plugins/base-plugin-global-settings.component.js';
 import { GenericPluginActionSettingsComponent } from '#frontend/ui/components/plugins/generic-plugin-action-settings.component.js';
 import { createCardElement } from '#frontend/ui/utils/card-utils.js';
 import type { PluginManifest, PluginTestConnectionResultPayload,} from '#shared/index.js';
 import type {
   FrontendPluginModule,
-  CreatePluginGlobalSettingsComponentFn,
   IPluginActionSettingsComponent,
   ActionDisplayDetailsRendererFn,
   PluginUIContext,
@@ -21,7 +19,7 @@ import type { TranslationService } from './translation.service.js';
 import type { UIController } from '#frontend/ui/ui-controller-core.js';
 import type { GestureProcessor } from '#frontend/gestures/processor.js';
 import * as constants from '#shared/index.js';
-import * as actionDisplayUtils from '#frontend/ui/helpers/display-helpers.js';
+import * as actionDisplayUtils from '#frontend/ui/helpers/index.js';
 import * as utils from '#shared/utils/index.js';
 import { ActionPluginUIManager } from '#frontend/ui/components/gesture-form/action-plugin-ui-manager.js';
 
@@ -129,9 +127,9 @@ export class PluginUIService {
     for (const pluginId of [...changes.uninstalled, ...changes.disabled]) {
         const wasUninstalled = changes.uninstalled.includes(pluginId);
         this.#deregisterPlugin(pluginId, wasUninstalled);
+        this.#appStore.getState().actions.clearPluginExtData(pluginId);
     }
     
-    // FIX: Await initialization of all new/enabled plugins BEFORE broadcasting the UI update.
     const initializationPromises = [...changes.installed, ...changes.enabled].map(pluginId => {
         if (changes.enabled.includes(pluginId)) {
             this.#deregisterPlugin(pluginId, false);
@@ -180,13 +178,15 @@ export class PluginUIService {
         this.#uiContributions.set(slotId, contributions);
     }
 
-    document.head.querySelector<HTMLLinkElement>(`link[data-plugin-id="${pluginId}"]`)?.remove();
     this.#loadedFrontendModules.delete(pluginId);
     this.#actionDisplayRenderers.delete(pluginId);
     this.#moduleLoadPromises.delete(pluginId);
 
+    // Remove the plugin's stylesheet if it was injected
+    const stylesheetId = `plugin-stylesheet-${pluginId}`;
+    document.getElementById(stylesheetId)?.remove();
+
     if (wasUninstalled) {
-      // This client initiated the uninstall, so it's responsible for finalizing.
       webSocketService.sendMessage({ type: WEBSOCKET_EVENTS.FINALIZE_UNINSTALL, payload: { pluginId } });
     }
   }
@@ -211,15 +211,43 @@ export class PluginUIService {
       uiController: this.#uiControllerRef || undefined,
       data: {},
       services: {
-        translate: translate as ( key: string, substitutions?: Record<string, unknown> | undefined ) => string,
+        translationService: this.#translationService,
         pubsub,
       },
       uiComponents: {
-        createCardElement, setIcon, updateButtonGroupActiveState,
+        createCardElement, setIcon, updateButtonGroupActiveState, setElementVisibility,
         BasePluginGlobalSettingsComponent, GenericPluginActionSettingsComponent, ActionPluginUIManager,
       },
       shared: { constants, services: { actionDisplayUtils }, utils },
     };
+  }
+
+  private injectStylesheet(pluginId: string, manifest: PluginManifest): void {
+    if (!manifest.hasFrontendStyle) {
+      return;
+    }
+
+    const stylesheetId = `plugin-stylesheet-${pluginId}`;
+    if (document.getElementById(stylesheetId)) return;
+  
+    const cssPath = `/plugins/${pluginId}/frontend/style.css?v=${manifest.version || Date.now()}`;
+    console.log(`[PluginUIService] Injecting stylesheet for '${pluginId}' from: ${cssPath}`);
+    
+    const link = document.createElement('link');
+    link.id = stylesheetId;
+    link.rel = 'stylesheet';
+    link.type = 'text/css';
+    link.href = cssPath;
+    
+    link.onload = () => {
+      console.log(`[PluginUIService] SUCCESS: Stylesheet for '${pluginId}' loaded successfully.`);
+    };
+    link.onerror = () => {
+      console.error(`[PluginUIService] FAILED: Could not load stylesheet for '${pluginId}' at ${cssPath}. Check if the file exists and the server path is correct.`);
+      link.remove();
+    };
+
+    document.head.appendChild(link);
   }
 
   public async loadPluginFrontendModule(pluginId: string): Promise<FrontendPluginModule | undefined> {
@@ -240,43 +268,34 @@ export class PluginUIService {
         return undefined;
     }
 
-    const loadPromise = new Promise<FrontendPluginModule | undefined>((resolve, reject) => {
-        const scriptId = `plugin-script-${pluginId}`;
-        document.getElementById(scriptId)?.remove();
-
-        const script = document.createElement('script');
-        script.id = scriptId;
-        script.type = 'module';
-        script.async = true;
-
-        const versionQuery = `v=${manifest.version || Date.now()}`;
-        
-        const entryFile = manifest.frontendEntry;
-        const finalUrl = `/plugins/${pluginId}/${entryFile}?${versionQuery}`;
-        
-        script.src = finalUrl;
-
-        script.onload = async () => {
+    const loadPromise = (async () => {
+        const scriptUrl = `/plugins/${pluginId}/${manifest.frontendEntry}?v=${manifest.version || Date.now()}`;
+        try {
+            await import(/* @vite-ignore */ scriptUrl);
             const module = window.GestureVisionPlugins[pluginId];
             if (module) {
                 module.manifest = manifest;
+                this.injectStylesheet(pluginId, manifest);
                 if (typeof module.getActionDisplayDetails === 'function') this.#actionDisplayRenderers.set(pluginId, module.getActionDisplayDetails);
                 if (typeof module.init === 'function') await module.init(this.getPluginUIContext(pluginId));
                 this.#loadedFrontendModules.set(pluginId, module);
-                resolve(module);
+                return module;
             } else {
-                reject(new Error(`Plugin '${pluginId}' script loaded but did not register itself correctly.`));
+                throw new Error(`Plugin '${pluginId}' script loaded but did not register itself correctly.`);
             }
-        };
-        script.onerror = (event) => {
-            reject(new Error(`Failed to load script for plugin '${pluginId}'. Details: ${event}`));
-        };
-        
-        document.head.appendChild(script);
-    });
-
+        } catch (e) {
+            console.error(`Failed to load script for plugin '${pluginId}'.`, e);
+            throw e;
+        }
+    })();
+    
     this.#moduleLoadPromises.set(pluginId, loadPromise);
-    return loadPromise.finally(() => { this.#moduleLoadPromises.delete(pluginId); });
+    
+    try {
+        return await loadPromise;
+    } finally {
+        this.#moduleLoadPromises.delete(pluginId);
+    }
   }
 
   public getPluginManifest = (pluginId: string): PluginManifest | undefined => this.#pluginManifests.get(pluginId);
@@ -285,7 +304,7 @@ export class PluginUIService {
   public getPluginsWithGlobalSettings = (): PluginManifest[] => this.getAllPluginManifests().filter((m) => m.capabilities.hasGlobalSettings);
   public hasAnyPluginWithGlobalSettings = (): boolean => this.getPluginsWithGlobalSettings().length > 0;
 
-  public async getGlobalSettingsComponentFactory(pluginId: string): Promise<CreatePluginGlobalSettingsComponentFn | undefined> {
+  public async getGlobalSettingsComponentFactory(pluginId: string): Promise<FrontendPluginModule['createGlobalSettingsComponent'] | undefined> {
     const module = await this.loadPluginFrontendModule(pluginId);
     return module?.createGlobalSettingsComponent;
   }

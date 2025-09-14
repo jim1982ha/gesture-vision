@@ -4,19 +4,9 @@ import type { AppStore } from '#frontend/core/state/app-store.js';
 import type { PluginUIService } from '#frontend/services/plugin-ui.service.js';
 import type { UIController } from '#frontend/ui/ui-controller-core.js';
 import type { RendererElements } from '#frontend/ui/ui-renderer-core.js';
-import { createCardElement, createCardActionButton, type CardFooterConfig } from '#frontend/ui/utils/card-utils.js';
-
-import { translate } from '#shared/services/translations.js';
-import {
-  getActionIconDetails,
-  getGestureCategoryIconDetails,
-  getGestureDisplayInfo,
-} from '#frontend/ui/helpers/index.js';
-
-import type { ActionDisplayDetail, GestureConfig, PoseConfig, CustomGestureMetadata } from '#shared/index.js';
-import type { GestureCategoryIconType } from '#shared/index.js';
-
-type CardStatus = { isActive: true; reason: null } | { isActive: false; reason: 'feature_disabled' | 'plugin_missing' | 'plugin_disabled' };
+import { createCardElement, type CardFooterConfig, type ActionButtonConfig } from '#frontend/ui/utils/card-utils.js';
+import { getGestureDisplayInfo, getActionIconDetails } from '#frontend/ui/helpers/index.js';
+import type { ActionDisplayDetail, GestureConfig, PoseConfig, CustomGestureMetadata, GestureCategoryIconType } from '#shared/index.js';
 
 async function getDetailsHtml(
     entry: GestureConfig | PoseConfig,
@@ -29,7 +19,6 @@ async function getDetailsHtml(
 
     const manifest = pluginUIServiceRef.getPluginManifest(pluginId);
     
-    // Attempt to load the module only if it's available and enabled.
     if (manifest && manifest.status === 'enabled') {
         await pluginUIServiceRef.loadPluginFrontendModule(pluginId);
     }
@@ -55,8 +44,7 @@ async function getDetailsHtml(
             console.warn(`[ConfigListRenderer] Error rendering details for plugin '${pluginId}':`, renderError);
         }
     } else if (actionConfig?.settings && typeof actionConfig.settings === 'object' && Object.keys(actionConfig.settings).length > 0) {
-        // Fallback renderer for when a plugin's frontend module isn't available (e.g., disabled/missing)
-        const pluginIconDetails = getActionIconDetails(manifest); // Gracefully handles missing manifest
+        const pluginIconDetails = getActionIconDetails(manifest);
         return Object.values(actionConfig.settings).slice(0, 2).map((value, index) => {
             const displayValue = (typeof value === 'object' ? JSON.stringify(value) : String(value)) || 'N/A';
             const iconDetails = index === 0 ? pluginIconDetails : getActionIconDetails(null);
@@ -79,21 +67,20 @@ export async function renderConfigList(
 ): Promise<void> {
   const listDiv = elements.configListDiv;
 
-  if (!listDiv) {
-    console.error("[ConfigListRenderer] Main list container (configListDiv) is missing.");
+  if (!listDiv || !appStore || !pluginUIServiceRef || !uiControllerRef) {
+    console.error("[ConfigListRenderer] Critical references are missing.");
     return;
   }
   
-  const configs: Array<GestureConfig | PoseConfig> = configsData || appStore?.getState().gestureConfigs || [];
-
-  if (!pluginUIServiceRef || !appStore) return;
+  const configs: Array<GestureConfig | PoseConfig> = configsData || appStore.getState().gestureConfigs || [];
+  const translate = uiControllerRef.translationService.translate;
   
   const getGestureConfigCategory = (config: GestureConfig | PoseConfig, customMetaList: CustomGestureMetadata[]): GestureCategoryIconType => {
       const name = 'pose' in config ? (config as PoseConfig).pose : (config as GestureConfig).gesture;
       return getGestureDisplayInfo(name, customMetaList).category;
   };
   
-  const getCardStatus = (config: GestureConfig | PoseConfig, appStoreRef: AppStore, puiServiceRef: PluginUIService, customMetaList: CustomGestureMetadata[]): CardStatus => {
+  const getCardStatus = (config: GestureConfig | PoseConfig, appStoreRef: AppStore, puiServiceRef: PluginUIService, customMetaList: CustomGestureMetadata[]): { isActive: boolean; reason: 'feature_disabled' | 'plugin_missing' | 'plugin_disabled' | null } => {
     const state = appStoreRef.getState();
     
     const actionPluginId = config.actionConfig?.pluginId;
@@ -138,25 +125,26 @@ export async function renderConfigList(
   let activeCount = 0;
   let inactiveCount = 0;
   
-  const activeCards = [];
-  const inactiveCards = [];
+  const activeCards: HTMLDivElement[] = [];
+  const inactiveCards: HTMLDivElement[] = [];
 
-  for (const config of sortedConfigs) {
+  const cardGenerationPromises = sortedConfigs.map(async (config) => {
     const cardStatus = getCardStatus(config, appStore, pluginUIServiceRef, customMetadataList);
     const name = 'pose' in config ? (config as PoseConfig).pose : (config as GestureConfig).gesture;
     const { formattedName, category } = getGestureDisplayInfo(name, customMetadataList);
     const gestureDisplayName = category === 'BUILT_IN_HAND' ? translate(formattedName, { defaultValue: formattedName }) : formattedName;
     
     let itemClasses = "config-item";
-    if (cardStatus.isActive) {
-        itemClasses += " card-item-clickable";
-    }
-
+    if (cardStatus.isActive) itemClasses += " card-item-clickable";
     if (originalNameBeingEdited === name) itemClasses += " is-editing-highlight";
     
-    const actionDetailsHtml = await getDetailsHtml(config, pluginUIServiceRef);
     const cardTitle = gestureDisplayName;
     
+    const actionButtons: ActionButtonConfig[] = [
+      { action: 'edit', title: translate('editTooltip', { item: name }), iconKey: 'UI_EDIT_NOTE', extraClasses: ['edit-btn'], translate },
+      { action: 'delete', title: translate('deleteTooltip', { item: name }), iconKey: 'UI_DELETE', extraClasses: ['btn-icon-danger', 'delete-btn'], translate }
+    ];
+
     const footerConfig: CardFooterConfig = {};
     
     let pillsContent = "";
@@ -168,74 +156,51 @@ export async function renderConfigList(
     const pluginId = config.actionConfig?.pluginId;
     if (pluginId && pluginId !== 'none') {
         const manifest = pluginUIServiceRef.getPluginManifest(pluginId);
-        if (manifest?.nameKey) {
-            actionTypeDisplay = translate(manifest.nameKey, { defaultValue: pluginId });
-        } else {
-            let formattedId = pluginId.replace('gesture-vision-plugin-', '');
-            formattedId = formattedId.charAt(0).toUpperCase() + formattedId.slice(1);
-            actionTypeDisplay = formattedId;
-        }
+        actionTypeDisplay = translate(manifest?.nameKey || pluginId, { defaultValue: pluginId.replace('gesture-vision-plugin-', '') });
     }
     footerConfig.mainText = actionTypeDisplay;
     
     if (!cardStatus.isActive) {
-      itemClasses += " config-item-disabled"; // Generic disabled style
-      if (cardStatus.reason === 'plugin_missing' || cardStatus.reason === 'plugin_disabled') {
-          const reasonTextKey = cardStatus.reason === 'plugin_disabled' ? 'pluginDisabled' : 'pluginMissing';
-          footerConfig.statusText = translate(reasonTextKey);
-          footerConfig.statusClass = 'error';
-      } else {
-          itemClasses += " config-item-unavailable";
-          footerConfig.statusText = translate("customFeatureDisabled");
-      }
+      itemClasses += " config-item-disabled";
+      const reasonTextKey = cardStatus.reason === 'plugin_disabled' ? 'pluginDisabled' : (cardStatus.reason === 'plugin_missing' ? 'pluginMissing' : "customFeatureDisabled");
+      footerConfig.statusText = translate(reasonTextKey);
+      footerConfig.statusClass = 'error';
     }
-
-    const deleteButton = createCardActionButton({
-        action: 'delete',
-        title: translate('deleteTooltip', { item: name }),
-        iconKey: 'UI_DELETE',
-        extraClasses: ['btn-icon-danger', 'delete-btn']
-    });
-    const editButton = createCardActionButton({
-        action: 'edit',
-        title: translate('editTooltip', { item: name }),
-        iconKey: 'UI_EDIT_NOTE',
-        extraClasses: ['edit-btn']
-    });
 
     const cardElement = createCardElement({
-      ...getGestureCategoryIconDetails(category),
-      title: cardTitle,
-      actionButtonsHtml: editButton.outerHTML + deleteButton.outerHTML,
-      detailsHtml: actionDetailsHtml,
-      footerConfig,
-      itemClasses,
-      datasetAttributes: { gestureName: name || '' },
+      ...getGestureDisplayInfo(name, customMetadataList).iconDetails,
+      title: cardTitle, actionButtons, footerConfig,
+      itemClasses: itemClasses, datasetAttributes: { gestureName: name || '' }, translate,
     });
 
-    if (cardStatus.isActive) {
-      activeCards.push(cardElement);
-      activeCount++;
-    } else {
-      inactiveCards.push(cardElement);
-      inactiveCount++;
+    // Populate the details container after creation
+    const detailsContainer = cardElement.querySelector('.card-details');
+    if(detailsContainer) {
+        detailsContainer.innerHTML = await getDetailsHtml(config, pluginUIServiceRef);
     }
-  }
+    
+    if (cardStatus.isActive) {
+        activeCards.push(cardElement);
+        activeCount++;
+    } else {
+        inactiveCards.push(cardElement);
+        inactiveCount++;
+    }
+  });
+
+  await Promise.all(cardGenerationPromises);
 
   listDiv.innerHTML = "";
-
   if (activeCount === 0 && inactiveCount === 0) {
       listDiv.innerHTML = `<p class="list-placeholder">${translate("noGesturesConfigured")}</p>`;
   } else {
       activeCards.forEach(card => listFragment.appendChild(card));
-      
       if (inactiveCount > 0) {
           const separatorTitle = document.createElement('h3');
           separatorTitle.className = 'inactive-list-title';
           separatorTitle.textContent = translate('inactiveConfigsTitle', { defaultValue: 'Inactive Configurations'});
           listFragment.appendChild(separatorTitle);
       }
-      
       inactiveCards.forEach(card => listFragment.appendChild(card));
       listDiv.appendChild(listFragment);
   }

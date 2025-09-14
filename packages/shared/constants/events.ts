@@ -25,6 +25,7 @@ export const UI_EVENTS = {
   PLUGINS_MANIFESTS_PROCESSED: "ui:pluginsManifestsProcessed",
   VIDEO_TOOLBAR_AI_CLICKED: "ui:videoToolbarAiClicked",
   VIDEO_TOOLBAR_DISPLAY_CLICKED: "ui:videoToolbarDisplayClicked",
+  REQUEST_MIRROR_TOGGLE: "ui:requestMirrorToggle",
 } as const;
 
 export const WEBCAM_EVENTS = {
@@ -94,12 +95,6 @@ export const WEBSOCKET_EVENTS = {
   RTSP_CONNECT_REQUEST: "rtsp:connectRequest",
   RTSP_DISCONNECT_REQUEST: "rtsp:disconnectRequest",
   FINALIZE_UNINSTALL: "plugin:finalizeUninstall",
-} as const;
-
-export const APP_STATUS_EVENTS = {
-  WEBCAM_STATE_CHANGED: "appStatus:webcamStateChanged",
-  MODEL_STATE_CHANGED: "appStatus:modelStateChanged",
-  STREAM_CONNECTING_STATE_CHANGED: "appStatus:streamConnectingStateChanged",
 } as const;
 
 export const DOCS_MODAL_EVENTS = {

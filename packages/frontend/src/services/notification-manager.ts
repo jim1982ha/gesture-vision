@@ -1,8 +1,9 @@
 /* FILE: packages/frontend/src/services/notification-manager.ts */
-import { UI_EVENTS, WEBSOCKET_EVENTS, WEBCAM_EVENTS, pubsub, translate } from "#shared/index.js";
+import { UI_EVENTS, WEBSOCKET_EVENTS, WEBCAM_EVENTS, pubsub } from "#shared/index.js";
  
 import type { AppStore } from "#frontend/core/state/app-store.js";
 import type { ActionResultPayload, UploadCustomGestureAckPayload, ValidationErrorDetail } from "#shared/index.js"; 
+import type { TranslationService } from './translation.service.js';
 
 interface NotificationData {
     messageKey?: string;
@@ -26,9 +27,11 @@ export class NotificationManager {
   #activeTimeout: number | null = null;
   #isInitialized = false;
   #appStore: AppStore;
+  #translationService: TranslationService;
 
-  constructor(appStore: AppStore) {
+  constructor(appStore: AppStore, translationService: TranslationService) {
     this.#appStore = appStore;
+    this.#translationService = translationService;
     this.#alertDiv = document.getElementById("gestureAlert") as HTMLElement | null;
     this.#alertTextSpan = document.getElementById("gestureAlertText") as HTMLElement | null;
 
@@ -44,6 +47,7 @@ export class NotificationManager {
   }
 
   #attachEventListeners(): void {
+    const translate = this.#translationService.translate;
     pubsub.subscribe(UI_EVENTS.SHOW_NOTIFICATION, (dataUnknown?: unknown) => { 
       if (!this.#isInitialized) return;
       const data = dataUnknown as NotificationData | undefined;
@@ -71,7 +75,6 @@ export class NotificationManager {
       this.showNotification(msg, "error");
     });
 
-    // FIX: This handler is now the single source for action result notifications, showing for both success and failure.
     pubsub.subscribe(WEBSOCKET_EVENTS.BACKEND_ACTION_RESULT, (dataUnknown?: unknown) => { 
       if (!this.#isInitialized) return;
       const result = dataUnknown as ActionResultPayload | undefined;
@@ -149,7 +152,6 @@ export class NotificationManager {
     this.#alertTextSpan.style.whiteSpace = msg.includes('\n') ? 'pre-wrap' : 'normal';
     this.#alertTextSpan.textContent = msg; 
     
-    // FIX: Use classList to add/remove classes instead of overwriting className.
     this.#alertDiv.classList.remove('alert-info', 'alert-success', 'alert-warning', 'alert-error');
     this.#alertDiv.classList.add(`alert-${type}`, 'visible');
 

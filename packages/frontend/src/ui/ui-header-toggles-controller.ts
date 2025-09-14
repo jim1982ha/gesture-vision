@@ -1,9 +1,8 @@
 /* FILE: packages/frontend/src/ui/ui-header-toggles-controller.ts */
-import { type GestureCategoryIconType, translate } from '#shared/index.js';
+import { type GestureCategoryIconType, type FullConfiguration } from '#shared/index.js';
 import { updateButtonToggleActiveState, setIcon } from './helpers/index.js';
 import type { UIController } from '#frontend/ui/ui-controller-core.js';
 import type { AppStore } from '../core/state/app-store.js';
-import type { FullConfiguration } from '#shared/index.js';
 import { DEFAULT_NUM_HANDS_PREFERENCE } from '#frontend/constants/app-defaults.js';
 
 type HTMLElementOrNull = HTMLElement | null;
@@ -35,6 +34,7 @@ const FEATURE_OPTIONS: { value: keyof FullConfiguration; textKey: string; iconKe
 export class HeaderTogglesController {
   #elements: HeaderToggleElements = {};
   #appStore: AppStore;
+  #uiControllerRef: UIController;
   #activeDropdown: {
     type: string;
     panel: HTMLElement;
@@ -43,9 +43,10 @@ export class HeaderTogglesController {
 
   constructor(
     appStore: AppStore,
-    _ui: UIController
+    uiController: UIController
   ) {
     this.#appStore = appStore;
+    this.#uiControllerRef = uiController;
     this.#createHeaderDropdowns();
     this.#attachDOMEventListeners();
     this.#subscribeToCoreState();
@@ -60,11 +61,11 @@ export class HeaderTogglesController {
   #createHeaderDropdowns(): void {
     const container = document.getElementById('header-toggles-container');
     if (!container) return;
+    const translate = this.#uiControllerRef.translationService.translate;
     
     container.innerHTML = '';
     this.#elements = {};
 
-    // --- Create Feature Toggles (Desktop & Mobile) FIRST ---
     const desktopGroup = document.createElement('div');
     desktopGroup.id = 'headerFeatureToggleGroupDesktop';
     desktopGroup.className = 'button-toggle-group hidden desktop:flex';
@@ -95,7 +96,6 @@ export class HeaderTogglesController {
     mobileDropdown.classList.add('desktop:hidden');
     container.appendChild(mobileDropdown);
 
-    // --- Create Landmarks Dropdown SECOND ---
     const landmarksDropdownConfig: DropdownConfig = {
       type: 'landmarks',
       triggerIconKey: 'UI_HANDS_LANDMARKS_DROPDOWN_TRIGGER',
@@ -107,7 +107,7 @@ export class HeaderTogglesController {
       ],
     };
     const landmarksDropdown = this.#buildDropdown(landmarksDropdownConfig);
-    landmarksDropdown.id = 'landmarksDropdownContainer'; // Add requested ID
+    landmarksDropdown.id = 'landmarksDropdownContainer';
     container.appendChild(landmarksDropdown);
   }
 
@@ -245,11 +245,11 @@ export class HeaderTogglesController {
   };
 
   applyTranslations = (): void => {
+    const translate = this.#uiControllerRef.translationService.translate;
     const setTooltip = (elId: string, key: string) => { const el = document.getElementById(elId); if(el) el.title = translate(key); };
     setTooltip('landmarksDropdownTrigger', 'desktopHandsDropdownTitle');
     setTooltip('featuresDropdownTrigger', 'desktopFeaturesDropdownTitle');
     
-    // Update text content of existing elements instead of rebuilding
     FEATURE_OPTIONS.forEach(opt => {
         const desktopBtnText = (this.#elements[opt.value] as HTMLElement)?.querySelector('.toggle-button-text');
         if (desktopBtnText) desktopBtnText.textContent = translate(opt.textKey);

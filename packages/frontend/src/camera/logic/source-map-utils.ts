@@ -1,8 +1,7 @@
 /* FILE: packages/frontend/src/camera/logic/source-map-utils.ts */
-import { translate } from "#shared/services/translations.js";
 import { normalizeNameForMtx } from "#shared/utils/index.js";
-
 import type { RtspSourceConfig } from "#shared/index.js";
+import type { TranslationService } from '#frontend/services/translation.service.js';
 
 interface DeviceInfo {
     id: string;
@@ -33,17 +32,17 @@ export function createRtspDeviceMap(rtspSourcesCache: RtspSourceConfig[] | undef
  * @param isMobile - A boolean indicating if the device is considered mobile.
  * @returns A Map where the key is the deviceId and the value is its user-friendly label.
  */
-export function createWebcamDeviceMap(devices: DeviceInfo[], isMobile: boolean): Map<string, string> {
+export function createWebcamDeviceMap(devices: DeviceInfo[], isMobile: boolean, translationService: TranslationService): Map<string, string> {
     const webcamMap = new Map<string, string>();
     const validWebcams = Array.isArray(devices) ? devices.filter(d => d?.id && typeof d.id === 'string' && d.id.length > 0) : [];
   
     if (isMobile && validWebcams.length > 0) {
-      webcamMap.set("webcam:mobile_default", translate("Webcam", { defaultValue: "Webcam" }));
+      webcamMap.set("webcam:mobile_default", translationService.translate("Webcam", { defaultValue: "Webcam" }));
     } else {
       validWebcams.forEach((d, index) => {
         let deviceLabel = d?.label;
         if (!deviceLabel || deviceLabel.trim() === "") {
-          deviceLabel = translate("Camera", {
+          deviceLabel = translationService.translate("Camera", {
             defaultValue: `Camera ${index + 1}`
           });
         }

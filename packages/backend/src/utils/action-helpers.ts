@@ -1,6 +1,6 @@
 /* FILE: packages/backend/src/utils/action-helpers.ts */
 // Utility functions for backend action handlers.
-
+import type { Response } from 'node-fetch';
 import type { ActionResult } from '#shared/index.js';
 
 export const createErrorResult = (
@@ -78,6 +78,6 @@ export async function executeWithRetry<TResponseDetails = unknown>(
   return {
     success: false,
     message: `${actionName} failed after all retries.`,
-    details: { reason: 'Max retries reached' },
+    details: { errorName: 'MaxRetriesExceeded', reason: 'Max retries reached' },
   };
 }

@@ -9,6 +9,10 @@ import type { RtspSourceConfig } from '#shared/index.js';
 
 let streamPromiseAbortController: AbortController | null = null;
 
+/**
+ * Manages the low-level details of acquiring and stopping camera streams,
+ * whether from a local webcam or an RTSP source via WHEP.
+ */
 export class CameraStreamService {
   #cameraManagerRef: CameraManager;
   #rtspConnectorInstance: RtspConnector | null = null;

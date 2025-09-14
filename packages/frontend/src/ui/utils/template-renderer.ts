@@ -19,36 +19,24 @@ export function createFromTemplate(template: string, data: Record<string, unknow
   }
   
   function processNode(node: Element, context: Record<string, unknown>) {
-    // 1. Handle conditional rendering first
+    // 1. Conditional Rendering: If this fails, the entire branch is removed.
     if (node.hasAttribute('data-if')) {
       const conditionKey = node.getAttribute('data-if')!;
-      const conditionValue = context[conditionKey];
-      if (!conditionValue) {
+      if (!context[conditionKey]) {
         node.remove();
         return;
       }
       node.removeAttribute('data-if');
     }
   
-    // 2. Handle raw HTML injection
-    if (node.hasAttribute('data-html-key')) {
-        const key = node.getAttribute('data-html-key')!;
-        if (context[key] !== undefined && context[key] !== null) {
-            node.innerHTML = String(context[key]);
-        }
-        node.removeAttribute('data-html-key');
-    }
-  
-    // 3. Substitute placeholders in attributes and text content
+    // 2. Attribute Substitution for the current node.
     for (const attr of Array.from(node.attributes)) {
       if (attr.value.includes('{')) {
         attr.value = substitute(attr.value, context);
       }
-      // FIX: Handle empty attributes after substitution by removing them.
       if (attr.value === '') {
         node.removeAttribute(attr.name);
       }
-      // Handle boolean attributes
       if (attr.name.startsWith('?')) {
           const actualAttrName = attr.name.substring(1);
           const key = attr.value;
@@ -59,8 +47,19 @@ export function createFromTemplate(template: string, data: Record<string, unknow
       }
     }
   
-    // Substitute text content, skipping script/style tags
-    if (node.tagName !== 'SCRIPT' && node.tagName !== 'STYLE' && !node.hasAttribute('data-html-key')) {
+    // 3. HTML Injection: This is a terminal operation for this branch.
+    // If we inject HTML, we assume it's final and do not process its children.
+    if (node.hasAttribute('data-html-key')) {
+      const key = node.getAttribute('data-html-key')!;
+      if (context[key] !== undefined && context[key] !== null) {
+        node.innerHTML = String(context[key]);
+      }
+      node.removeAttribute('data-html-key');
+      return; // <-- IMPORTANT: Stop processing this branch.
+    }
+  
+    // 4. Child Node Processing (only runs if we didn't inject HTML).
+    if (node.tagName !== 'SCRIPT' && node.tagName !== 'STYLE') {
       for (const childNode of Array.from(node.childNodes)) {
         if (childNode.nodeType === Node.TEXT_NODE && childNode.textContent?.includes('{')) {
           childNode.textContent = substitute(childNode.textContent || '', context);
@@ -74,6 +73,6 @@ export function createFromTemplate(template: string, data: Record<string, unknow
   function substitute(text: string, data: Record<string, unknown>): string {
     return text.replace(/\{([\w.]+)\}/g, (match, key) => {
       const value = key.split('.').reduce((o: unknown, i: string) => (o && typeof o === 'object' ? (o as Record<string, unknown>)[i] : undefined), data);
-      return value !== undefined && value !== null ? String(value) : match;
+      return value !== undefined && value !== null ? String(value) : '';
     });
   }

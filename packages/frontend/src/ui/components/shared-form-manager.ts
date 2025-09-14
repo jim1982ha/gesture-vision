@@ -49,8 +49,8 @@ export class SharedFormManager {
   #toggleFormVisibility(show: boolean): void {
     this.#isFormVisible = show;
     setElementVisibility(this.#config.formContainer, show);
-    setElementVisibility(this.#config.listContainer, !show, 'grid');
-    setElementVisibility(this.#config.addNewButton, !show, 'flex');
+    setElementVisibility(this.#config.listContainer, !show);
+    setElementVisibility(this.#config.addNewButton, !show);
   }
 
   public isEditing(): boolean {

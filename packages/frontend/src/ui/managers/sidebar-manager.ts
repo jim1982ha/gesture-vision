@@ -1,7 +1,6 @@
 /* FILE: packages/frontend/src/ui/managers/sidebar-manager.ts */
 import { setIcon, toggleElementClass } from '#frontend/ui/helpers/index.js';
 import type { UIController } from '#frontend/ui/ui-controller-core.js';
-import { translate } from '#shared/index.js';
 
 export class SidebarManager {
   #historySidebar: HTMLElement | null;
@@ -38,6 +37,7 @@ export class SidebarManager {
   }
   
   public applyTranslations(): void {
+    const translate = this.#uiControllerRef.translationService.translate;
     const historyHeader = this.#historySidebar?.querySelector('.sidebar-header');
     if (historyHeader) {
         (historyHeader.querySelector('.header-title') as HTMLElement).textContent = translate('history');

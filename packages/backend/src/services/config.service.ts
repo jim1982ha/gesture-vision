@@ -4,18 +4,17 @@ import { watchFile, unwatchFile, type StatsListener, type StatWatcher } from 'fs
 import {
   BACKEND_INTERNAL_EVENTS,
   pubsub,
-  normalizeNameForMtx,
   type FullConfiguration,
   type GestureConfig,
   type PoseConfig,
   type StreamStatusPayload,
   type ValidationErrorDetail,
   type RtspSourceConfig,
+  normalizeNameForMtx
 } from '#shared/index.js';
 
 import { ConfigRepository } from './config/config-repository.js';
 import { ConfigValidator } from './config/config-validator.js';
-import type { MtxMonitorService } from './mtx-monitor.service.js';
 
 const FILE_WATCH_INTERVAL_MS = 1000;
 const DEBOUNCE_DELAY_MS = 300;
@@ -46,7 +45,6 @@ export class ConfigService {
   public writeLock = false;
   private fileWatcher: StatWatcher | null = null;
   private fileWatchTimeout: NodeJS.Timeout | null = null;
-  public mtxMonitorInstance: MtxMonitorService | null = null;
   #streamStatusBroadcaster:
     | ((payload: StreamStatusPayload) => void)
     | null = null;
@@ -272,12 +270,7 @@ export class ConfigService {
   public _broadcastStreamStatus = (payload: StreamStatusPayload): void => {
     this.#streamStatusBroadcaster?.(payload);
   };
-  public setMtxMonitorInstance(monitorInstance: MtxMonitorService): void {
-    this.mtxMonitorInstance = monitorInstance;
-    this.mtxMonitorInstance.setStreamStatusBroadcaster?.(
-      this._broadcastStreamStatus
-    );
-  }
+
   public cleanup(): void {
     this.stopFileWatcher();
   }

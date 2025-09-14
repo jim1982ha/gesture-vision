@@ -2,7 +2,6 @@
 import { secureStorage } from "#shared/services/security-utils.js";
 import { pubsub } from "#shared/core/pubsub.js";
 import { UI_EVENTS, type GestureCategoryIconType } from "#shared/index.js";
-import { translate } from "#shared/services/translations.js";
 import { setIcon } from "#frontend/ui/helpers/index.js";
 import type { UIController } from "#frontend/ui/ui-controller-core.js";
 
@@ -44,6 +43,7 @@ export class LayoutManager {
   public getIsVideoVisible = (): boolean => (secureStorage.get(VIDEO_VISIBILITY_KEY) as boolean | null) ?? true;
 
   public applyTranslations(): void {
+    const translate = this.#uiControllerRef.translationService.translate;
     const liveFeedTitle = document.getElementById("liveFeedTitle")?.querySelector<HTMLElement>('[data-translate-text]');
     if (liveFeedTitle) liveFeedTitle.textContent = translate('liveFeedTitle');
     setIcon(document.getElementById("liveFeedTitle")?.querySelector('.config-title-icon'), 'UI_CAMERA_OUTLINE');
@@ -66,7 +66,7 @@ export class LayoutManager {
     const isVisible = this.getIsVideoVisible();
     setIcon(t, isVisible ? "UI_VISIBILITY_OFF" : "UI_VISIBILITY_ON");
     const k = isVisible ? "hideVideo" : "showVideo";
-    const l = translate(k);
+    const l = this.#uiControllerRef.translationService.translate(k);
     t.title = l;
     t.setAttribute("aria-label", l);
   }
@@ -88,6 +88,7 @@ export class LayoutManager {
   _updateVideoSizePreferenceUI(): void {
     const button = this.#videoSizeToggleButton as HTMLButtonElement;
     if (!button) return;
+    const translate = this.#uiControllerRef.translationService.translate;
 
     const isMobile = this.#uiControllerRef.sidebarManager?.isMobile;
     const isFullscreen = document.body.classList.contains("video-fullscreen-active");

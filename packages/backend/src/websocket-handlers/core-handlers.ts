@@ -4,19 +4,17 @@ import type { HandlerDependencies } from './handler-dependencies.type.js';
 import type WebSocket from 'ws';
 
 import { WEBSOCKET_EVENTS, type WebSocketMessage, type ActionResult, type GestureConfig, type PoseConfig, type ActionDetails } from '#shared/index.js';
-import { ActionDispatcherService } from '#backend/services/action-dispatcher.service.js';
 
 export async function dispatchActionHandler(
   ws: WebSocket,
   message: WebSocketMessage<unknown>,
   dependencies: HandlerDependencies
 ): Promise<void> {
-  const { pluginManagerService } = dependencies;
-  if (!pluginManagerService) {
+  const { actionDispatcher } = dependencies;
+  if (!actionDispatcher) {
     await sendErrorMessageToClient(ws, 'SERVER_ERROR', 'Core services not ready.');
     return;
   }
-  const actionDispatcher = new ActionDispatcherService(pluginManagerService);
 
   const { gestureConfig, details } = (message as WebSocketMessage<{ gestureConfig: GestureConfig | PoseConfig; details: ActionDetails; }>).payload;
   if (!gestureConfig || !details) {
@@ -50,10 +48,13 @@ export async function rtspConnectRequestHandler(
   message: WebSocketMessage<unknown>,
   dependencies: HandlerDependencies
 ): Promise<void> {
-  const { mtxMonitorService } = dependencies;
-  if (!mtxMonitorService) return; // No error message needed for this transient request
+  const { mtxMonitorService, configService } = dependencies;
+  if (!mtxMonitorService || !configService) return; // No error message needed for this transient request
   const { pathName } = (message as WebSocketMessage<{ pathName: string }>).payload;
-  if (pathName) await mtxMonitorService.connectOnDemandStream(pathName);
+  if (pathName) {
+    const sources = await configService.getRtspSources();
+    await mtxMonitorService.connectOnDemandStream(pathName, sources);
+  }
 }
 
 export async function rtspDisconnectRequestHandler(

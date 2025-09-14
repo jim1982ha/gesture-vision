@@ -37,15 +37,15 @@
   }
 
   /* --- Top Center Status Display (Redesigned for consistency) --- */
-  .top-center-status {
-    @apply overlay-surface rounded-full p-2 flex flex-row items-center gap-2 text-xs;
+  #gesture-feedback-overlay {
+    @apply overlay-surface rounded-full p-2 items-center gap-2 text-xs;
   }
   
-  .top-center-status #currentGestureSpan {
+  #gesture-feedback-overlay #currentGestureSpan {
     @apply flex-shrink-0;
   }
   
-  .timer-display {
+  #gesture-feedback-overlay .timer-display {
     @apply flex items-center gap-1 flex-shrink-0;
   }
 
@@ -65,9 +65,24 @@
   }
 
   /* --- Progress Rings --- */
+  #progress-rings-overlay {
+    @apply opacity-0 transition-opacity duration-200;
+    visibility: hidden;
+  }
+  #progress-rings-overlay.visible {
+    @apply opacity-100;
+    visibility: visible;
+  }
+  #progress-rings-overlay::before {
+    content: '';
+    @apply absolute inset-0 rounded-full bg-surface/30 backdrop-blur-[2px] border border-on-primary/20;
+  }
+  .progress-rings {
+    filter: drop-shadow(0 2px 4px rgb(0 0 0 / 0.5));
+  }
   .progress-rings circle {
     fill: none;
-    transition: stroke-dashoffset 150ms linear;
+    transition: stroke-dashoffset 200ms cubic-bezier(0.25, 0.1, 0.25, 1);
     transform: rotate(-90deg);
     transform-origin: 50% 50%;
   }
@@ -75,57 +90,13 @@
     stroke-dasharray: 198;
     stroke-dashoffset: 198;
     stroke: theme('colors.primary');
+    filter: drop-shadow(0 0 3px theme('colors.primary / 70%'));
   }
   .cooldown-progress {
     stroke-dasharray: 230;
     stroke-dashoffset: 230;
-    stroke: theme('colors.secondary / 50%');
-  }
-
-  /* --- Redesigned Dashboard Plugin Cursor for Maximum Visibility --- */
-  #dashboard-cursor {
-    --progress: 0;
-    position: fixed;
-    width: 2rem;
-    height: 2rem;
-    border-radius: 9999px;
-    transform: translate(-50%, -50%);
-    pointer-events: none;
-    opacity: 0;
-    visibility: hidden;
-    transition-property: all;
-    transition-duration: 200ms;
-    transition-timing-function: ease-out;
-    z-index: theme("zIndex.alert");
-    
-    border: 1px solid black;
-    box-shadow: 0 0 0 2px white, 0 2px 4px rgba(0, 0, 0, 0.4);
-
-    background: radial-gradient(closest-side, theme("colors.surface / 70%") 75%, transparent 0 99.9%),
-      conic-gradient(
-        theme("colors.primary") calc(var(--progress) * 100%),
-        theme("colors.border / 50%") 0
-      );
-  }
-  #dashboard-cursor.high-contrast {
-      box-shadow: 0 0 0 2px white, 0 0 10px theme("colors.primary");
-      background: radial-gradient(closest-side, theme("colors.on-primary") 75%, transparent 0 99.9%),
-        conic-gradient(
-          theme("colors.primary") calc(var(--progress) * 100%),
-          theme("colors.primary / 50%") 0
-        );
-  }
-  #dashboard-cursor.cooldown {
-      opacity: 0.5;
-      border-color: theme("colors.secondary");
-      box-shadow: 0 0 0 2px theme("colors.surface / 50%"), 0 2px 4px rgba(0, 0, 0, 0.2);
-  }
-  #dashboard-cursor.visible {
-      visibility: visible;
-      opacity: 1;
-  }
-  #dashboard-cursor.dwelling {
-      animation: pulse 1s infinite;
+    stroke: theme('colors.border / 50%');
+    opacity: 1;
   }
 
   /* --- Notification Alert Component Styles --- */

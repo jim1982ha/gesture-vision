@@ -1,12 +1,9 @@
 /* FILE: packages/frontend/src/ui/docs/docs-toc-manager.ts */
 import { updateButtonGroupActiveState } from '#frontend/ui/helpers/index.js';
 import type { UIController } from '#frontend/ui/ui-controller-core.js';
-import { translate } from '#shared/services/translations.js';
-
-import { type LanguageCode } from '#shared/services/translations.js';
-
-import { type DocsModalElements } from '../ui-docs-modal-manager.js';
+import type { DocsModalElements } from '../ui-docs-modal-manager.js';
 import type { LanguageManager } from '#frontend/services/language-manager.js';
+import type { LanguageCode } from '#shared/index.js';
 
 export class DocsTocManager {
   #elements: Partial<DocsModalElements>;
@@ -25,6 +22,7 @@ export class DocsTocManager {
   public generate(contentContainer: HTMLElement | null): void {
     const tocList = this.#elements.modalTocList;
     if (!tocList || !contentContainer) return;
+    const translate = this.#uiControllerRef.translationService.translate;
 
     tocList.innerHTML = '';
     const headings = contentContainer.querySelectorAll<HTMLElement>('h1, h2, h3');

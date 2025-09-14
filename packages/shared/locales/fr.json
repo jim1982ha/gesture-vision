@@ -3,7 +3,7 @@
     "actionTypeLabel": "Type d'Action",
     "actionTypeNone": "Aucune",
     "add": "Ajouter",
-    "addNewAction": "Ajouter Action",
+    "addNewAction": "Ajouter",
     "addTooltip": "Ajouter un nouvel élément : {{item}}",
     "addXTitle": "Ajouter {{item}}",
     "advancedFeaturesTabTitle": "Fonctions Avancées",
@@ -252,5 +252,6 @@
     "roiWidthLabel": "Largeur (%)",
     "filterPlaceholder": "Filtrer...",
     "errorLoadingDoc": "Erreur lors du chargement du document.",
-    "studioLaunchError": "Impossible d'ouvrir le Studio de Gestes. Raison : {{reason}}"
+    "studioLaunchError": "Impossible d'ouvrir le Studio de Gestes. Raison : {{reason}}",
+    "rtspRoiInvalid": "Valeurs ROI invalides. La somme de la marge et de la dimension (X+Largeur ou Y+Hauteur) ne peut pas dépasser 100."
 }

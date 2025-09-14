@@ -29,18 +29,13 @@ export function toggleElementClass(
  * Sets the visibility of an HTML element by toggling a 'hidden' class.
  * @param element The HTML element.
  * @param isVisible True to show the element, false to hide.
- * @param displayStyleWhenVisible The display style to apply if the element was hidden via inline style.
  */
 export function setElementVisibility(
   element: HTMLElement | null | undefined,
-  isVisible: boolean,
-  displayStyleWhenVisible = 'block'
+  isVisible: boolean
 ): void {
   if (!element) return;
   element.classList.toggle('hidden', !isVisible);
-  if (isVisible && element.style.display === 'none') {
-    element.style.display = displayStyleWhenVisible;
-  }
 }
 
 /**
