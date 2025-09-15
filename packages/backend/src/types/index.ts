@@ -2,7 +2,7 @@
 // Contains types that are exclusively used by the backend service.
 
 import type { Router } from 'express';
-import type { ZodType, ZodSchema } from 'zod';
+import type { ZodType } from 'zod';
 import type {
   PluginManifest,
   ActionResult,
@@ -30,8 +30,8 @@ export interface BackendPlugin {
   init?(context: BackendPluginContext): Promise<void>;
   getApiRouter?(): Router | null;
   getActionHandler?(): ActionHandler | null;
-  getGlobalConfigValidationSchema?(): ZodSchema | ZodType | null;
-  getActionConfigValidationSchema?(): ZodSchema | ZodType | null;
+  getGlobalConfigValidationSchema?(): ZodType | null;
+  getActionConfigValidationSchema?(): ZodType | null;
   onGlobalConfigUpdate?(newConfig: unknown): Promise<void>;
   destroy?(): Promise<void>;
   testConnection?(configToTest: unknown): Promise<{

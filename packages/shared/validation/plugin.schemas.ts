@@ -5,6 +5,7 @@ export const ActionConfigSchema = z.object({
   pluginId: z.string(),
   settings: z.unknown().optional(), 
 });
+export type ActionConfig = z.infer<typeof ActionConfigSchema>;
 
 export const PluginManifestSchema = z.object({
     id: z.string(),
@@ -12,7 +13,7 @@ export const PluginManifestSchema = z.object({
     version: z.string(),
     descriptionKey: z.string().optional(),
     author: z.string().optional(),
-    icon: z.object({ type: z.enum(['material-icons', 'mdi']), name: z.string() }).optional(),
+    icon: z.object({ type: z.enum(['material-icons', 'mdi', 'material-symbols']), name: z.string() }).optional(),
     capabilities: z.object({
       hasGlobalSettings: z.boolean().optional(),
       providesActions: z.boolean().optional(),
@@ -29,13 +30,15 @@ export const PluginManifestSchema = z.object({
     status: z.enum(['enabled', 'disabled']).optional(),
     sourceUrl: z.string().optional(),
 });
+export type PluginManifest = z.infer<typeof PluginManifestSchema>;
 
 export const ActionSettingFieldOptionSchema = z.object({
   value: z.string(),
   label: z.string(),
   disabled: z.boolean().optional(),
 });
-  
+export type ActionSettingFieldOption = z.infer<typeof ActionSettingFieldOptionSchema>;
+
 export const ActionSettingFieldDescriptorSchema = z.object({
     id: z.string(),
     type: z.enum(['text', 'password', 'url', 'select', 'textarea', 'checkbox']),
@@ -49,10 +52,12 @@ export const ActionSettingFieldDescriptorSchema = z.object({
     dependsOn: z.array(z.string()).optional(),
     autocomplete: z.enum(['on', 'off', 'name', 'email', 'username', 'new-password', 'current-password', 'url']).optional(),
 });
+export type ActionSettingFieldDescriptor = z.infer<typeof ActionSettingFieldDescriptorSchema>;
 
 export const ActionDisplayDetailSchema = z.object({
   icon: z.string().optional(),
-  iconType: z.enum(['material-icons', 'mdi']).optional(),
+  iconType: z.enum(['material-icons', 'mdi', 'material-symbols']).optional(),
   value: z.string(),
   allowWrap: z.boolean().optional(),
 });
+export type ActionDisplayDetail = z.infer<typeof ActionDisplayDetailSchema>;

@@ -86,7 +86,7 @@ export interface IPluginGlobalSettingsComponent {
   update(newConfig?: object | null): void;
   updateToggleButtonState(): void;
   updateTestState(isTesting: boolean, result?: PluginTestConnectionResultPayload | null): void;
-  destroy(): void;
+  destroy?(): void;
   applyTranslations?(): void;
   switchToEditMode(): void;
   switchToViewMode(): void;

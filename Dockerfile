@@ -89,9 +89,22 @@ COPY --from=builder /app/packages ./packages
 COPY --from=builder /app/extensions ./extensions
 COPY --from=builder /app/packages/frontend/dist /usr/share/nginx/html/
 
-# Copy plugin assets to the webroot for Nginx to serve
-RUN mkdir -p /usr/share/nginx/html/plugins && \
-    cp -r /app/extensions/plugins/. /usr/share/nginx/html/plugins/
+# Create the base plugins directory for Nginx
+RUN mkdir -p /usr/share/nginx/html/plugins
+
+# Use a shell loop to intelligently copy only necessary frontend assets for each plugin.
+# This makes the production image smaller and more secure.
+RUN for plugin_dir in /app/extensions/plugins/*; do \
+      if [ -d "$plugin_dir" ]; then \
+        plugin_id=$(basename "$plugin_dir"); \
+        dest_dir="/usr/share/nginx/html/plugins/$plugin_id"; \
+        mkdir -p "$dest_dir"; \
+        if [ -d "$plugin_dir/frontend" ]; then cp -r "$plugin_dir/frontend" "$dest_dir/"; fi; \
+        if [ -d "$plugin_dir/locales" ]; then cp -r "$plugin_dir/locales" "$dest_dir/"; fi; \
+        if [ -f "$plugin_dir/plugin.json" ]; then cp "$plugin_dir/plugin.json" "$dest_dir/"; fi; \
+        if [ -f "$plugin_dir/README.md" ]; then cp "$plugin_dir/README.md" "$dest_dir/"; fi; \
+      fi; \
+    done
 
 RUN chmod -R 755 /usr/share/nginx/html/*
 COPY config/nginx.conf /etc/nginx/nginx.conf

@@ -1,11 +1,9 @@
 /* FILE: packages/backend/src/api/routes/plugins.router.ts */
-import { Router, type Request, type Response, type NextFunction } from 'express';
+import { Router } from 'express';
 import { z } from 'zod';
 
 import type { PluginManagerService } from '../../services/plugin-manager.service.js';
-
-const asyncHandler = (fn: (req: Request, res: Response, next: NextFunction) => Promise<unknown>) =>
-    (req: Request, res: Response, next: NextFunction) => { Promise.resolve(fn(req, res, next)).catch(next); };
+import { asyncHandler } from '../async-handler.js';
 
 const InstallPluginBodySchema = z.object({
     url: z.string().url({ message: "A valid Git repository URL is required." }),

@@ -1,9 +1,7 @@
 /* FILE: packages/backend/src/api/routes/config.router.ts */
-import { Router, type Request, type Response, type NextFunction } from 'express';
+import { Router } from 'express';
 import type { ConfigService } from '../../services/config.service.js';
-
-const asyncHandler = (fn: (req: Request, res: Response, next: NextFunction) => Promise<unknown>) =>
-    (req: Request, res: Response, next: NextFunction) => { Promise.resolve(fn(req, res, next)).catch(next); };
+import { asyncHandler } from '../async-handler.js';
 
 export default function createConfigRouter(configService: ConfigService): Router {
     const router = Router();

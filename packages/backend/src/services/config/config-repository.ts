@@ -2,13 +2,13 @@
 import fs from 'fs/promises';
 import path from 'path';
 
-import { ZodSchema, type ZodError } from 'zod';
+import { type ZodType, type ZodError } from 'zod';
 
 const CONFIG_PATH = "/app/config.json";
 
 export class ConfigRepository {
 
-  public async readConfigFile<T>(schema?: ZodSchema<T>): Promise<T | null> {
+  public async readConfigFile<T>(schema?: ZodType<T>): Promise<T | null> {
     try {
       const fileContent = await fs.readFile(CONFIG_PATH, 'utf-8');
       const data = JSON.parse(fileContent);
@@ -24,7 +24,7 @@ export class ConfigRepository {
     }
   }
 
-  public async writeConfigFile<T>(data: T, schema?: ZodSchema<T>): Promise<boolean> {
+  public async writeConfigFile<T>(data: T, schema?: ZodType<T>): Promise<boolean> {
     try {
       const dataToWrite = schema ? schema.parse(data) : data;
       await fs.mkdir(path.dirname(CONFIG_PATH), { recursive: true });
@@ -37,7 +37,7 @@ export class ConfigRepository {
   }
 
   // Generic methods for plugin configs
-  public async readPluginConfigFile<T>(filePath: string, schema?: ZodSchema<T>): Promise<T | null> {
+  public async readPluginConfigFile<T>(filePath: string, schema?: ZodType<T>): Promise<T | null> {
     try {
         const data = JSON.parse(await fs.readFile(filePath, 'utf-8'));
         return schema ? schema.parse(data) : data as T;
@@ -49,7 +49,7 @@ export class ConfigRepository {
     }
   }
   
-  public async writePluginConfigFile<T>(filePath: string, data: T, schema?: ZodSchema<T>): Promise<boolean> {
+  public async writePluginConfigFile<T>(filePath: string, data: T, schema?: ZodType<T>): Promise<boolean> {
       try {
           const dataToWrite = schema ? schema.parse(data) : data;
           await fs.mkdir(path.dirname(filePath), { recursive: true });

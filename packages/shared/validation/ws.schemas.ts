@@ -8,6 +8,11 @@ export const WebSocketMessageSchema = z.object({
     payload: z.unknown(),
     messageId: z.number().optional(),
 });
+export type WebSocketMessage<T = unknown> = {
+    type: string;
+    payload: T;
+    messageId?: number;
+};
 
 export const CustomGestureMetadataSchema = z.object({
     id: z.string(),
@@ -17,6 +22,7 @@ export const CustomGestureMetadataSchema = z.object({
     codeString: z.string(),
     type: z.enum(['hand', 'pose']).optional(),
 });
+export type CustomGestureMetadata = z.infer<typeof CustomGestureMetadataSchema>;
 
 export const InitialStatePayloadSchema = z.object({
     globalConfig: FullConfigurationSchema,
@@ -24,12 +30,15 @@ export const InitialStatePayloadSchema = z.object({
     customGestureMetadata: z.array(CustomGestureMetadataSchema),
     manifests: z.array(PluginManifestSchema),
 });
+export type InitialStatePayload = z.infer<typeof InitialStatePayloadSchema>;
 
 export const ErrorPayloadSchema = z.object({
     code: z.string(),
     message: z.string(),
     details: z.unknown().optional(),
 });
+export type ErrorPayload = z.infer<typeof ErrorPayloadSchema>;
+export type ErrorMessage = WebSocketMessage<ErrorPayload>;
 
 export const ActionResultPayloadSchema = z.object({
     gestureName: z.string(),
@@ -38,12 +47,14 @@ export const ActionResultPayloadSchema = z.object({
     message: z.string().optional(),
     details: z.unknown().optional(),
 });
+export type ActionResultPayload = z.infer<typeof ActionResultPayloadSchema>;
 
 export const StreamStatusPayloadSchema = z.object({
     pathName: z.string(),
     status: z.enum(['active', 'inactive', 'error', 'unknown']),
     message: z.string().optional(),
 });
+export type StreamStatusPayload = z.infer<typeof StreamStatusPayloadSchema>;
 
 export const ConfigPatchAckPayloadSchema = z.object({
     success: z.boolean(),
@@ -51,6 +62,7 @@ export const ConfigPatchAckPayloadSchema = z.object({
     updatedConfig: FullConfigurationSchema.partial().optional(),
     validationErrors: z.array(z.object({ field: z.string(), messageKey: z.string(), details: z.unknown().optional() })).optional(),
 });
+export type ConfigPatchAckPayload = z.infer<typeof ConfigPatchAckPayloadSchema>;
 
 export const UploadCustomGesturePayloadSchema = z.object({
     name: z.string(),
@@ -59,13 +71,16 @@ export const UploadCustomGesturePayloadSchema = z.object({
     type: z.enum(['hand', 'pose']),
     source: z.enum(['core', 'studio']).optional(),
 });
-
+export type UploadCustomGesturePayload = z.infer<typeof UploadCustomGesturePayloadSchema>;
+  
 export const UploadCustomGestureAckPayloadSchema = z.object({
     success: z.boolean(),
     message: z.string().optional(),
     newDefinition: CustomGestureMetadataSchema.optional(),
     source: z.enum(['core', 'studio']).optional(),
 });
+export type UploadCustomGestureAckPayload = z.infer<typeof UploadCustomGestureAckPayloadSchema>;
+export type UploadCustomGestureAckMessage = WebSocketMessage<UploadCustomGestureAckPayload>;
 
 export const UpdateCustomGesturePayloadSchema = z.object({
     id: z.string(),
@@ -73,17 +88,21 @@ export const UpdateCustomGesturePayloadSchema = z.object({
     newName: z.string(),
     newDescription: z.string(),
 });
+export type UpdateCustomGesturePayload = z.infer<typeof UpdateCustomGesturePayloadSchema>;
 
 export const UpdateCustomGestureAckPayloadSchema = z.object({
     success: z.boolean(),
     message: z.string().optional(),
     updatedDefinition: CustomGestureMetadataSchema.optional(),
 });
+export type UpdateCustomGestureAckPayload = z.infer<typeof UpdateCustomGestureAckPayloadSchema>;
+export type UpdateCustomGestureAckMessage = WebSocketMessage<UpdateCustomGestureAckPayload>;
 
 export const DeleteCustomGesturePayloadSchema = z.object({
     id: z.string(),
     name: z.string(),
 });
+export type DeleteCustomGesturePayload = z.infer<typeof DeleteCustomGesturePayloadSchema>;
 
 export const DeleteCustomGestureAckPayloadSchema = z.object({
     success: z.boolean(),
@@ -91,6 +110,8 @@ export const DeleteCustomGestureAckPayloadSchema = z.object({
     deletedId: z.string().optional(),
     deletedName: z.string().optional(),
 });
+export type DeleteCustomGestureAckPayload = z.infer<typeof DeleteCustomGestureAckPayloadSchema>;
+export type DeleteCustomGestureAckMessage = WebSocketMessage<DeleteCustomGestureAckPayload>;
 
 export const PluginTestConnectionResultPayloadSchema = z.object({
     pluginId: z.string(),
@@ -98,3 +119,4 @@ export const PluginTestConnectionResultPayloadSchema = z.object({
     messageKey: z.string().optional(),
     error: z.object({ code: z.string().optional(), message: z.string().optional() }).optional(),
 });
+export type PluginTestConnectionResultPayload = z.infer<typeof PluginTestConnectionResultPayloadSchema>;

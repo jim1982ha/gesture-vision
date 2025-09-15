@@ -12,6 +12,7 @@ export const RoiConfigSchema = z.object({
 }).refine(data => data.y + data.height <= 100, {
   message: "rtspRoiInvalid", path: ["height"],
 });
+export type RoiConfig = z.infer<typeof RoiConfigSchema>;
 
 export const RtspSourceConfigSchema = z.object({
   name: z.string().min(1),
@@ -19,6 +20,7 @@ export const RtspSourceConfigSchema = z.object({
   sourceOnDemand: z.boolean().optional(),
   roi: RoiConfigSchema.optional(),
 });
+export type RtspSourceConfig = z.infer<typeof RtspSourceConfigSchema>;
 
 export const GestureConfigSchema = z.object({
   gesture: z.string().min(1),
@@ -26,6 +28,7 @@ export const GestureConfigSchema = z.object({
   duration: z.number().positive(),
   actionConfig: ActionConfigSchema.nullable(),
 });
+export type GestureConfig = z.infer<typeof GestureConfigSchema>;
 
 export const PoseConfigSchema = z.object({
   pose: z.string().min(1),
@@ -33,6 +36,7 @@ export const PoseConfigSchema = z.object({
   actionConfig: ActionConfigSchema.nullable(),
   confidence: z.number().min(0).max(100).optional(),
 });
+export type PoseConfig = z.infer<typeof PoseConfigSchema>;
 
 const allowedFpsValues = [24, 30, 60] as const;
 
@@ -57,3 +61,5 @@ export const FullConfigurationSchema = z.object({
   poseTrackingConfidence: z.number().min(0.1).max(0.9).optional(),
   _migrationVersion: z.number().optional(),
 });
+export type FullConfiguration = z.infer<typeof FullConfigurationSchema>;
+export type SanitizedFullConfiguration = Required<FullConfiguration>;

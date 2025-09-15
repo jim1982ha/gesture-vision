@@ -1,7 +1,6 @@
 /* FILE: packages/backend/src/services/mtx-monitor.service.ts */
-import { BACKEND_INTERNAL_EVENTS, pubsub, normalizeNameForMtx, type FullConfiguration } from '#shared/index.js';
+import { BACKEND_INTERNAL_EVENTS, pubsub, normalizeNameForMtx, type FullConfiguration, type RtspSourceConfig, type StreamStatusPayload } from '#shared/index.js';
 import { callMtxApi } from '../mtx-api-helpers.js';
-import type { RtspSourceConfig, StreamStatusPayload } from "#shared/index.js";
 
 interface MtxPathConf {
     name?: string; source?: string; sourceOnDemand?: boolean; runOnReady?: string; runOnNotReady?: string;

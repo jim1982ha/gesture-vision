@@ -1,5 +1,5 @@
 /* FILE: packages/backend/src/websocket-handlers/config-message-handler.ts */
-import { WEBSOCKET_EVENTS } from '#shared/constants/events.js';
+import { WEBSOCKET_EVENTS } from '#shared/index.js';
 import type WebSocket from 'ws';
 
 import { sendMessageToClient, sendErrorMessageToClient } from './ws-response-utils.js';

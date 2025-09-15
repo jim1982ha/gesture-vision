@@ -77,6 +77,10 @@ export const GESTURE_CATEGORY_ICONS = {
   UI_FPS_24: { iconName: "24fps_select", iconType: "material-symbols" },
   UI_FPS_30: { iconName: "30fps_select", iconType: "material-symbols" },
   UI_FPS_60: { iconName: "60fps_select", iconType: "material-symbols" },
+  UI_ONE: { iconName: "looks_one", iconType: "material-symbols" },
+  UI_TWO: { iconName: "looks_two", iconType: "material-symbols" },
+  UI_THREE: { iconName: "looks_3", iconType: "material-symbols" },
+  UI_UNDO: { iconName: "undo", iconType: "material-symbols" },
 } as const;
 
 export type GestureCategoryIconType = keyof typeof GESTURE_CATEGORY_ICONS;

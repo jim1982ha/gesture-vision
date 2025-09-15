@@ -255,9 +255,7 @@ export class PluginsTab extends BaseSettingsTab<PluginsTabElements> {
         for (const id of this.#cardComponents.keys()) {
             if (!currentIds.has(id)) {
                 const componentToDestroy = this.#cardComponents.get(id);
-                if (componentToDestroy) {
-                    componentToDestroy.destroy();
-                }
+                componentToDestroy?.destroy?.();
                 this.#cardComponents.delete(id);
             }
         }
