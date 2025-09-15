@@ -1,32 +1,32 @@
 /* FILE: packages/frontend/src/constants/app-defaults.ts */
 // Centralized default values and constants for the frontend application.
 
-import type { RoiConfig, FullConfiguration } from '#shared/index.js';
+import type { RoiConfig, SanitizedFullConfiguration } from '#shared/index.js';
 import type { ThemePreference } from '#frontend/types/index.js';
 import type { LanguageCode } from '#shared/services/translations.js';
 
 // --- Gesture Processing & Video ---
-export const DEFAULT_TARGET_FPS: FullConfiguration['targetFpsPreference'] = 15;
-export const MIN_FRAME_INTERVAL_MS = Math.round(1000 / 30);
+export const DEFAULT_TARGET_FPS: SanitizedFullConfiguration['targetFpsPreference'] = 30;
+export const MIN_FRAME_INTERVAL_MS = Math.round(1000 / 60); // Allow up to 60fps
 export const MAX_FRAME_INTERVAL_MS = Math.round(1000 / 5);
 export const TARGET_PROCESSING_TIME_FACTOR = 1.0;
 export const DEFAULT_ROI: RoiConfig = { x: 0, y: 0, width: 100, height: 100 };
 export const DEFAULT_PROCESSING_WIDTH = 640;
 
 // --- Core Application Configuration Defaults ---
-export const DEFAULT_GLOBAL_COOLDOWN: FullConfiguration['globalCooldown'] = 2.0;
-export const DEFAULT_TELEMETRY_ENABLED: FullConfiguration['telemetryEnabled'] = false;
-export const DEFAULT_ENABLE_CUSTOM_HAND_GESTURES: FullConfiguration['enableCustomHandGestures'] = false;
-export const DEFAULT_ENABLE_POSE_PROCESSING: FullConfiguration['enablePoseProcessing'] = false;
-export const DEFAULT_ENABLE_BUILT_IN_HAND_GESTURES: FullConfiguration['enableBuiltInHandGestures'] = true;
-export const DEFAULT_LOW_LIGHT_BRIGHTNESS: FullConfiguration['lowLightBrightness'] = 100;
-export const DEFAULT_LOW_LIGHT_CONTRAST: FullConfiguration['lowLightContrast'] = 100;
-export const DEFAULT_HAND_DETECTION_CONFIDENCE: FullConfiguration['handDetectionConfidence'] = 0.5;
-export const DEFAULT_HAND_PRESENCE_CONFIDENCE: FullConfiguration['handPresenceConfidence'] = 0.5;
-export const DEFAULT_HAND_TRACKING_CONFIDENCE: FullConfiguration['handTrackingConfidence'] = 0.4;
-export const DEFAULT_POSE_DETECTION_CONFIDENCE: FullConfiguration['poseDetectionConfidence'] = 0.5;
-export const DEFAULT_POSE_PRESENCE_CONFIDENCE: FullConfiguration['posePresenceConfidence'] = 0.5;
-export const DEFAULT_POSE_TRACKING_CONFIDENCE: FullConfiguration['poseTrackingConfidence'] = 0.4;
+export const DEFAULT_GLOBAL_COOLDOWN: SanitizedFullConfiguration['globalCooldown'] = 2.0;
+export const DEFAULT_TELEMETRY_ENABLED: SanitizedFullConfiguration['telemetryEnabled'] = false;
+export const DEFAULT_ENABLE_CUSTOM_HAND_GESTURES: SanitizedFullConfiguration['enableCustomHandGestures'] = false;
+export const DEFAULT_ENABLE_POSE_PROCESSING: SanitizedFullConfiguration['enablePoseProcessing'] = false;
+export const DEFAULT_ENABLE_BUILT_IN_HAND_GESTURES: SanitizedFullConfiguration['enableBuiltInHandGestures'] = true;
+export const DEFAULT_LOW_LIGHT_BRIGHTNESS: SanitizedFullConfiguration['lowLightBrightness'] = 100;
+export const DEFAULT_LOW_LIGHT_CONTRAST: SanitizedFullConfiguration['lowLightContrast'] = 100;
+export const DEFAULT_HAND_DETECTION_CONFIDENCE: SanitizedFullConfiguration['handDetectionConfidence'] = 0.5;
+export const DEFAULT_HAND_PRESENCE_CONFIDENCE: SanitizedFullConfiguration['handPresenceConfidence'] = 0.5;
+export const DEFAULT_HAND_TRACKING_CONFIDENCE: SanitizedFullConfiguration['handTrackingConfidence'] = 0.4;
+export const DEFAULT_POSE_DETECTION_CONFIDENCE: SanitizedFullConfiguration['poseDetectionConfidence'] = 0.5;
+export const DEFAULT_POSE_PRESENCE_CONFIDENCE: SanitizedFullConfiguration['posePresenceConfidence'] = 0.5;
+export const DEFAULT_POSE_TRACKING_CONFIDENCE: SanitizedFullConfiguration['poseTrackingConfidence'] = 0.4;
 
 // --- Core UI & Application Preferences ---
 export const DEFAULT_LANGUAGE: LanguageCode = 'en';

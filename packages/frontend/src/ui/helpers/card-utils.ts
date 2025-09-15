@@ -15,7 +15,7 @@ export interface CardFooterConfig {
 
 export interface CardContent {
   iconName: string; 
-  iconType?: 'material-icons' | 'mdi';
+  iconType?: 'material-icons' | 'mdi' | 'material-symbols'; // FIX: Added 'material-symbols'
   title: string;
   translate: TranslateFn;
   id?: string;

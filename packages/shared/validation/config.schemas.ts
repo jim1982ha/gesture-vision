@@ -34,15 +34,15 @@ export const PoseConfigSchema = z.object({
   confidence: z.number().min(0).max(100).optional(),
 });
 
-const allowedFpsValues = [5, 10, 15, 20, 30] as const;
+const allowedFpsValues = [24, 30, 60] as const;
 
 export const FullConfigurationSchema = z.object({
   globalCooldown: z.number().min(0),
   rtspSources: z.array(RtspSourceConfigSchema),
   gestureConfigs: z.array(z.union([GestureConfigSchema, PoseConfigSchema])),
-  targetFpsPreference: z.coerce.number().refine((val) => allowedFpsValues.includes(val as typeof allowedFpsValues[number]), {
+  targetFpsPreference: z.coerce.number().pipe(z.union([z.literal(24), z.literal(30), z.literal(60)], {
     message: `Target FPS must be one of: ${allowedFpsValues.join(', ')}`,
-  }),
+  })),
   telemetryEnabled: z.boolean().optional(),
   enableCustomHandGestures: z.boolean(),
   enablePoseProcessing: z.boolean(),

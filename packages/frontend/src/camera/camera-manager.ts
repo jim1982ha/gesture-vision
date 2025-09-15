@@ -73,6 +73,10 @@ export class CameraManager {
       if (state.rtspSources !== prevState.rtspSources && this.isStreaming()) {
         this.#handleLiveRtspConfigUpdate(state.rtspSources);
       }
+      
+      if (state.processingResolutionWidthPreference !== prevState.processingResolutionWidthPreference && this.isStreaming() && !this.isStreamingRtsp()) {
+        this.start(this.#currentDeviceId || '', null).catch(e => console.error("Error restarting stream after resolution change:", e));
+      }
     });
   }
 
@@ -214,6 +218,9 @@ export class CameraManager {
       width: this.#videoElement.videoWidth,
       height: this.#videoElement.videoHeight,
     };
+    if (!this.isStreamingRtsp()) {
+        console.log(`[CameraManager] Stream (re)started successfully. Applied resolution: ${this.#videoElement.videoWidth}x${this.#videoElement.videoHeight}.`);
+    }
     const actualTrack = this.#stream?.getVideoTracks()[0];
     if (actualTrack && !this.isStreamingRtsp()) {
       const deviceIdFromTrack = actualTrack.getSettings().deviceId;

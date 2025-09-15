@@ -2,8 +2,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 
-import { normalizeNameForMtx } from '#shared/index.js';
-import type { CustomGestureMetadata } from '#shared/index.js';
+import { normalizeNameForMtx, type CustomGestureMetadata } from '#shared/index.js';
 
 export const CUSTOM_GESTURES_DIR = '/app/extensions/custom_gestures';
 

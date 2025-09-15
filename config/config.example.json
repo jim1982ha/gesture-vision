@@ -55,7 +55,7 @@
       }
     }
   ],
-  "targetFpsPreference": 15,
+  "targetFpsPreference": 30,
   "telemetryEnabled": false,
   "enableBuiltInHandGestures": true,
   "enableCustomHandGestures": false,

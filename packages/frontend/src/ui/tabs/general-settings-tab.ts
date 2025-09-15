@@ -17,17 +17,25 @@ export interface GeneralSettingsTabElements extends TabElements {
 }
 
 const RESOLUTION_OPTIONS: Readonly<ButtonGroupOption[]> = [
-  { value: '360', text: 'nHD', titleKey: 'resolution640x360', iconKey: 'UI_RESOLUTION_NHD' },
-  { value: '640', text: 'SD', titleKey: 'resolution640x480', iconKey: 'UI_RESOLUTION_SD' },
+  { value: '640', text: 'SD', titleKey: 'resolution640x360', iconKey: 'UI_RESOLUTION_SD' },
   { value: '1280', text: 'HD', titleKey: 'resolution1280x720', iconKey: 'UI_RESOLUTION_HD' },
 ];
-const FPS_OPTIONS: Readonly<ButtonGroupOption[]> = [5, 10, 15, 20, 30].map(
-  (v) => ({ value: String(v), text: `${v} FPS` })
-);
+const FPS_OPTIONS: Readonly<ButtonGroupOption[]> = [
+    { value: '24', textKey: 'fpsLow', titleKey: 'fpsLowTooltip', iconKey: 'UI_FPS_24' },
+    { value: '30', textKey: 'fpsMedium', titleKey: 'fpsMediumTooltip', iconKey: 'UI_FPS_30' },
+    { value: '60', textKey: 'fpsHigh', titleKey: 'fpsHighTooltip', iconKey: 'UI_FPS_60' },
+];
 const TELEMETRY_OPTIONS: Readonly<ButtonGroupOption[]> = [
   { value: 'true', textKey: 'enableLabel', titleKey: 'enableLabel', iconKey: 'UI_CHECK_CIRCLE' },
   { value: 'false', textKey: 'disableLabel', titleKey: 'disableLabel', iconKey: 'UI_HIGHLIGHT_OFF' },
 ];
+
+const ALLOWED_FPS_VALUES = [24, 30, 60] as const;
+type AllowedFps = typeof ALLOWED_FPS_VALUES[number];
+
+function isAllowedFps(value: number): value is AllowedFps {
+    return (ALLOWED_FPS_VALUES as readonly number[]).includes(value);
+}
 
 export class GeneralSettingsTab extends BaseSettingsTab<GeneralSettingsTabElements> {
   constructor(appStore: AppStore, uiControllerRef: UIController) {
@@ -91,9 +99,14 @@ export class GeneralSettingsTab extends BaseSettingsTab<GeneralSettingsTabElemen
       )
     );
     this._addEventListenerHelper('targetFpsSelectGroup', 'click', (e: Event) =>
-      this.#handleButtonClick(e as MouseEvent, (value) =>
-        this._appStore.getState().actions.requestBackendPatch({ targetFpsPreference: parseInt(value, 10) })
-      )
+      this.#handleButtonClick(e as MouseEvent, (value) => {
+        const fpsValue = parseInt(value, 10);
+        if (isAllowedFps(fpsValue)) {
+            this._appStore.getState().actions.requestBackendPatch({ targetFpsPreference: fpsValue });
+        } else {
+            console.warn(`[GeneralSettingsTab] Invalid FPS value clicked: ${value}`);
+        }
+      })
     );
     this._addEventListenerHelper('telemetryToggleGroup', 'click', (e: Event) =>
       this.#handleButtonClick(e as MouseEvent, (value) =>

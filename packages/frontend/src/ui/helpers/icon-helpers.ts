@@ -16,27 +16,27 @@ export function setIcon(
   if (!element) return;
 
   const iconTargetElement =
-    element.querySelector<HTMLElement>('.material-icons, .mdi') ||
+    element.querySelector<HTMLElement>('.material-icons, .mdi, .material-symbols-outlined') ||
     (element as HTMLElement);
 
   if (!iconTargetElement) return;
 
   let iconName: string;
-  let iconType: 'material-icons' | 'mdi';
+  let iconType: 'material-icons' | 'mdi' | 'material-symbols';
 
   if (iconIdentifier in GESTURE_CATEGORY_ICONS) {
     const iconDetails = getGestureCategoryIconDetails(
       iconIdentifier as GestureCategoryIconType
     );
     iconName = iconDetails.iconName;
-    iconType = iconDetails.iconType;
+    iconType = iconDetails.iconType as 'material-icons' | 'mdi' | 'material-symbols';
   } else {
     iconName = iconIdentifier;
     iconType = iconName.startsWith('mdi-') ? 'mdi' : 'material-icons';
   }
 
   const classesToRemove = Array.from(iconTargetElement.classList).filter(
-    (c) => c.startsWith('mdi-') || c === 'mdi' || c === 'material-icons'
+    (c) => c.startsWith('mdi-') || c === 'mdi' || c === 'material-icons' || c === 'material-symbols-outlined'
   );
   if (classesToRemove.length > 0) {
     iconTargetElement.classList.remove(...classesToRemove);
@@ -45,6 +45,9 @@ export function setIcon(
   if (iconType === 'mdi') {
     iconTargetElement.classList.add('mdi', iconName);
     iconTargetElement.textContent = '';
+  } else if (iconType === 'material-symbols') {
+    iconTargetElement.classList.add('material-symbols-outlined');
+    iconTargetElement.textContent = iconName;
   } else {
     iconTargetElement.classList.add('material-icons');
     iconTargetElement.textContent = iconName;

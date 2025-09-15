@@ -1,6 +1,21 @@
 /* FILE: packages/backend/src/services/config.service.ts */
 import { watchFile, unwatchFile, type StatsListener, type StatWatcher } from 'fs';
-
+import {
+  DEFAULT_GLOBAL_COOLDOWN,
+  DEFAULT_TARGET_FPS,
+  DEFAULT_TELEMETRY_ENABLED,
+  DEFAULT_ENABLE_CUSTOM_HAND_GESTURES,
+  DEFAULT_ENABLE_POSE_PROCESSING,
+  DEFAULT_ENABLE_BUILT_IN_HAND_GESTURES,
+  DEFAULT_LOW_LIGHT_BRIGHTNESS,
+  DEFAULT_LOW_LIGHT_CONTRAST,
+  DEFAULT_HAND_DETECTION_CONFIDENCE,
+  DEFAULT_HAND_PRESENCE_CONFIDENCE,
+  DEFAULT_HAND_TRACKING_CONFIDENCE,
+  DEFAULT_POSE_DETECTION_CONFIDENCE,
+  DEFAULT_POSE_PRESENCE_CONFIDENCE,
+  DEFAULT_POSE_TRACKING_CONFIDENCE,
+} from '#frontend/constants/app-defaults.js';
 import {
   BACKEND_INTERNAL_EVENTS,
   pubsub,
@@ -10,7 +25,8 @@ import {
   type StreamStatusPayload,
   type ValidationErrorDetail,
   type RtspSourceConfig,
-  normalizeNameForMtx
+  normalizeNameForMtx,
+  type SanitizedFullConfiguration,
 } from '#shared/index.js';
 
 import { ConfigRepository } from './config/config-repository.js';
@@ -19,23 +35,24 @@ import { ConfigValidator } from './config/config-validator.js';
 const FILE_WATCH_INTERVAL_MS = 1000;
 const DEBOUNCE_DELAY_MS = 300;
 
-const DEFAULT_CONFIG: FullConfiguration = {
-  globalCooldown: 2.0,
+const DEFAULT_CONFIG: SanitizedFullConfiguration = {
+  globalCooldown: DEFAULT_GLOBAL_COOLDOWN,
   rtspSources: [],
   gestureConfigs: [],
-  targetFpsPreference: 15,
-  telemetryEnabled: false,
-  enableCustomHandGestures: false,
-  enablePoseProcessing: false,
-  enableBuiltInHandGestures: true,
-  lowLightBrightness: 100,
-  lowLightContrast: 100,
-  handDetectionConfidence: 0.5,
-  handPresenceConfidence: 0.5,
-  handTrackingConfidence: 0.4,
-  poseDetectionConfidence: 0.5,
-  posePresenceConfidence: 0.5,
-  poseTrackingConfidence: 0.4,
+  targetFpsPreference: DEFAULT_TARGET_FPS,
+  telemetryEnabled: DEFAULT_TELEMETRY_ENABLED,
+  enableCustomHandGestures: DEFAULT_ENABLE_CUSTOM_HAND_GESTURES,
+  enablePoseProcessing: DEFAULT_ENABLE_POSE_PROCESSING,
+  enableBuiltInHandGestures: DEFAULT_ENABLE_BUILT_IN_HAND_GESTURES,
+  lowLightBrightness: DEFAULT_LOW_LIGHT_BRIGHTNESS,
+  lowLightContrast: DEFAULT_LOW_LIGHT_CONTRAST,
+  handDetectionConfidence: DEFAULT_HAND_DETECTION_CONFIDENCE,
+  handPresenceConfidence: DEFAULT_HAND_PRESENCE_CONFIDENCE,
+  handTrackingConfidence: DEFAULT_HAND_TRACKING_CONFIDENCE,
+  poseDetectionConfidence: DEFAULT_POSE_DETECTION_CONFIDENCE,
+  posePresenceConfidence: DEFAULT_POSE_PRESENCE_CONFIDENCE,
+  poseTrackingConfidence: DEFAULT_POSE_TRACKING_CONFIDENCE,
+  _migrationVersion: 0,
 };
 
 export class ConfigService {

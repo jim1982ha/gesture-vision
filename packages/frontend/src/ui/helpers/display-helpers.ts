@@ -3,7 +3,7 @@
 
 import {
   GESTURE_CATEGORY_ICONS,
-  BUILT_IN_HAND_GESTURES,
+  BUILT_IN_HAND_GESTURES, // FIX: Added missing import
   type GestureCategoryIconType,
 } from '#shared/index.js';
 import type { CustomGestureMetadata } from '#shared/index.js';
@@ -31,7 +31,7 @@ export function getGestureCategoryIconDetails(
   category: GestureCategoryIconType
 ): {
   iconName: string;
-  iconType: 'material-icons' | 'mdi';
+  iconType: 'material-icons' | 'mdi' | 'material-symbols';
   defaultEmoji?: string;
 } {
   return GESTURE_CATEGORY_ICONS[category] || GESTURE_CATEGORY_ICONS.UNKNOWN;
@@ -43,8 +43,8 @@ export function getGestureCategoryIconDetails(
  * @returns An object containing the icon name and type.
  */
 export function getActionIconDetails(manifest?: {
-  icon?: { type: 'material-icons' | 'mdi'; name: string };
-} | null): { iconName: string; iconType: 'mdi' | 'material-icons' } {
+  icon?: { type: 'material-icons' | 'mdi' | 'material-symbols'; name: string };
+} | null): { iconName: string; iconType: 'mdi' | 'material-icons' | 'material-symbols' } {
   if (manifest?.icon) {
     return { iconName: manifest.icon.name, iconType: manifest.icon.type };
   }

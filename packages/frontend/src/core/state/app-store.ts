@@ -47,7 +47,7 @@ const getInitialState = (): FrontendFullState => ({
   globalCooldown: 2.0,
   rtspSources: [],
   gestureConfigs: [],
-  targetFpsPreference: 15,
+  targetFpsPreference: 30,
   telemetryEnabled: false,
   enableCustomHandGestures: false,
   enablePoseProcessing: false,

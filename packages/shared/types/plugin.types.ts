@@ -11,7 +11,7 @@ export interface PluginManifest {
     version: string;
     descriptionKey?: string;
     author?: string;
-    icon?: { type: 'material-icons' | 'mdi'; name: string };
+    icon?: { type: 'material-icons' | 'mdi' | 'material-symbols'; name: string };
     capabilities: {
       hasGlobalSettings?: boolean;
       providesActions?: boolean;
@@ -51,7 +51,7 @@ export interface ActionSettingFieldDescriptor {
 
 export interface ActionDisplayDetail {
     icon?: string;
-    iconType?: 'material-icons' | 'mdi';
+    iconType?: 'material-icons' | 'mdi' | 'material-symbols';
     value: string;
     allowWrap?: boolean;
 }

@@ -1,4 +1,6 @@
 /* FILE: packages/frontend/src/styles/_sidebars.css */
 @layer components {
-  /* No custom CSS needed here anymore, all logic is handled by Tailwind utilities in the HTML partial. */
+  .sidebar-header {
+    @apply flex-shrink-0 flex items-center justify-between p-4 border-b border-border;
+  }
 }

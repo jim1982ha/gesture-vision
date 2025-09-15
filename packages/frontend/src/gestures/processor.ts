@@ -41,6 +41,7 @@ export class GestureProcessor {
   #testModeTolerance = 0.2;
   #canvasRendererRef: CanvasRenderer | null = null;
   #processingOverride: { hand: boolean; pose: boolean; numHands: number } | undefined;
+  #initialConfigApplied = false;
 
   constructor(appStore: AppStore, translationService: TranslationService) {
     this.#appStore = appStore;
@@ -64,8 +65,18 @@ export class GestureProcessor {
 
   #subscribeToStateChanges(): void {
     this.#appStore.subscribe((state, prevState) => {
+      // --- FIX START ---
+      // This ensures we only log changes *after* the initial state from the backend is loaded.
+      if (!this.#initialConfigApplied && state.isInitialConfigLoaded) {
+        this.#initialConfigApplied = true;
+      }
+
       const fpsChanged = state.targetFpsPreference !== prevState.targetFpsPreference;
-      if (fpsChanged) this.#state.targetFrameIntervalMs = 1000 / (state.targetFpsPreference || 15);
+      if (fpsChanged && this.#initialConfigApplied) {
+        this.#state.targetFrameIntervalMs = 1000 / (state.targetFpsPreference || 15);
+        console.log(`[GestureProcessor] Target FPS updated. New target interval: ${this.#state.targetFrameIntervalMs.toFixed(2)}ms (~${state.targetFpsPreference} FPS).`);
+      }
+      // --- FIX END ---
       
       if (state.customGestureMetadataList !== prevState.customGestureMetadataList) {
         this.#workerManager.loadCustomGestures(state.customGestureMetadataList as CustomGestureMetadata[]);

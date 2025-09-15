@@ -124,7 +124,8 @@
   ::-webkit-scrollbar-thumb:hover {
     background-color: theme('colors.secondary');
   }
-  .material-icons {
+  .material-icons,
+  .material-symbols-outlined { /* ADDED: New base class */
     vertical-align: middle;
   }
 }

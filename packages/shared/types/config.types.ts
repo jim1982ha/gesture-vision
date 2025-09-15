@@ -29,11 +29,12 @@ export interface PoseConfig {
   confidence?: number;
 }
 
+// This represents the user-facing config file, where some values can be optional.
 export interface FullConfiguration {
   globalCooldown: number;
   rtspSources: RtspSourceConfig[];
   gestureConfigs: (GestureConfig | PoseConfig)[];
-  targetFpsPreference: number;
+  targetFpsPreference: 24 | 30 | 60;
   telemetryEnabled?: boolean;
   enableCustomHandGestures: boolean;
   enablePoseProcessing: boolean;
@@ -48,3 +49,6 @@ export interface FullConfiguration {
   poseTrackingConfidence?: number;
   _migrationVersion?: number;
 }
+
+// This represents the complete, sanitized configuration object used internally by the app, with all optional values filled in.
+export type SanitizedFullConfiguration = Required<FullConfiguration>;
