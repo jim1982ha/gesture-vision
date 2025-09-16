@@ -1,13 +1,7 @@
 /* FILE: packages/frontend/src/services/gesture-worker-manager.ts */
 import { GESTURE_EVENTS, UI_EVENTS, pubsub, type CustomGestureMetadata, type RoiConfig } from '#shared/index.js';
 import type { AppStore } from '#frontend/core/state/app-store.js';
-import type { TestResultPayload } from '#frontend/types/index.js';
-import type { Landmark } from '@mediapipe/tasks-vision';
-
-interface SnapshotPromise {
-  resolve: (value: { landmarks: Landmark[] | null; imageData: ImageData | null } | PromiseLike<{ landmarks: Landmark[] | null; imageData: ImageData | null }>) => void;
-  reject: (reason?: unknown) => void;
-}
+import type { SnapshotPromise, TestResultPayload, SnapshotData } from '#frontend/types/index.js';
 
 export interface WorkerProcessFramePayload {
   imageBitmap: ImageBitmap;
@@ -84,7 +78,7 @@ export class GestureWorkerManager {
     this.#worker?.postMessage({ type: 'process_frame', ...payload }, transfer);
   }
 
-  getSnapshot(): Promise<{ landmarks: Landmark[] | null; imageData: ImageData | null }> {
+  getSnapshot(): Promise<SnapshotData> {
     return new Promise((resolve, reject) => {
       if (!this.#worker) return reject(new Error('Worker not available for snapshot.'));
       this.#snapshotPromise = { resolve, reject };

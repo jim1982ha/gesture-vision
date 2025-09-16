@@ -13,14 +13,6 @@ interface ActionableRecognition {
   confidence: number;
 }
 
-interface DisplayedGestureInfo {
-  name: string;
-  confidence: number;
-  config: GestureConfig | PoseConfig;
-  currentHoldMs: number;
-  requiredHoldMs: number;
-}
-
 export class GestureStateLogic {
   #timerManager: GestureTimerManager;
   #configManager: GestureConfigManager;
@@ -28,7 +20,6 @@ export class GestureStateLogic {
   #uiDispatcher: GestureUIDispatcher;
 
   #publishedConfidencePulse = new Set<string>();
-  #currentlyDisplayedGesture: DisplayedGestureInfo | null = null;
   #isActionDispatchSuppressed = false;
   #activeStreamRoi: RoiConfig | null = null;
 
@@ -40,7 +31,7 @@ export class GestureStateLogic {
     this.#timerManager = new GestureTimerManager(appStore);
     this.#configManager = new GestureConfigManager(appStore);
     this.#actionHandler = new GestureActionHandler(appStore);
-    this.#uiDispatcher = new GestureUIDispatcher(appStore, translationService);
+    this.#uiDispatcher = new GestureUIDispatcher(translationService); // FIX: Removed appStore argument
     
     this.#boundHandleSuppressActions = () => { this.#isActionDispatchSuppressed = true; };
     this.#boundHandleResumeActions = () => { this.#isActionDispatchSuppressed = false; };
@@ -71,10 +62,9 @@ export class GestureStateLogic {
       this.#updateGestureHoldStates(actionableDetections, now);
     } else {
       this.#timerManager.resetAllGestureHoldStates();
-      this.#currentlyDisplayedGesture = null;
     }
     
-    this.#processHeldGesturesAndDisplayLogic(actionableDetections, now, isCooldownActive);
+    this.#processGesturesAndDisplayLogic(actionableDetections, now, isCooldownActive);
   }
 
   #updateGestureHoldStates(detections: ActionableRecognition[], now: number): void {
@@ -95,12 +85,19 @@ export class GestureStateLogic {
     });
   }
 
-  #processHeldGesturesAndDisplayLogic(actionableDetections: ActionableRecognition[], now: number, isCooldownActive: boolean): void {
+  #processGesturesAndDisplayLogic(actionableDetections: ActionableRecognition[], now: number, isCooldownActive: boolean): void {
     let triggeredGestureName: string | null = null;
     let triggeredConfig: GestureConfig | PoseConfig | null = null;
-    let highestHoldPercent = 0;
-    let candidateForDisplay: DisplayedGestureInfo | null = null;
+    
+    // 1. Determine the best gesture to display based on highest confidence.
+    let primaryGestureForDisplay: ActionableRecognition | null = null;
+    if (actionableDetections.length > 0) {
+        primaryGestureForDisplay = actionableDetections.reduce((prev, current) => 
+            (prev.confidence > current.confidence) ? prev : current
+        );
+    }
 
+    // 2. Process hold timers and action triggers only for gestures meeting their threshold.
     if (!isCooldownActive && !this.#isActionDispatchSuppressed) {
       actionableDetections.forEach(detection => {
         const config = this.#configManager.getActiveConfig(detection.name);
@@ -112,13 +109,7 @@ export class GestureStateLogic {
         if (holdState?.startTime) {
           const holdDuration = now - holdState.startTime;
           const requiredDurationMs = (config.duration || 1.0) * 1000;
-          const holdPercent = requiredDurationMs > 0 ? Math.min(1, holdDuration / requiredDurationMs) : 0;
-
-          if (holdPercent >= highestHoldPercent) {
-            highestHoldPercent = holdPercent;
-            candidateForDisplay = { name: configName, confidence: detection.confidence, config, currentHoldMs: holdDuration, requiredHoldMs: requiredDurationMs };
-          }
-
+          
           if (!triggeredGestureName && holdDuration >= requiredDurationMs) {
             triggeredGestureName = configName;
             triggeredConfig = config;
@@ -126,44 +117,54 @@ export class GestureStateLogic {
         }
       });
     }
-    
-    this.#currentlyDisplayedGesture = candidateForDisplay;
-    this.#updateUIDisplay(isCooldownActive, highestHoldPercent);
-    
+
+    // 3. Update the UI display based on the highest confidence gesture found in step 1.
+    this.#updateUIDisplay(primaryGestureForDisplay, now, isCooldownActive);
+
     if (triggeredGestureName && triggeredConfig) {
       this.#actionHandler.trigger(triggeredGestureName, triggeredConfig, actionableDetections, now);
       this.#timerManager.startGlobalCooldown(now);
       this.#timerManager.resetAllGestureHoldStates();
-      this.#currentlyDisplayedGesture = null;
     }
   }
 
-  #updateUIDisplay(isCooldownActive: boolean, currentMaxHoldPercent: number): void {
+  #updateUIDisplay(primaryGesture: ActionableRecognition | null, now: number, isCooldownActive: boolean): void {
     let gesture = '-';
     let realtimeConfidence = 0;
     let configuredThreshold: number | null = null;
+    let holdPercent = 0;
+    let currentHoldMs = 0;
+    let requiredHoldMs = 0;
 
-    if (this.#currentlyDisplayedGesture && !isCooldownActive && !this.#isActionDispatchSuppressed) {
-        gesture = this.#currentlyDisplayedGesture.name;
-        realtimeConfidence = this.#currentlyDisplayedGesture.confidence;
-        configuredThreshold = typeof this.#currentlyDisplayedGesture.config.confidence === 'number' ? this.#currentlyDisplayedGesture.config.confidence / 100.0 : null;
+    if (primaryGesture && !isCooldownActive && !this.#isActionDispatchSuppressed) {
+        const config = this.#configManager.getActiveConfig(primaryGesture.name);
+        if (config) {
+            gesture = primaryGesture.name;
+            realtimeConfidence = primaryGesture.confidence;
+            configuredThreshold = (config.confidence ?? 50) / 100.0;
+
+            const holdState = this.#timerManager.getGestureHoldState(gesture);
+            if (holdState?.startTime) {
+                currentHoldMs = now - holdState.startTime;
+                requiredHoldMs = (config.duration || 1.0) * 1000;
+                holdPercent = requiredHoldMs > 0 ? Math.min(1, currentHoldMs / requiredHoldMs) : 0;
+            }
+        }
     }
     
-    if (gesture === '-') this.#currentlyDisplayedGesture = null;
-
     this.#uiDispatcher.update({
         gesture, realtimeConfidence, configuredThreshold, isCooldownActive,
-        holdPercent: this.#isActionDispatchSuppressed ? 0 : currentMaxHoldPercent,
-        cooldownPercent: this.#timerManager.getGlobalCooldownPercent(),
-        currentHoldMs: this.#currentlyDisplayedGesture?.currentHoldMs || 0,
-        requiredHoldMs: this.#currentlyDisplayedGesture?.requiredHoldMs || 0,
-        remainingCooldownMs: this.#timerManager.getRemainingCooldownMs(),
+        holdPercent,
+        cooldownPercent: this.#timerManager.getGlobalCooldownPercent(now),
+        currentHoldMs,
+        requiredHoldMs,
+        remainingCooldownMs: this.#timerManager.getRemainingCooldownMs(now),
     });
   }
 
   public getTimerManager = (): GestureTimerManager => this.#timerManager;
   public setActiveStreamRoi = (roi: RoiConfig | null): void => { this.#activeStreamRoi = roi; };
   public getActiveStreamRoi = (): RoiConfig | null => this.#activeStreamRoi;
-  public resetHoldTimers = (): void => { this.#timerManager.resetAllGestureHoldStates(); this.#currentlyDisplayedGesture = null; };
+  public resetHoldTimers = (): void => { this.#timerManager.resetAllGestureHoldStates(); };
   public resetCooldown = (): void => { this.#timerManager.resetGlobalCooldown(); };
 }

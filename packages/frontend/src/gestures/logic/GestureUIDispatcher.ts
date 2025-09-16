@@ -1,7 +1,5 @@
 /* FILE: packages/frontend/src/gestures/logic/GestureUIDispatcher.ts */
-import type { AppStore } from '#frontend/core/state/app-store.js';
 import type { TranslationService } from '#frontend/services/translation.service.js';
-import { getGestureDisplayInfo } from '#frontend/ui/helpers/index.js';
 import { GESTURE_EVENTS, pubsub } from '#shared/index.js';
 
 interface UIDispatcherPayload {
@@ -10,21 +8,19 @@ interface UIDispatcherPayload {
     configuredThreshold: number | null;
     isCooldownActive?: boolean;
     holdPercent: number;
+    cooldownPercent: number;
     currentHoldMs?: number;
     requiredHoldMs?: number;
     remainingCooldownMs?: number;
-    cooldownPercent: number;
 }
 
 /**
  * Manages publishing UI update events based on the current gesture state.
  */
 export class GestureUIDispatcher {
-    #appStore: AppStore;
     #translationService: TranslationService;
 
-    constructor(appStore: AppStore, translationService: TranslationService) {
-        this.#appStore = appStore;
+    constructor(translationService: TranslationService) {
         this.#translationService = translationService;
     }
 
@@ -33,13 +29,14 @@ export class GestureUIDispatcher {
             gesture, realtimeConfidence, configuredThreshold, isCooldownActive,
             holdPercent, cooldownPercent, currentHoldMs, requiredHoldMs, remainingCooldownMs
         } = payload;
-
-        // Publish status update for the top-center display
-        const { formattedName } = getGestureDisplayInfo(gesture, this.#appStore.getState().customGestureMetadataList || []);
-        const gestureTextToDisplay = gesture !== '-' ? this.#translationService.translate(formattedName, { defaultValue: formattedName }) : this.#translationService.translate('None');
+        
+        // The raw gesture name is now translated directly.
+        // For built-in gestures, it hits a translation key. For custom, it uses the name as the default.
+        const gestureTextToDisplay = this.#translationService.translate(gesture, { defaultValue: gesture });
 
         pubsub.publish(GESTURE_EVENTS.UPDATE_STATUS, {
-            gesture: gestureTextToDisplay,
+            gesture: gesture, // Pass the RAW gesture name ('-' or 'VICTORY')
+            gestureText: gestureTextToDisplay, // Pass the final display text
             realtimeConfidence,
             configuredThreshold,
             isCooldownActive,

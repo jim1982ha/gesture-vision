@@ -15,7 +15,7 @@ export interface CardFooterConfig {
 
 export interface CardContent {
   iconName: string; 
-  iconType?: 'material-icons' | 'mdi' | 'material-symbols'; // FIX: Added 'material-symbols'
+  iconType?: 'material-icons' | 'mdi' | 'material-symbols';
   title: string;
   translate: TranslateFn;
   id?: string;
@@ -149,7 +149,7 @@ export function createCardElement(content: CardContent): HTMLDivElement {
     header.appendChild(headerContentWrapper);
     cardElement.appendChild(header);
     
-    // --- Details ---
+    // --- Details (Always create the container) ---
     const detailsContainer = document.createElement('div');
     detailsContainer.className = 'card-details';
     if (content.detailsHtml) {

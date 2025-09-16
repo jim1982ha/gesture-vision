@@ -76,7 +76,8 @@ export class CameraService {
   }
 
   public getLandmarkSnapshot(): Promise<{
-    landmarks: Landmark[] | null;
+    landmarks2d: Landmark[] | null;
+    landmarks3d: Landmark[] | null;
     imageData: ImageData | null;
   }> {
     const gestureProcessor = this.#cameraManager.getGestureProcessor();

@@ -164,20 +164,19 @@ async function manageModels(
   isInitializing = false;
 }
 
-function runCustomGestureChecks(landmarks, definitions, tolerance = 0.0) {
+function runCustomGestureChecks(landmarks, worldLandmarks, definitions) {
   const detected = [];
-  // Guard clause: Ensure landmarks are valid before checking
-  if (!landmarks || landmarks.length === 0 || !definitions || definitions.size === 0) {
+  if (!worldLandmarks || worldLandmarks.length === 0 || !definitions || definitions.size === 0) {
     return detected;
   }
 
   definitions.forEach((def, name) => {
     try {
       const checkFn = def.type === 'pose' ? def.checkPose : def.checkGesture;
-      const resultWithTolerance = checkFn(landmarks, null, tolerance);
-      const result = self.GestureUtils.checkGesture(landmarks, resultWithTolerance.rules);
-      if (result?.detected)
+      const result = checkFn(landmarks, worldLandmarks, 0.0);
+      if (result?.detected) {
         detected.push({ categoryName: name, score: result.confidence || 1.0 });
+      }
     } catch (e) {
       self.postMessage({
         type: "error",
@@ -192,7 +191,7 @@ function runCustomGestureChecks(landmarks, definitions, tolerance = 0.0) {
   return detected;
 }
 
-async function processImageSource(imageData, timestamp, staticRoiConfig, testRules, testTolerance, requestSnapshot) {
+async function processImageSource(imageData, timestamp, staticRoiConfig, requestSnapshot) {
   if (isInitializing || timestamp <= lastProcessedTimestamp || !imageData) {
     if (imageData instanceof ImageBitmap) imageData.close();
     return;
@@ -201,7 +200,7 @@ async function processImageSource(imageData, timestamp, staticRoiConfig, testRul
 
   try {
     const startTime = performance.now();
-    let handResults = null, poseResults = null, testResult = null, snapshotData = null;
+    let handResults = null, poseResults = null, snapshotData = null;
 
     if (enablePoseProcessing && poseModelLoaded && poseLandmarker) {
       poseResults = poseLandmarker.detectForVideo(imageData, timestamp);
@@ -216,28 +215,22 @@ async function processImageSource(imageData, timestamp, staticRoiConfig, testRul
         const ctx = offscreenCanvas.getContext('2d');
         ctx.drawImage(imageData, 0, 0);
         snapshotData = {
-            landmarks: (handResults?.landmarks[0] || poseResults?.landmarks[0] || null),
+            landmarks2d: (handResults?.landmarks[0] || poseResults?.landmarks[0] || null),
+            landmarks3d: (handResults?.worldLandmarks[0] || poseResults?.worldLandmarks[0] || null),
             imageData: ctx.getImageData(0, 0, imageData.width, imageData.height),
         };
     }
 
     const customActionable = [];
     if (enableHandProcessing && customHandGestureExecutionEnabled && handResults?.landmarks)
-      handResults.landmarks.forEach((lms) => {
-        customActionable.push(...runCustomGestureChecks(lms, customHandDefinitions));
+      handResults.landmarks.forEach((lms, index) => {
+        customActionable.push(...runCustomGestureChecks(lms, handResults.worldLandmarks[index], customHandDefinitions));
       });
     if (enablePoseProcessing && poseResults?.landmarks)
-      poseResults.landmarks.forEach((lms) => {
-        customActionable.push(...runCustomGestureChecks(lms, customPoseDefinitions));
+      poseResults.landmarks.forEach((lms, index) => {
+        customActionable.push(...runCustomGestureChecks(lms, poseResults.worldLandmarks[index], customPoseDefinitions));
       });
-
-    // SIMPLIFIED AND CORRECTED: The worker just passes data to the core utility.
-    // The core utility (checkGesture) is responsible for handling empty/invalid landmarks.
-    if (testRules) {
-        const landmarks = testRules.type === 'hand' ? handResults?.landmarks?.[0] : poseResults?.landmarks?.[0];
-        testResult = self.GestureUtils.checkGesture(landmarks, testRules);
-    }
-
+    
     const finalHandGestures = enableHandProcessing && builtInHandGesturesExecutionEnabled && handResults ? handResults.gestures : [];
     
     const messagePayload = {
@@ -247,7 +240,9 @@ async function processImageSource(imageData, timestamp, staticRoiConfig, testRul
             handGestureResults: { gestures: finalHandGestures || [], landmarks: handResults?.landmarks || [], worldLandmarks: handResults?.worldLandmarks || [] },
             customActionableGestures: customActionable,
             poseLandmarkerResults: { landmarks: poseResults?.landmarks || [], worldLandmarks: poseResults?.worldLandmarks || [] },
-            roiConfig: staticRoiConfig, testResult, snapshot: snapshotData
+            roiConfig: staticRoiConfig, 
+            testResult: null,
+            snapshot: snapshotData
         },
         processingTime: performance.now() - startTime,
     };
@@ -308,70 +303,27 @@ self.onmessage = async (event) => {
       customHandDefinitions.clear();
       customPoseDefinitions.clear();
       (payload?.gestures || []).forEach((def) => {
-        try {
-          const code = def.codeString.replace(
-            /export\s+(const|function)\s+/g,
-            "$1 "
-          );
-          const functionName =
-            def.type === "pose" ? "checkPose" : "checkGesture";
-          const mod = new Function(
-            `${code}\nreturn { metadata, ${functionName} };`
-          )();
-          if (typeof mod[functionName] !== "function")
-            throw new Error(`${functionName} is not a function`);
-
-          const definitionsMap =
-            mod.metadata.type === "pose"
-              ? customPoseDefinitions
-              : customHandDefinitions;
-          definitionsMap.set(mod.metadata.name, {
-            ...mod.metadata,
-            checkGesture: mod.checkGesture,
-            checkPose: mod.checkPose
-          });
-        } catch (e) {
+        // Use the centralized compilation utility
+        const mod = self.GestureUtils.compileGestureCode(def.codeString, def.type);
+        if (mod) {
+          const definitionsMap = mod.type === "pose" ? customPoseDefinitions : customHandDefinitions;
+          definitionsMap.set(mod.name, mod);
+        } else {
           self.postMessage({
             type: "error",
             error: {
               code: "WORKER_CUSTOM_IMPORT_FAILED",
-              message: `Failed to import gesture '${def.name}': ${
-                e instanceof Error ? e.message : String(e)
-              }`,
+              message: `Failed to compile gesture '${def.name}'. See console for details.`,
             },
           });
         }
       });
       break;
     case "process_frame": {
-        let finalTestRules = null;
-        if (event.data.testRules && event.data.testTolerance !== undefined) {
-             const baseRules = event.data.testRules;
-             const tolerance = event.data.testTolerance;
-             
-             const applyToleranceToRule = (rule, isAngle) => {
-                 const { min: minObserved, max: maxObserved } = rule;
-                 const observedRange = maxObserved - minObserved;
-                 const maxAbsoluteToleranceRange = isAngle ? (45.0 * 2) : (0.1 * 2);
-                 const easedTolerance = Math.pow(tolerance, 1.5);
-                 const interpolatedRange = observedRange + (maxAbsoluteToleranceRange - observedRange) * easedTolerance;
-                 const toleranceAmount = interpolatedRange / 2;
-                 const center = (minObserved + maxObserved) / 2;
-                 return { ...rule, min: Math.max(0, center - toleranceAmount), max: center + toleranceAmount };
-             };
- 
-             finalTestRules = {
-                 ...baseRules,
-                 relativeDistances: baseRules.relativeDistances.map(r => applyToleranceToRule(r, false)),
-                 jointAngles: baseRules.jointAngles.map(r => applyToleranceToRule(r, true)),
-             };
-        }
       await processImageSource(
         event.data.imageBitmap,
         event.data.timestamp,
         event.data.roiConfig,
-        finalTestRules,
-        event.data.testTolerance,
         event.data.requestSnapshot
       );
       break;

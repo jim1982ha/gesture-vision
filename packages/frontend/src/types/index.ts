@@ -46,12 +46,14 @@ export interface HistoryEntry {
   details?: unknown;
 }
 
+export interface SnapshotData {
+  landmarks2d: Landmark[] | null;
+  landmarks3d: Landmark[] | null;
+  imageData: ImageData | null;
+}
+
 export interface SnapshotPromise {
-  resolve: (
-    value:
-      | { landmarks: Landmark[] | null; imageData: ImageData | null }
-      | PromiseLike<{ landmarks: Landmark[] | null; imageData: ImageData | null }>
-  ) => void;
+  resolve: (value: SnapshotData | PromiseLike<SnapshotData>) => void;
   reject: (reason?: unknown) => void;
 }
 

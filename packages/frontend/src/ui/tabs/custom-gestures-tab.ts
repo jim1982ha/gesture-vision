@@ -73,17 +73,23 @@ export class CustomGesturesTab extends BaseSettingsTab<CustomGesturesTabElements
         if (!gestureId || !gestureName) return;
 
         const targetButton = (event.target as HTMLElement).closest('button');
+        const clickedComponent = this.#cardComponents.get(gestureId);
+        if (!clickedComponent) return;
 
         if (targetButton?.classList.contains('delete-btn')) {
             this.#handleDeleteClick(gestureId, gestureName);
         } else if (targetButton?.classList.contains('save-edit-btn')) {
             this.#handleSaveClick(gestureId);
         } else if (targetButton?.classList.contains('cancel-edit-btn')) {
+            clickedComponent.switchToViewMode();
             this.#editingGestureId = null;
-            this.loadSettings();
-        } else if (!targetButton) {
+        } else if (!targetButton && !clickedComponent.isEditing()) {
+            // FIX: Don't re-render the whole list. Surgically switch component states.
+            if (this.#editingGestureId && this.#editingGestureId !== gestureId) {
+                this.#cardComponents.get(this.#editingGestureId)?.switchToViewMode();
+            }
             this.#editingGestureId = gestureId;
-            this.loadSettings();
+            clickedComponent.switchToEditMode();
         }
     }
 
@@ -180,7 +186,6 @@ export class CustomGesturesTab extends BaseSettingsTab<CustomGesturesTabElements
             { element: this._elements.container?.querySelector('#custom-gestures-pose-list-title'), config: { key: 'savedCustomGesturesTitle', substitutions: { type: this._translate('Pose') } } },
         ]);
         
-        // Instead of a full reload, iterate through existing components and apply translations.
         for (const component of this.#cardComponents.values()) {
             component.applyTranslations?.();
         }

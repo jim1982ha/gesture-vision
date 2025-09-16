@@ -1,4 +1,4 @@
-/* FILE: packages/frontend/src/ui/components/video-overlay/tuning-panel-manager.ts */
+/* FILE: packages/frontend/src/ui/components/video-overlay/tuning-panel-manager.js */
 import { setElementVisibility } from '#frontend/ui/helpers/index.js';
 import type { AppStore, FrontendFullState } from '#frontend/core/state/app-store.js';
 import type { FullConfiguration } from '#shared/index.js';
@@ -6,6 +6,7 @@ import type { FullConfiguration } from '#shared/index.js';
 export type SliderConfig = {
   slider: HTMLInputElement;
   output: HTMLElement;
+  label: HTMLLabelElement;
   configKey: keyof FullConfiguration;
 };
 

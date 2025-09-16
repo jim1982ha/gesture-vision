@@ -1,10 +1,11 @@
 /* FILE: packages/frontend/src/ui/renderers/feedback-renderer.ts */
 import type { AppStore } from '#frontend/core/state/app-store.js';
-import { getGestureDisplayInfo, setIcon } from '#frontend/ui/helpers/index.js';
+import { setIcon } from '#frontend/ui/helpers/index.js'; // FIX: Removed unused 'getGestureDisplayInfo'
 import type { TranslationService } from '#frontend/services/translation.service.js';
 
 interface GestureStatusData {
-  gesture: string;
+  gesture: string; // This will now be the RAW gesture name ('-' or 'VICTORY')
+  gestureText: string; // This will be the translated text for display
   realtimeConfidence: number;
   configuredThreshold: number | null;
   isCooldownActive?: boolean;
@@ -42,18 +43,13 @@ export function updateStatusDisplay(
   )
     return;
 
-  const translate = translationService.translate;
   const isCooldownActive = status.isCooldownActive === true;
-  const rawGestureName = status.gesture || '-';
-  
-  const { formattedName } = getGestureDisplayInfo(rawGestureName, appStore.getState().customGestureMetadataList || []);
-  
-  const gestureTextToDisplay =
-    rawGestureName !== '-'
-      ? translate(formattedName, { defaultValue: formattedName })
-      : translate('None');
+  const rawGestureName = status.gesture || '-'; // Use the raw name for logic
+  const gestureTextToDisplay = status.gestureText || '-';
 
-  const showGestureInfo = rawGestureName !== '-' && rawGestureName.toUpperCase() !== 'NONE' && !isCooldownActive;
+  // FIX: Visibility is now based on the raw gesture name being meaningful.
+  const showGestureInfo = rawGestureName !== '-' && !isCooldownActive;
+  
   gestureFeedbackOverlay.classList.toggle('hidden', !showGestureInfo);
   gestureFeedbackOverlay.classList.toggle('flex', showGestureInfo);
   gestureFeedbackOverlay.classList.toggle('flex-row', showGestureInfo);

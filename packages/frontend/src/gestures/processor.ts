@@ -2,7 +2,7 @@
 // Orchestrates gesture and pose recognition using a Web Worker.
 // Manages model loading, frame processing, and communication with the worker.
 import type { AppStore } from '#frontend/core/state/app-store.js';
-import type { FrameAnalysisFrameData } from '#frontend/types/index.js';
+import type { FrameAnalysisFrameData, SnapshotData } from '#frontend/types/index.js';
 import { GESTURE_EVENTS, UI_EVENTS, pubsub, type RoiConfig, type CustomGestureMetadata } from '#shared/index.js';
 import { MIN_FRAME_INTERVAL_MS, MAX_FRAME_INTERVAL_MS, TARGET_PROCESSING_TIME_FACTOR } from '#frontend/constants/app-defaults.js';
 import { GestureStateLogic } from './state-logic.js';
@@ -65,8 +65,6 @@ export class GestureProcessor {
 
   #subscribeToStateChanges(): void {
     this.#appStore.subscribe((state, prevState) => {
-      // --- FIX START ---
-      // This ensures we only log changes *after* the initial state from the backend is loaded.
       if (!this.#initialConfigApplied && state.isInitialConfigLoaded) {
         this.#initialConfigApplied = true;
       }
@@ -76,7 +74,6 @@ export class GestureProcessor {
         this.#state.targetFrameIntervalMs = 1000 / (state.targetFpsPreference || 15);
         console.log(`[GestureProcessor] Target FPS updated. New target interval: ${this.#state.targetFrameIntervalMs.toFixed(2)}ms (~${state.targetFpsPreference} FPS).`);
       }
-      // --- FIX END ---
       
       if (state.customGestureMetadataList !== prevState.customGestureMetadataList) {
         this.#workerManager.loadCustomGestures(state.customGestureMetadataList as CustomGestureMetadata[]);
@@ -194,7 +191,8 @@ export class GestureProcessor {
     }
   };
 
-  public getLandmarkSnapshot = (): Promise<{ landmarks: Landmark[] | null; imageData: ImageData | null }> => {
+  // FIX: Corrected the return type signature to match SnapshotData.
+  public getLandmarkSnapshot = (): Promise<SnapshotData> => {
     return this.#workerManager.getSnapshot();
   };
 

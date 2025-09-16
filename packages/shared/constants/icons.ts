@@ -81,6 +81,7 @@ export const GESTURE_CATEGORY_ICONS = {
   UI_TWO: { iconName: "looks_two", iconType: "material-symbols" },
   UI_THREE: { iconName: "looks_3", iconType: "material-symbols" },
   UI_UNDO: { iconName: "undo", iconType: "material-symbols" },
+  UI_RECORD: { iconName: "arrow_range", iconType: "material-symbols" },
 } as const;
 
 export type GestureCategoryIconType = keyof typeof GESTURE_CATEGORY_ICONS;

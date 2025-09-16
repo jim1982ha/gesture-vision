@@ -13,16 +13,23 @@ export class PluginInstallManager {
     #urlInput: HTMLInputElement | null = null;
     #installButton: HTMLButtonElement | null = null;
 
-    constructor(container: HTMLElement, uiControllerRef: UIController) {
-        this.#container = container;
+    constructor(uiControllerRef: UIController) {
         this.#uiControllerRef = uiControllerRef;
         this.#translate = this.#uiControllerRef.translationService.translate;
-        this.render();
+        this.#container = this.render();
         this.attachEventListeners();
     }
+    
+    public getElement(): HTMLElement {
+        return this.#container;
+    }
 
-    private render(): void {
-        this.#container.innerHTML = `
+    private render(): HTMLElement {
+        const container = document.createElement('div');
+        container.className = 'mb-6';
+        container.id = 'pluginInstallContainer';
+
+        container.innerHTML = `
             <div class="form-group">
                 <label for="pluginInstallUrl" class="form-label">${this.#translate('pluginInstallUrlLabel')}</label>
                 <div class="flex items-center gap-2">
@@ -30,7 +37,7 @@ export class PluginInstallManager {
                 </div>
             </div>
         `;
-        this.#urlInput = this.#container.querySelector('#pluginInstallUrl');
+        this.#urlInput = container.querySelector('#pluginInstallUrl');
         this.#installButton = createButton({
             id: 'pluginInstallBtn',
             textKey: 'pluginInstallBtnText',
@@ -38,7 +45,8 @@ export class PluginInstallManager {
             extraClasses: ['btn-primary', 'flex-shrink-0'],
             translate: this.#translate
         });
-        this.#container.querySelector('.flex')?.appendChild(this.#installButton);
+        container.querySelector('.flex')?.appendChild(this.#installButton);
+        return container;
     }
     
     private attachEventListeners(): void {

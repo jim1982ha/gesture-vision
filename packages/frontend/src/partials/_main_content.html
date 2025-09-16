@@ -53,25 +53,27 @@
             </div>
             <div id="display-adjustments-panel" class="video-overlay-panel hidden">
                 <div class="tuning-sliders-container">
-                    <div class="flex-1 flex flex-col gap-1">
+                    <div class="flex-1 flex flex-col gap-2">
                         <div class="slider-group"><label for="brightnessSlider" id="brightnessLabel"></label><input type="range" id="brightnessSlider" data-config-key="lowLightBrightness" min="0" max="200" /><output for="brightnessSlider" id="brightnessValue">100%</output></div>
                         <div class="slider-group"><label for="contrastSlider" id="contrastLabel"></label><input type="range" id="contrastSlider" data-config-key="lowLightContrast" min="0" max="200" /><output for="contrastSlider" id="contrastValue">100%</output></div>
+                        <div class="flex justify-end">
+                            <button id="resetDisplayAdjustmentsBtn" class="btn btn-icon" title="Reset Adjustments"><span class="material-icons">restart_alt</span></button>
+                        </div>
                     </div>
-                    <button id="resetDisplayAdjustmentsBtn" class="btn btn-icon" title="Reset Adjustments"><span class="material-icons">restart_alt</span></button>
                 </div>
             </div>
             <div id="ai-tuning-panel" class="video-overlay-panel hidden">
                 <div class="tuning-sliders-container">
                     <div class="flex-1 flex flex-col gap-1">
                         <div id="handTuningSliders">
-                            <div class="slider-group"><label id="handTuningDetectLabel"></label><input type="range" id="handDetectionConfidenceSlider" data-config-key="handDetectionConfidence" min="0.1" max="0.9" step="0.05" /><output id="handDetectionConfidenceOutput">50%</output></div>
-                            <div class="slider-group"><label id="handTuningPresenceLabel"></label><input type="range" id="handPresenceConfidenceSlider" data-config-key="handPresenceConfidence" min="0.1" max="0.9" step="0.05" /><output id="handPresenceConfidenceOutput">50%</output></div>
-                            <div class="slider-group"><label id="handTuningTrackLabel"></label><input type="range" id="handTrackingConfidenceSlider" data-config-key="handTrackingConfidence" min="0.1" max="0.9" step="0.05" /><output id="handTrackingConfidenceOutput">40%</output></div>
+                            <div class="slider-group"><label for="handDetectionConfidenceSlider" id="handTuningDetectLabel"></label><input type="range" id="handDetectionConfidenceSlider" data-config-key="handDetectionConfidence" min="0.1" max="0.9" step="0.05" /><output id="handDetectionConfidenceOutput">50%</output></div>
+                            <div class="slider-group"><label for="handPresenceConfidenceSlider" id="handTuningPresenceLabel"></label><input type="range" id="handPresenceConfidenceSlider" data-config-key="handPresenceConfidence" min="0.1" max="0.9" step="0.05" /><output id="handPresenceConfidenceOutput">50%</output></div>
+                            <div class="slider-group"><label for="handTrackingConfidenceSlider" id="handTuningTrackLabel"></label><input type="range" id="handTrackingConfidenceSlider" data-config-key="handTrackingConfidence" min="0.1" max="0.9" step="0.05" /><output id="handTrackingConfidenceOutput">40%</output></div>
                         </div>
                         <div id="poseTuningSliders" class="hidden">
-                            <div class="slider-group"><label id="poseTuningDetectLabel"></label><input type="range" id="poseDetectionConfidenceSlider" data-config-key="poseDetectionConfidence" min="0.1" max="0.9" step="0.05" /><output id="poseDetectionConfidenceOutput">50%</output></div>
-                            <div class="slider-group"><label id="poseTuningPresenceLabel"></label><input type="range" id="posePresenceConfidenceSlider" data-config-key="posePresenceConfidence" min="0.1" max="0.9" step="0.05" /><output id="posePresenceConfidenceOutput">50%</output></div>
-                            <div class="slider-group"><label id="poseTuningTrackLabel"></label><input type="range" id="poseTrackingConfidenceSlider" data-config-key="poseTrackingConfidence" min="0.1" max="0.9" step="0.05" /><output id="poseTrackingConfidenceOutput">35%</output></div>
+                            <div class="slider-group"><label for="poseDetectionConfidenceSlider" id="poseTuningDetectLabel"></label><input type="range" id="poseDetectionConfidenceSlider" data-config-key="poseDetectionConfidence" min="0.1" max="0.9" step="0.05" /><output id="poseDetectionConfidenceOutput">50%</output></div>
+                            <div class="slider-group"><label for="posePresenceConfidenceSlider" id="poseTuningPresenceLabel"></label><input type="range" id="posePresenceConfidenceSlider" data-config-key="posePresenceConfidence" min="0.1" max="0.9" step="0.05" /><output id="posePresenceConfidenceOutput">50%</output></div>
+                            <div class="slider-group"><label for="poseTrackingConfidenceSlider" id="poseTuningTrackLabel"></label><input type="range" id="poseTrackingConfidenceSlider" data-config-key="poseTrackingConfidence" min="0.1" max="0.9" step="0.05" /><output id="poseTrackingConfidenceOutput">35%</output></div>
                         </div>
                     </div>
                 </div>

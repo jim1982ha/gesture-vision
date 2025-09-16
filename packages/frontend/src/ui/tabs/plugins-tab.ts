@@ -22,13 +22,14 @@ export interface PluginsTabElements extends TabElements {
 export class PluginsTab extends BaseSettingsTab<PluginsTabElements> {
     #uiControllerRef: UIController & { _confirmationModalMgr?: ConfirmationModalManager | null };
     #pendingPlugins = new Set<string>();
-    #installManager: PluginInstallManager | null = null;
+    #installManager: PluginInstallManager;
     #editingPluginId: string | null = null;
     #cardComponents = new Map<string, IPluginGlobalSettingsComponent>();
 
     constructor(appStore: AppStore, uiControllerRef: UIController) {
         super(appStore, uiControllerRef, { container: '[data-tab-content="plugins"]' });
         this.#uiControllerRef = uiControllerRef;
+        this.#installManager = new PluginInstallManager(this.#uiControllerRef);
         pubsub.subscribe(UI_EVENTS.RECEIVE_UI_CONTRIBUTION, this.#renderContributions);
     }
     
@@ -299,24 +300,21 @@ export class PluginsTab extends BaseSettingsTab<PluginsTabElements> {
             { element: this._elements.openPluginDevDocsBtn, config: { key: "pluginDevInfoLink" } },
         ]);
         
-        // Corrected logic: Iterate and apply translations to existing components
-        // instead of calling the destructive loadSettings().
         for (const component of this.#cardComponents.values()) {
             component.applyTranslations?.();
         }
         
-        this.#installManager?.applyTranslations();
+        this.#installManager.applyTranslations();
         this.#renderContributions();
     }
     
     #renderLayout(): void {
         const container = this._elements.container;
         if (!container) return;
+        
         container.innerHTML = `
             <div id="plugins-list-view">
-                <div class="mb-6" id="pluginInstallContainer">
-                    <!-- PluginInstallManager will render its content here -->
-                </div>
+                <!-- PluginInstallManager's element will be appended here -->
                 <div id="pluginsListContainer" class="flex flex-col gap-3"></div>
                 <p id="pluginsListPlaceholder" class="list-placeholder"></p>
                 <div class="flex items-center justify-center gap-2 text-sm text-text-secondary py-2 mt-6">
@@ -326,10 +324,13 @@ export class PluginsTab extends BaseSettingsTab<PluginsTabElements> {
                 </div>
             </div>
         `;
+
         this._elements.pluginsListContainer = container.querySelector('#pluginsListContainer');
         this._elements.pluginsListPlaceholder = container.querySelector('#pluginsListPlaceholder');
-        this._elements.pluginInstallContainer = container.querySelector('#pluginInstallContainer');
         this._elements.openPluginDevDocsBtn = container.querySelector('#openPluginDevDocsBtn');
         this._elements.pluginDevInfoText = container.querySelector('#pluginDevInfoText');
+        
+        const listView = container.querySelector('#plugins-list-view');
+        listView?.prepend(this.#installManager.getElement());
     }
 }

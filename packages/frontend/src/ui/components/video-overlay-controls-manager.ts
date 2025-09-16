@@ -79,14 +79,16 @@ export class VideoOverlayControlsManager {
       {
         slider: document.getElementById("brightnessSlider") as HTMLInputElement,
         output: document.getElementById("brightnessValue") as HTMLElement,
+        label: document.getElementById("brightnessLabel") as HTMLLabelElement,
         configKey: "lowLightBrightness",
       },
       {
         slider: document.getElementById("contrastSlider") as HTMLInputElement,
         output: document.getElementById("contrastValue") as HTMLElement,
+        label: document.getElementById("contrastLabel") as HTMLLabelElement,
         configKey: "lowLightContrast",
       },
-    ].filter((s) => s.slider && s.output) as SliderConfig[];
+    ].filter((s) => s.slider && s.output && s.label) as SliderConfig[];
 
     this.#displayTuningPanel = new TuningPanelManager(
       document.getElementById("display-adjustments-panel") as HTMLElement,
@@ -100,60 +102,42 @@ export class VideoOverlayControlsManager {
 
     const aiSliders = [
       {
-        slider: document.getElementById(
-          "handDetectionConfidenceSlider"
-        ) as HTMLInputElement,
-        output: document.getElementById(
-          "handDetectionConfidenceOutput"
-        ) as HTMLElement,
+        slider: document.getElementById("handDetectionConfidenceSlider") as HTMLInputElement,
+        output: document.getElementById("handDetectionConfidenceOutput") as HTMLElement,
+        label: document.getElementById("handTuningDetectLabel") as HTMLLabelElement,
         configKey: "handDetectionConfidence",
       },
       {
-        slider: document.getElementById(
-          "handPresenceConfidenceSlider"
-        ) as HTMLInputElement,
-        output: document.getElementById(
-          "handPresenceConfidenceOutput"
-        ) as HTMLElement,
+        slider: document.getElementById("handPresenceConfidenceSlider") as HTMLInputElement,
+        output: document.getElementById("handPresenceConfidenceOutput") as HTMLElement,
+        label: document.getElementById("handTuningPresenceLabel") as HTMLLabelElement,
         configKey: "handPresenceConfidence",
       },
       {
-        slider: document.getElementById(
-          "handTrackingConfidenceSlider"
-        ) as HTMLInputElement,
-        output: document.getElementById(
-          "handTrackingConfidenceOutput"
-        ) as HTMLElement,
+        slider: document.getElementById("handTrackingConfidenceSlider") as HTMLInputElement,
+        output: document.getElementById("handTrackingConfidenceOutput") as HTMLElement,
+        label: document.getElementById("handTuningTrackLabel") as HTMLLabelElement,
         configKey: "handTrackingConfidence",
       },
       {
-        slider: document.getElementById(
-          "poseDetectionConfidenceSlider"
-        ) as HTMLInputElement,
-        output: document.getElementById(
-          "poseDetectionConfidenceOutput"
-        ) as HTMLElement,
+        slider: document.getElementById("poseDetectionConfidenceSlider") as HTMLInputElement,
+        output: document.getElementById("poseDetectionConfidenceOutput") as HTMLElement,
+        label: document.getElementById("poseTuningDetectLabel") as HTMLLabelElement,
         configKey: "poseDetectionConfidence",
       },
       {
-        slider: document.getElementById(
-          "posePresenceConfidenceSlider"
-        ) as HTMLInputElement,
-        output: document.getElementById(
-          "posePresenceConfidenceOutput"
-        ) as HTMLElement,
+        slider: document.getElementById("posePresenceConfidenceSlider") as HTMLInputElement,
+        output: document.getElementById("posePresenceConfidenceOutput") as HTMLElement,
+        label: document.getElementById("poseTuningPresenceLabel") as HTMLLabelElement,
         configKey: "posePresenceConfidence",
       },
       {
-        slider: document.getElementById(
-          "poseTrackingConfidenceSlider"
-        ) as HTMLInputElement,
-        output: document.getElementById(
-          "poseTrackingConfidenceOutput"
-        ) as HTMLElement,
+        slider: document.getElementById("poseTrackingConfidenceSlider") as HTMLInputElement,
+        output: document.getElementById("poseTrackingConfidenceOutput") as HTMLElement,
+        label: document.getElementById("poseTuningTrackLabel") as HTMLLabelElement,
         configKey: "poseTrackingConfidence",
       },
-    ].filter((s) => s.slider && s.output) as SliderConfig[];
+    ].filter((s) => s.slider && s.output && s.label) as SliderConfig[];
 
     this.#aiTuningPanel = new TuningPanelManager(
       document.getElementById("ai-tuning-panel") as HTMLElement,
@@ -279,6 +263,28 @@ export class VideoOverlayControlsManager {
 
   public applyTranslations(): void {
     this.#toolbarManager.applyTranslations();
+    const translate = this.#uiControllerRef.translationService.translate;
+    
+    // Apply translations for display panel
+    const brightnessLabel = document.getElementById('brightnessLabel');
+    if (brightnessLabel) brightnessLabel.textContent = translate('brightnessLabel');
+    const contrastLabel = document.getElementById('contrastLabel');
+    if (contrastLabel) contrastLabel.textContent = translate('contrastLabel');
+
+    // Apply translations for AI tuning panel
+    const handDetectLabel = document.getElementById('handTuningDetectLabel');
+    if (handDetectLabel) handDetectLabel.textContent = translate('detectLabel');
+    const handPresenceLabel = document.getElementById('handTuningPresenceLabel');
+    if (handPresenceLabel) handPresenceLabel.textContent = translate('presenceLabel');
+    const handTrackLabel = document.getElementById('handTuningTrackLabel');
+    if (handTrackLabel) handTrackLabel.textContent = translate('trackLabel');
+    
+    const poseDetectLabel = document.getElementById('poseTuningDetectLabel');
+    if (poseDetectLabel) poseDetectLabel.textContent = translate('detectLabel');
+    const posePresenceLabel = document.getElementById('poseTuningPresenceLabel');
+    if (posePresenceLabel) posePresenceLabel.textContent = translate('presenceLabel');
+    const poseTrackLabel = document.getElementById('poseTuningTrackLabel');
+    if (poseTrackLabel) poseTrackLabel.textContent = translate('trackLabel');
   }
 
   public closeAllOverlayPanels(): void {

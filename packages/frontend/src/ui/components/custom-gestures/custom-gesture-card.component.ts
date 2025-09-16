@@ -1,4 +1,4 @@
-/* FILE: packages/frontend/src/ui/components/custom-gestures/custom-gesture-card.component.ts */
+/* FILE: extensions/plugins/gesture-vision-plugin-gesture-studio/frontend/ui/components/custom-gestures/custom-gesture-card.component.ts */
 import { getGestureCategoryIconDetails, setIcon } from '#frontend/ui/helpers/index.js';
 import { createCardElement, type ActionButtonConfig } from '#frontend/ui/helpers/card-utils.js';
 import type { CustomGestureMetadata } from '#shared/index.js';
@@ -12,6 +12,7 @@ export class CustomGestureCardComponent {
     public cardElement: HTMLDivElement;
     protected context: PluginUIContext;
     #definition: CustomGestureMetadata;
+    #isEditing = false;
 
     constructor(
         definition: CustomGestureMetadata,
@@ -20,8 +21,9 @@ export class CustomGestureCardComponent {
     ) {
         this.context = context;
         this.#definition = definition;
+        this.#isEditing = isEditing;
 
-        const actionButtons: ActionButtonConfig[] = isEditing ? [] : [{
+        const actionButtons: ActionButtonConfig[] = [{
             action: 'delete', titleKey: 'deleteTooltip', iconKey: 'UI_DELETE_FOREVER',
             extraClasses: ['btn-icon-danger', 'delete-btn'], translate: context.services.translationService.translate
         }];
@@ -37,43 +39,31 @@ export class CustomGestureCardComponent {
         });
         this.cardElement.id = `custom-gesture-card-${definition.id}`;
         
-        if (isEditing) {
-            this.cardElement.classList.add('is-editing-highlight');
-            this.renderForm();
+        // FIX: The component now manages its own state from creation.
+        if (this.#isEditing) {
+            this.switchToEditMode();
         } else {
-            this.renderView();
+            this.switchToViewMode(); // This will call renderView()
         }
     }
     
     public getElement = (): HTMLElement => this.cardElement;
+    
+    public isEditing = (): boolean => this.#isEditing;
 
     public applyTranslations(): void {
         const translate = this.context.services.translationService.translate;
         
-        // Update title and tooltip which are part of the card shell
         const titleEl = this.cardElement.querySelector('.card-title');
         if (titleEl) titleEl.textContent = this.#definition.name;
         this.cardElement.title = translate('editTooltip', { item: this.#definition.name });
 
-        if (this.cardElement.querySelector('form')) {
-            // In edit mode, update form labels and buttons
-            const nameLabel = this.cardElement.querySelector('label[for$="-name"]');
-            if (nameLabel) nameLabel.textContent = translate('nameLabel');
-            
-            const descLabel = this.cardElement.querySelector('label[for$="-desc"]');
-            if (descLabel) descLabel.textContent = translate('descriptionOptionalLabel');
-
-            const cancelBtnText = this.cardElement.querySelector('.cancel-edit-btn span:not(.material-icons)');
-            if (cancelBtnText) cancelBtnText.textContent = translate('cancel');
-            
-            const saveBtnText = this.cardElement.querySelector('.save-edit-btn span:not(.material-icons)');
-            if (saveBtnText) saveBtnText.textContent = translate('save');
+        if (this.#isEditing) {
+            this.renderForm();
         } else {
-            // In view mode, update the description (if it's rendered)
-            this.renderView(); // Easiest way to re-translate the description part
+            this.renderView();
         }
 
-        // Always update action buttons
         const deleteBtn = this.cardElement.querySelector<HTMLButtonElement>('.delete-btn');
         if (deleteBtn) deleteBtn.title = translate('deleteTooltip', { item: this.#definition.name });
     }
@@ -114,5 +104,20 @@ export class CustomGestureCardComponent {
         `;
         setIcon(detailsContainer.querySelector('.cancel-edit-btn'), 'UI_CANCEL');
         setIcon(detailsContainer.querySelector('.save-edit-btn'), 'UI_SAVE');
+    }
+    
+    public switchToEditMode(): void {
+        if (this.#isEditing) return;
+        this.#isEditing = true;
+        this.cardElement.classList.add("is-editing-highlight");
+        this.renderForm();
+        const firstInput = this.cardElement.querySelector<HTMLInputElement>('input, textarea');
+        firstInput?.focus();
+    }
+
+    public switchToViewMode(): void {
+        this.#isEditing = false; // Always update state regardless of previous state
+        this.cardElement.classList.remove("is-editing-highlight");
+        this.renderView();
     }
 }
