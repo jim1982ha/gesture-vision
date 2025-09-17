@@ -5,7 +5,10 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" id="theme-color-meta" content="#2A9D8F" />
+    <meta name="theme-color" id="theme-color-meta" content="#ffffff" />
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" id="apple-status-bar-style-meta" content="default">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -16,7 +19,6 @@
         <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons&display=swap">
     </noscript>
 
-    <!-- ADDED: Preload and link for Material Symbols -->
     <link rel="preload" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
     <noscript>
         <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap">
@@ -27,7 +29,7 @@
 
     <link rel="manifest" href="/manifest.webmanifest" />
     
-    <link rel="icon" type="image/x-icon" href="/icons/favicon.ico" />
+    <link rel="icon" type="image/svg+xml" href="/icons/favicon.svg" />
 
     <script src="/vendor/markdown/marked.min.js" defer></script>
     <script src="/vendor/markdown/purify.min.js" defer></script>
@@ -39,16 +41,62 @@
       window.GestureVisionPlugins = {};
     </script>
     <script id="app-config"></script>
+    
+    <script>
+      // PWA Detection & Window Controls Overlay script with improved logic and logging
+      (function() {
+        // A desktop PWA is identified by either being in standalone mode OR having the Window Controls Overlay API available.
+        const isDesktopPWA = window.matchMedia('(display-mode: standalone)').matches || 'windowControlsOverlay' in navigator;
+        
+        if (isDesktopPWA) {
+          document.documentElement.classList.add('is-pwa-desktop');
+        }
+
+        // Separately, handle the geometry of the window controls overlay if the feature exists.
+        // This toggles a class for styling the title bar padding.
+        if ('windowControlsOverlay' in navigator) {
+          const handleGeometryChange = () => {
+            const isVisible = navigator.windowControlsOverlay.visible;
+            document.documentElement.classList.toggle('is-pwa-with-overlay', isVisible);
+          };
+          navigator.windowControlsOverlay.addEventListener('geometrychange', handleGeometryChange);
+          handleGeometryChange(); // Initial check on load
+        }
+      })();
+    </script>
 
     <title>GestureVision</title>
 </head>
 
 <body>
+    <script>
+      // Pre-boot theme application script.
+      // MUST be the first element in <body> to prevent Flash of Unstyled Content (FOUC).
+      (function() {
+        try {
+          const storedPrefsRaw = localStorage.getItem('themePreference');
+          const prefs = storedPrefsRaw ? JSON.parse(storedPrefsRaw) : { base: 'main', mode: 'system' };
+          
+          let effectiveMode = prefs.mode;
+          if (effectiveMode === 'system') {
+            effectiveMode = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+          }
+          
+          const themeId = `${prefs.base || 'main'}-${effectiveMode}`;
+          document.body.dataset.theme = themeId;
+        } catch (e) {
+          // Fallback to a default theme on error
+          document.body.dataset.theme = 'main-light';
+          console.error('Error applying pre-boot theme:', e);
+        }
+      })();
+    </script>
     <div id="app-container" class="h-full flex flex-col">
         <!-- header-inject -->
-        <div class="main-content-wrapper flex-1 flex overflow-hidden">
+        <div class="main-content-wrapper flex-1 flex overflow-hidden relative">
             <!-- main-content-inject -->
             <!-- history-sidebar-inject -->
+            <!-- modal-sidebar-backdrop-inject -->
         </div>
     </div>
     
@@ -71,7 +119,6 @@
     <!-- modal-camera-select-inject -->
     <!-- modal-documentation-inject -->
     <!-- modal-gesture-alert-inject -->
-    <!-- modal-sidebar-backdrop-inject -->
     <!-- modal-confirmation-inject -->
     <!-- modal-gesture-config-inject -->
     

@@ -57,7 +57,7 @@ export async function renderHistoryList(
         placeholder.textContent = translate('noGesturesRecorded');
         listFragment.appendChild(placeholder);
     } else {
-        for (const entry of itemsToRender) {
+        const cardPromises = itemsToRender.map(async (entry) => {
             const time = new Date(entry.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
             const { statusIconKey, statusClass, title } = getStatusInfo(entry);
             const { formattedName } = getGestureDisplayInfo(entry.gesture, appStore.getState().customGestureMetadataList || []);
@@ -81,14 +81,16 @@ export async function renderHistoryList(
                 translate,
             });
 
-            // Populate details after card creation
             const detailsContainer = card.querySelector('.card-details');
             if (detailsContainer) {
                 detailsContainer.innerHTML = await getDetailsHtml(entry, pluginUIServiceRef);
             }
+            return card;
+        });
 
-            listFragment.appendChild(card);
-        }
+        const cards = await Promise.all(cardPromises);
+        // REVERSAL LOGIC: Reverse the array of generated cards before appending.
+        cards.reverse().forEach(card => listFragment.appendChild(card));
     }
     
     container.appendChild(listFragment);

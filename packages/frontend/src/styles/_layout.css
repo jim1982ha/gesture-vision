@@ -1,8 +1,42 @@
 /* FILE: packages/frontend/src/styles/_layout.css */
 @layer components {
   .main-content-wrapper {
-    @apply h-full relative;
+    @apply flex-1 relative overflow-hidden;
   }
+
+  /* --- Styles for PWA Window Controls Overlay (Windowed & Fullscreen) --- */
+
+  /* This style applies whenever the JS detects a desktop PWA mode. */
+  /* It makes the header fixed, acting as the primary title bar. This rule is */
+  /* PERMANENT for the session once applied and handles both windowed and fullscreen. */
+  .is-pwa-desktop #app-container > header {
+    @apply fixed top-0 left-0 right-0 w-full;
+    -webkit-app-region: drag;
+    height: env(titlebar-area-height, 3.5rem); /* Fallback for fullscreen */
+  }
+
+  /* Ensure buttons within the draggable header remain clickable. */
+  .is-pwa-desktop #app-container > header .btn,
+  .is-pwa-desktop #app-container > header .dropdown-container,
+  .is-pwa-desktop #app-container > header .language-selector-container {
+    -webkit-app-region: no-drag;
+  }
+
+  /* Push the main content down to avoid being hidden by the fixed header. */
+  .is-pwa-desktop .main-content-wrapper {
+    padding-top: env(titlebar-area-height, 3.5rem);
+  }
+
+  /* This more specific rule applies padding ONLY when the JS detects the */
+  /* window controls overlay is VISIBLE (i.e., windowed mode on macOS/Windows). */
+  /* It is toggled on and off by the geometrychange event listener. */
+  .is-pwa-with-overlay #app-container > header {
+    padding-left: env(titlebar-area-x, 10px);
+    padding-right: calc(
+      100vw - env(titlebar-area-x, 10px) - env(titlebar-area-width, 100vw)
+    );
+  }
+
 
   /* --- Styles for Mobile Fullscreen Video --- */
   body.video-fullscreen-active #app-container > header,

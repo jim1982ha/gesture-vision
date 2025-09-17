@@ -14,7 +14,7 @@ console.log("\n\n\x1b[32m[VITE CONFIG] ✅ SUCCESS: Reading monolithic vite.conf
 
 // --- CORE CONSTANTS & HELPERS ---
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const __dirname = dirname(__filename); // FIX: Corrected variable name from 'filename' to '__filename'
 const projectRoot = path.resolve(__dirname, '../..');
 console.log(`\x1b[34m[VITE CONFIG] ℹ️  Project Root determined as: ${projectRoot}\x1b[0m`);
 
@@ -75,11 +75,15 @@ export default defineConfig(({ mode }) => {
     visualizer({ filename: "./dist/stats.html", template: "treemap", open: false, gzipSize: true }),
   ];
 
+  // Enable the PWA Service Worker for all web builds (dev, prod) but NOT for APK builds.
   if (mode !== "apk") {
     plugins.push(VitePWA({
+      registerType: 'autoUpdate',
       workbox: {
-        maximumFileSizeToCacheInBytes: 10 * 1024 * 1024, // 10 MB
+        maximumFileSizeToCacheInBytes: 10 * 1024 * 1024, // 10 MB cache limit
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff2,task,json}'],
       },
+      manifest: false, // We provide our own manifest.webmanifest file
     }));
   }
   console.log(`\x1b[32m[VITE CONFIG] ✅ ${plugins.length} Vite plugins assembled.\x1b[0m`);

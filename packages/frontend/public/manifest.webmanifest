@@ -5,20 +5,26 @@
   "start_url": "/",
   "id": "/",
   "display": "standalone",
-  "display_override": ["window-controls-overlay"],
+  "display_override": ["window-controls-overlay", "standalone"],
   "background_color": "#ffffff",
-  "theme_color": "#2A9D8F",
+  "theme_color": "#ffffff",
   "lang": "en",
   "scope": "/",
   "orientation": "any",
-  "protocol_handler": {
-    "protocol": "web+gesturevision",
-    "url": "/#action-%s"
-  },
-  "protocol_handlers": [
+  "shortcuts": [
     {
-      "protocol": "web+gesturevision",
-      "url": "/#action-%s"
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "description": "Launch the interactive Dashboard",
+      "url": "/#dashboard",
+      "icons": [{ "src": "/icons/icon-192.webp", "sizes": "192x192" }]
+    },
+    {
+      "name": "Settings",
+      "short_name": "Settings",
+      "description": "Go to GestureVision Settings",
+      "url": "/#settings",
+      "icons": [{ "src": "/icons/icon-192.webp", "sizes": "192x192" }]
     }
   ],
   "screenshots": [
@@ -27,14 +33,14 @@
       "sizes": "1920x1055",
       "type": "image/webp",
       "form_factor": "wide",
-      "label": "Main interface on desktop - Light Mode"
+      "label": "Main interface on desktop - Dark Mode"
     },
     {
       "src": "/images/gesturevision_light.webp",
       "sizes": "1920x1055",
       "type": "image/webp",
       "form_factor": "wide",
-      "label": "Main interface on desktop - Dark Mode"
+      "label": "Main interface on desktop - Light Mode"
     },
     {
       "src": "/images/gesturevision_mobile.webp",
@@ -46,22 +52,16 @@
   ],
   "icons": [
     {
-      "src": "/icons/icon-128.webp",
-      "type": "image/webp",
-      "sizes": "128x128",
-      "purpose": "any"
-    },
-    {
       "src": "/icons/icon-192.webp",
       "type": "image/webp",
       "sizes": "192x192",
       "purpose": "any"
     },
     {
-      "src": "/icons/icon-256.webp",
+      "src": "/icons/icon-192.webp",
       "type": "image/webp",
-      "sizes": "256x256",
-      "purpose": "any"
+      "sizes": "192x192",
+      "purpose": "maskable"
     },
     {
       "src": "/icons/icon-512.webp",
@@ -70,7 +70,7 @@
       "purpose": "any"
     },
     {
-      "src": "/icons/icon-512.webp",
+      "src": "/icons/icon-maskable-512.webp",
       "type": "image/webp",
       "sizes": "512x512",
       "purpose": "maskable"

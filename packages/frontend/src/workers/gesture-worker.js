@@ -166,14 +166,25 @@ async function manageModels(
 
 function runCustomGestureChecks(landmarks, worldLandmarks, definitions) {
   const detected = [];
-  if (!worldLandmarks || worldLandmarks.length === 0 || !definitions || definitions.size === 0) {
+  if (!definitions || definitions.size === 0) {
     return detected;
   }
 
   definitions.forEach((def, name) => {
     try {
+      let result;
       const checkFn = def.type === 'pose' ? def.checkPose : def.checkGesture;
-      const result = checkFn(landmarks, worldLandmarks, 0.0);
+      
+      // If the module has its own check function, it's dynamic. Use it.
+      if (typeof checkFn === 'function') {
+        result = checkFn(landmarks, worldLandmarks, 0.0);
+      } 
+      // Otherwise, it's a static gesture. Use the generic utility.
+      else if (def.baseRules && self.GestureUtils.checkStaticGesture) {
+        result = self.GestureUtils.checkStaticGesture(landmarks, worldLandmarks, def.baseRules, 0.0);
+      } 
+      else { return; } // Skip invalid/unsupported definitions
+
       if (result?.detected) {
         detected.push({ categoryName: name, score: result.confidence || 1.0 });
       }
@@ -303,10 +314,14 @@ self.onmessage = async (event) => {
       customHandDefinitions.clear();
       customPoseDefinitions.clear();
       (payload?.gestures || []).forEach((def) => {
-        // Use the centralized compilation utility
         const mod = self.GestureUtils.compileGestureCode(def.codeString, def.type);
         if (mod) {
           const definitionsMap = mod.type === "pose" ? customPoseDefinitions : customHandDefinitions;
+          // For static gestures, the compiled module won't have the check functions,
+          // so we merge the baseRules into the definition object for the worker to use.
+          if (!mod.checkGesture && !mod.checkPose && mod.baseRules) {
+            Object.assign(mod, { baseRules: mod.baseRules });
+          }
           definitionsMap.set(mod.name, mod);
         } else {
           self.postMessage({

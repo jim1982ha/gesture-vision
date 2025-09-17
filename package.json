@@ -8,7 +8,7 @@
     "copy:models": "mkdir -p packages/frontend/public/models && cp node_modules/@mediapipe/tasks-vision/web/vision/dist/files/*.task packages/frontend/public/models/",
     "build:backend": "tsc -b tsconfig.json",
     "dev:frontend": "cd packages/frontend && vite --host 0.0.0.0",
-    "dev:backend": "nodemon --watch packages --watch extensions --ext ts,json --ignore 'extensions/plugins/' --ignore 'extensions/plugins/*/config.*.json' --exec \"tsx --tsconfig tsconfig.json packages/backend/src/server.ts\"",
+    "dev:backend": "nodemon --watch packages --watch extensions --ext ts,json --ignore 'extensions/plugins/' --ignore 'extensions/plugins/*/config.*.json' --exec \"tsx --experimental-specifier-resolution=node --tsconfig tsconfig.json packages/backend/src/server.ts\"",
     "dev:mediamtx": "mediamtx",
     "predev": "echo 'Prerequisites built into Docker image. Starting servers...'",
     "dev": "npm-run-all --parallel dev:mediamtx dev:frontend dev:backend",

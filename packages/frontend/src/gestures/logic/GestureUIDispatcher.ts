@@ -43,6 +43,7 @@ export class GestureUIDispatcher {
         });
 
         // Publish progress update for the rings
+        // FIX: Added the missing currentHoldMs, requiredHoldMs, and remainingCooldownMs properties.
         pubsub.publish(GESTURE_EVENTS.UPDATE_PROGRESS, {
             holdPercent,
             cooldownPercent,

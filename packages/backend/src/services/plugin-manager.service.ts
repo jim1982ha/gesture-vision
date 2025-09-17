@@ -10,7 +10,6 @@ import fs from 'fs/promises';
 import { BaseBackendPlugin } from '#backend/plugins/base-backend.plugin.js';
 import { pubsub, BACKEND_INTERNAL_EVENTS, type PluginManifest, type SectionValidationResult, type ValidationErrorDetail } from '#shared/index.js';
 import type { ConfigRepository } from './config/config-repository.js';
-import { connectToCompanion } from '../utils/companion-connector.js';
 import { PluginLoaderService } from './plugin-loader.service.js';
 
 import type { BackendPlugin, BackendPluginContext } from '#backend/types/index.js';
@@ -164,7 +163,6 @@ export class PluginManagerService {
     
     const context: BackendPluginContext = {
       getPluginGlobalConfig: <T>() => this.getPluginGlobalConfig<T>(manifest.id),
-      connectToCompanion,
     };
     await instance.init?.(context);
   }

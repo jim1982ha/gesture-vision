@@ -1,6 +1,5 @@
 /* FILE: packages/backend/src/services/action-dispatcher.service.ts */
 import { createErrorResult } from '#backend/utils/action-helpers.js';
-import { connectToCompanion } from '#backend/utils/companion-connector.js';
 import type { ActionDetails, ActionConfig, ActionResult, GestureConfig, PoseConfig } from '#shared/index.js';
 import type { BackendPluginContext } from '#backend/types/index.js';
 import type { PluginManagerService } from './plugin-manager.service.js';
@@ -40,7 +39,6 @@ export class ActionDispatcherService {
     try {
       const context: BackendPluginContext = {
         getPluginGlobalConfig: <T>() => this.#pluginManager.getPluginGlobalConfig<T>(pluginId),
-        connectToCompanion,
       };
       return await handler.execute(settings, details, await context.getPluginGlobalConfig(), context);
     } catch (error: unknown) {

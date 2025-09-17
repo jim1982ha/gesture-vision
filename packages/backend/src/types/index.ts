@@ -9,8 +9,6 @@ import type {
   ActionDetails,
 } from '#shared/index.js';
 
-export type ConnectToCompanionFn = (host: string) => Promise<unknown>;
-
 export interface ActionHandler {
   execute(
     instanceSettings: unknown,
@@ -22,7 +20,6 @@ export interface ActionHandler {
 
 export interface BackendPluginContext {
   getPluginGlobalConfig: <T>() => Promise<T | null>;
-  connectToCompanion: ConnectToCompanionFn;
 }
 
 export interface BackendPlugin {

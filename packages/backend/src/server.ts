@@ -69,7 +69,7 @@ async function startServer() {
     console.log(`[Server Shutdown] Graceful shutdown initiated...`);
     childProcesses.forEach((cp) => cp.kill('SIGTERM'));
     services.configService?.cleanup();
-    services.pluginManager?.destroy();
+    services.pluginManager?.destroy(); // This will call destroy on all plugins, including their connection managers
     services.mtxMonitor?.stop();
     cleanupWebSocketServer();
     server?.close(() => { console.log(`[Server] HTTP server closed.`); process.exit(0); });
