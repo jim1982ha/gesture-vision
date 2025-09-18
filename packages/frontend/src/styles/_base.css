@@ -35,6 +35,10 @@
     --shadow-2xl: 0 25px 50px -12px rgb(0 0 0 / 0.25);
 
     --icon-size-status: 1.25rem;
+
+    /* Tunable horizontal padding for the main content area on desktop */
+    --main-content-horizontal-padding-desktop: 2rem; /* Corresponds to Tailwind's px-8 */
+
   }
   body[data-theme="main-dark"] {
     --color-primary: 74 128 232;

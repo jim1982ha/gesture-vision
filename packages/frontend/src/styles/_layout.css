@@ -72,6 +72,6 @@
   }
 
   .video-container.size-constrained {
-    @apply desktop:w-2/3 desktop:mx-auto;
+    @apply desktop:w-1/2 desktop:mx-auto;
   }
 }

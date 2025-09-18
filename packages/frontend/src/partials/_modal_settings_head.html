@@ -12,7 +12,7 @@
 </div>
 
 <!-- Responsive Tab Navigation -->
-<div class="flex-grow min-h-0 flex flex-col lg:flex-row">
+<div class="flex-grow min-h-0 lg:flex">
   <!-- Mobile-only Select Dropdown -->
   <div class="lg:hidden p-4 border-b border-border">
     <select id="settingsTabsMobileSelect" class="form-control"></select>
@@ -26,8 +26,13 @@
     <!-- Buttons will be dynamically inserted by JS -->
   </nav>
 
-  <!-- Tab Content Area - This container will now manage the scrolling child -->
-  <div id="settingsTabContentContainer" class="flex-1 min-h-0 flex flex-col">
-    <!-- The modal-scrollable-content will be appended here by JS and will become scrollable -->
+  <!-- Tab Content Area - This container is now the scrollable one -->
+  <div id="settingsTabContentContainer" class="modal-scrollable-content flex-1 min-h-0 flex flex-col">
+    <!-- The individual tab panes are now placed here directly -->
+    <div class="settings-tab-content active" data-tab-content="general"></div>
+    <div class="settings-tab-content" data-tab-content="customGestures"></div>
+    <div class="settings-tab-content" data-tab-content="plugins"></div>
+    <div class="settings-tab-content" data-tab-content="rtsp"></div>
+    <div class="settings-tab-content" data-tab-content="appearance"></div>
   </div>
 </div>

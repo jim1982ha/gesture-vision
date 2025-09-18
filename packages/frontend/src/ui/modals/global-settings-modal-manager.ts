@@ -42,11 +42,8 @@ export class GlobalSettingsModalManager {
         this.#settingsTabsMobileSelect = document.getElementById("settingsTabsMobileSelect") as HTMLSelectElement | null;
         this.#settingsModalTitle = document.getElementById("settingsModalTitle");
         
-        const scrollableContent = this.#mainSettingsModal?.querySelector('.modal-scrollable-content');
+        // The content container is now directly part of the modal header structure.
         this.#contentContainer = document.getElementById("settingsTabContentContainer");
-        if (this.#contentContainer && scrollableContent) {
-            this.#contentContainer.appendChild(scrollableContent);
-        }
         
         this.#tabs = {
             general: new GeneralSettingsTab(this._appStore, this._uiControllerRef),
@@ -56,9 +53,6 @@ export class GlobalSettingsModalManager {
             customGestures: new CustomGesturesTab(this._appStore, this._uiControllerRef)
         };
         
-        // This faulty subscription was causing the unconditional refresh. It is now removed.
-        // this.#unsubscribeStore = this._appStore.subscribe(...);
-
         this.#unsubscribeLang = this._appStore.subscribe((state, prevState) => {
             if (state.languagePreference !== prevState.languagePreference) {
                 this.applyTranslations();
@@ -171,7 +165,12 @@ export class GlobalSettingsModalManager {
             if (titleSpan) titleSpan.textContent = translate("configurationTitle");
             setIcon(this.#settingsModalTitle?.querySelector(".header-icon"), 'UI_SETTINGS');
             const closeBtn = this.#mainSettingsCloseButton;
-            if (closeBtn) { const closeLabel = translate("close"); closeBtn.title = closeLabel; closeBtn.setAttribute("aria-label", `${closeLabel} ${translate("configurationTitle")}`); }
+            if (closeBtn) { 
+                const closeLabel = translate("close"); 
+                closeBtn.title = closeLabel; 
+                closeBtn.setAttribute("aria-label", `${closeLabel} ${translate("configurationTitle")}`);
+                setIcon(closeBtn, 'UI_CLOSE');
+            }
             
             const appVersionDisplay = document.getElementById("appVersionDisplaySettings");
             if (appVersionDisplay) appVersionDisplay.title = translate('viewDocsTooltip');

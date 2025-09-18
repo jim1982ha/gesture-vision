@@ -81,6 +81,7 @@ export class ModalManager {
     const cameraModalTitle = document.getElementById("cameraModalTitleText");
     if (cameraModalTitle) cameraModalTitle.textContent = translate('selectCameraSource');
     setIcon(document.getElementById("cameraModalHeader")?.querySelector('.header-icon'), 'UI_WEBCAM');
+    setIcon(this.#cameraSelectCloseButton, 'UI_CLOSE');
   }
 
   #getModalElementById(id: string): HTMLElement | null {

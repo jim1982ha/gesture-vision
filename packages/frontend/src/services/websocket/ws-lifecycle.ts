@@ -49,6 +49,7 @@ export function disconnectLogic(this: WebSocketService, allowReconnect = true, r
   this._state.ws = null;
 
   appStore.getState().actions.setWsConnectionStatus(false);
+  this._publishEvent(WEBSOCKET_EVENTS.DISCONNECTED);
 
   if (resetGlobalReconnectAttempts) this._state.reconnectAttempts = 0;
   if (!allowReconnect) this._state.reconnectAttempts = MAX_RECONNECT_ATTEMPTS + 1;
@@ -78,6 +79,7 @@ function handleWsOpenLogic(this: WebSocketService, event: Event): void {
   if (!this._state.ws || this._state.ws !== event.target) return;
   this._state.isConnected = true; this._state.isConnecting = false; this._state.reconnectAttempts = 0;
   appStore.getState().actions.setWsConnectionStatus(true);
+  this._publishEvent(WEBSOCKET_EVENTS.CONNECTED);
   startPingTimerLogic.call(this);
 
   // Send any queued messages upon successful connection.

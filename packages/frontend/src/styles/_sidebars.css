@@ -3,4 +3,14 @@
   .sidebar-header {
     @apply flex-shrink-0 flex items-center justify-between p-4 border-b border-border;
   }
+
+  /* Make the backdrop non-interactive by default */
+  #sidebarBackdrop {
+    pointer-events: none;
+  }
+
+  /* Only make the backdrop interactive when a sidebar is active on mobile */
+  body.is-mobile.history-sidebar-active #sidebarBackdrop {
+    pointer-events: auto;
+  }
 }

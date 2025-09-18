@@ -2,6 +2,7 @@
 import type { UIController } from '#frontend/ui/ui-controller-core.js';
 import { GestureConfigForm } from '#frontend/ui/components/gesture-form/gesture-config-form.js';
 import { pubsub, UI_EVENTS, type GestureConfig, type PoseConfig } from '#shared/index.js';
+import { setIcon } from '#frontend/ui/helpers/index.js';
 
 /**
  * Manages the lifecycle and state of the gesture configuration modal.
@@ -119,5 +120,9 @@ export class GestureConfigModalManager {
 
     public applyTranslations(): void {
         this.#form.applyTranslations();
+        const closeBtn = document.getElementById('gestureConfigModalCloseBtn');
+        if (closeBtn) {
+            setIcon(closeBtn, 'UI_CLOSE');
+        }
     }
 }

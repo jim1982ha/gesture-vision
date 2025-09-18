@@ -198,6 +198,7 @@ export class DocsModalManager {
     ];
     updateTranslationsForComponent(itemsToTranslate);
     setIcon(this.#elements.docsModalIcon, "UI_DOCS");
+    setIcon(this.#elements.docsCloseButton, "UI_CLOSE");
     this.#tocManager.syncMovedLanguageSelectorUI();
   };
 }

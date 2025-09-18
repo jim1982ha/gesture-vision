@@ -15,6 +15,9 @@ export default {
       screens: {
         desktop: '1024px',
       },
+      spacing: {
+        'main-x-desktop': 'var(--main-content-horizontal-padding-desktop, 2rem)',
+      },
       colors: {
         primary: 'rgb(var(--color-primary) / <alpha-value>)',
         'primary-hover': 'rgb(var(--color-primary-hover) / <alpha-value>)',
@@ -60,12 +63,6 @@ export default {
         'modal-content': '901',
         dropdown: '1000',
         alert: '1100',
-      },
-      // Add the pulse keyframe for use with animate-pulse utility
-      keyframes: {
-        pulse: {
-          '50%': { transform: 'translate(-50%, -50%) scale(1.1)' },
-        },
       },
     },
   },

@@ -4,7 +4,6 @@ import { webSocketService } from '#frontend/services/websocket-service.js';
 import { getGestureDisplayInfo } from '#frontend/ui/helpers/index.js';
 import type { HistoryEntry } from '#frontend/types/index.js';
 import type { ActionConfig, CustomGestureMetadata, GestureConfig, PoseConfig } from '#shared/index.js';
-import { UI_EVENTS, pubsub } from '#shared/index.js';
 
 /**
  * Handles the side effects of a confirmed gesture, like dispatching actions and updating history.
@@ -27,8 +26,6 @@ export class GestureActionHandler {
         currentDetections: { name: string, confidence: number }[],
         now: number
     ): void {
-        pubsub.publish(UI_EVENTS.GESTURE_CONFIG_TRIGGERED, { gestureName });
-
         const actionConfig = config.actionConfig as ActionConfig | null;
         const pluginId = actionConfig?.pluginId || 'none';
         const { category: gestureCategory } = getGestureDisplayInfo(

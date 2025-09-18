@@ -1,11 +1,11 @@
 /* FILE: packages/frontend/src/ui/renderers/feedback-renderer.ts */
 import type { AppStore } from '#frontend/core/state/app-store.js';
-import { setIcon } from '#frontend/ui/helpers/index.js'; // FIX: Removed unused 'getGestureDisplayInfo'
+import { setIcon } from '#frontend/ui/helpers/index.js';
 import type { TranslationService } from '#frontend/services/translation.service.js';
 
 interface GestureStatusData {
-  gesture: string; // This will now be the RAW gesture name ('-' or 'VICTORY')
-  gestureText: string; // This will be the translated text for display
+  gesture: string;
+  gestureText: string;
   realtimeConfidence: number;
   configuredThreshold: number | null;
   isCooldownActive?: boolean;
@@ -20,40 +20,31 @@ interface GestureProgressData {
 }
 
 export function updateStatusDisplay(
-  elements: Partial<{
-    gestureFeedbackOverlay: HTMLElement | null;
-    currentGestureSpan: HTMLElement | null;
-    confidenceBar: HTMLElement | null;
-  }>,
+  elements: {
+    gestureFeedbackOverlay?: HTMLElement | null;
+    currentGestureSpan?: HTMLElement | null;
+    confidenceBar?: HTMLElement | null;
+  },
   status: Partial<GestureStatusData> = {},
-  appStore?: AppStore | null,
-  translationService?: TranslationService | null
+  _appStore?: AppStore | null,
+  _translationService?: TranslationService | null
 ): void {
   const {
     gestureFeedbackOverlay,
     currentGestureSpan,
     confidenceBar,
   } = elements;
-  if (
-    !gestureFeedbackOverlay ||
-    !currentGestureSpan ||
-    !confidenceBar ||
-    !appStore ||
-    !translationService
-  )
-    return;
+  if (!gestureFeedbackOverlay || !currentGestureSpan || !confidenceBar) return;
 
   const isCooldownActive = status.isCooldownActive === true;
-  const rawGestureName = status.gesture || '-'; // Use the raw name for logic
+  const rawGestureName = status.gesture || '-';
   const gestureTextToDisplay = status.gestureText || '-';
 
-  // FIX: Visibility is now based on the raw gesture name being meaningful.
   const showGestureInfo = rawGestureName !== '-' && !isCooldownActive;
   
   gestureFeedbackOverlay.classList.toggle('hidden', !showGestureInfo);
   gestureFeedbackOverlay.classList.toggle('flex', showGestureInfo);
   gestureFeedbackOverlay.classList.toggle('flex-row', showGestureInfo);
-
 
   const feedbackContainer = document.getElementById('gesture-feedback-container');
   if (feedbackContainer) {
@@ -65,7 +56,6 @@ export function updateStatusDisplay(
   const realtimeConfidenceRatio = status.realtimeConfidence || 0;
   const realtimeConfidencePercent = Math.round(realtimeConfidenceRatio * 100);
   confidenceBar.style.width = `${realtimeConfidencePercent}%`;
-
   confidenceBar.textContent = `${realtimeConfidencePercent}%`;
 
   const thresholdMarker = document.getElementById('confidenceThresholdMarker');
@@ -80,13 +70,13 @@ export function updateStatusDisplay(
 }
 
 export function updateProgressRings(
-  elements: Partial<{
-    gestureProgressCircle: SVGCircleElement | null;
-    cooldownProgressCircle: SVGCircleElement | null;
-    holdTimeDisplay: HTMLElement | null;
-    holdTimeMetric: HTMLElement | null;
-    progressRingsOverlay: HTMLElement | null;
-  }>,
+  elements: {
+    gestureProgressCircle?: SVGCircleElement | null;
+    cooldownProgressCircle?: SVGCircleElement | null;
+    holdTimeDisplay?: HTMLElement | null;
+    holdTimeMetric?: HTMLElement | null;
+    progressRingsOverlay?: HTMLElement | null;
+  },
   progress: Partial<GestureProgressData> = {}
 ): void {
   const {
@@ -97,20 +87,11 @@ export function updateProgressRings(
     progressRingsOverlay,
   } = elements;
   if (
-    !gestureProgressCircle ||
-    !cooldownProgressCircle ||
-    !holdTimeDisplay ||
-    !holdTimeMetric ||
-    !progressRingsOverlay
-  )
-    return;
+    !gestureProgressCircle || !cooldownProgressCircle || !holdTimeDisplay ||
+    !holdTimeMetric || !progressRingsOverlay
+  ) return;
 
-  const {
-    holdPercent = 0,
-    cooldownPercent = 0,
-    currentHoldMs = 0,
-    requiredHoldMs = 0,
-  } = progress;
+  const { holdPercent = 0, cooldownPercent = 0, currentHoldMs = 0, requiredHoldMs = 0 } = progress;
   
   const areRingsVisible = holdPercent > 0 || cooldownPercent > 0;
   progressRingsOverlay.classList.toggle('visible', areRingsVisible);
@@ -132,8 +113,6 @@ export function updateProgressRings(
   
   if (showHoldInfo) {
     setIcon(holdTimeMetric.querySelector('.material-icons'), 'UI_TIMER');
-    holdTimeDisplay.textContent = `${((currentHoldMs || 0) / 1000).toFixed(1)}/${(
-      (requiredHoldMs || 0) / 1000
-    ).toFixed(1)}s`;
+    holdTimeDisplay.textContent = `${((currentHoldMs || 0) / 1000).toFixed(1)}/${((requiredHoldMs || 0) / 1000).toFixed(1)}s`;
   }
 }
