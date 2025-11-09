@@ -27,15 +27,14 @@ For the best experience, especially when using plugins like Home Assistant from 
 ## Step 1: Prepare Project Files
 
 On your server, create a directory for the GestureVision application and get the necessary files.
-
-```bash
-# Create a directory for the application
-mkdir -p /opt/gesturevision
-cd /opt/gesturevision
-
-# Download or clone the project files into this directory
-# For example: git clone https://github.com/your-username/gesture-vision-app.git .
-```
+    ```bash
+    # Create a directory for the application
+    mkdir -p /opt/gesturevision
+    cd /opt/gesturevision
+    
+    # Download or clone the project files into this directory
+    # For example: git clone https://github.com/your-username/gesture-vision-app.git .
+    ```
 
 You must have the following files and directories from the project repository:
 
@@ -71,8 +70,9 @@ In your NPM UI, add a new Proxy Host.
 
 3.  **Advanced Tab:**
     Paste the following custom Nginx configuration. This is **vital** for routing different types of traffic to the right services inside the container.
-```nginx
+  ```nginx
 # --- Dynamic WHEP Endpoint Handling (No Auth) ---
+# This proxies WHEP (WebRTC) requests directly to the MediaMTX service.
 location ~ ^/(.+)/whep$ {
     if ($request_method = 'OPTIONS') {
         add_header 'Access-Control-Allow-Origin' "$scheme://$host" always;
@@ -83,23 +83,28 @@ location ~ ^/(.+)/whep$ {
         add_header 'Content-Length' 0;
         return 204;
     }
-    proxy_pass http://$server:8888; # Port must match MTX_WEBRTC_PORT
-    proxy_http_version 1.1;
-    proxy_set_header Upgrade $http_upgrade;
-    proxy_set_header Connection "Upgrade";
-    proxy_set_header Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
-    proxy_read_timeout 86400s;
+    # Port must match MTX_WEBRTC_PORT in your .env.prod
+    proxy_pass          http://$server:8888;
+    proxy_http_version  1.1;
+    proxy_set_header    Upgrade $http_upgrade;
+    proxy_set_header    Connection "Upgrade";
+    proxy_set_header    Host $host;
+    proxy_set_header    X-Real-IP $remote_addr;
+    proxy_set_header    X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header    X-Forwarded-Proto $scheme;
+    proxy_read_timeout  86400s;
     add_header 'Access-Control-Allow-Origin' "$scheme://$host" always;
     break;
 }
 
 # --- Plugin Frontend Assets (Served by internal Nginx) ---
-# This block MUST come before the general /api/ and /ws/ block.
-location /api/plugins/assets/ {
-    include conf.d/include/proxy.conf;
+location /plugins/ {
+    # The '$server' variable is set by NPM to the container name 'gesturevision'.
+    proxy_pass http://$server:80;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
     expires 1y;
     add_header Cache-Control "public, immutable";
     access_log off;
@@ -108,19 +113,20 @@ location /api/plugins/assets/ {
 
 # --- Backend API & WebSocket Requests ---
 location ~ ^/(api|ws)/ {
-    proxy_pass http://$server:9001; # Port must match BACKEND_API_PORT_INTERNAL
-    proxy_http_version 1.1;
-    proxy_set_header Upgrade $http_upgrade;
-    proxy_set_header Connection $http_connection;
-    proxy_set_header Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
-    proxy_read_timeout 86400s;
-    proxy_redirect off;
+    # Port must match BACKEND_API_PORT_INTERNAL in your .env.prod
+    proxy_pass          http://$server:9001;
+    proxy_http_version  1.1;
+    proxy_set_header    Upgrade $http_upgrade;
+    proxy_set_header    Connection $http_connection;
+    proxy_set_header    Host $host;
+    proxy_set_header    X-Real-IP $remote_addr;
+    proxy_set_header    X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header    X-Forwarded-Proto $scheme;
+    proxy_read_timeout  86400s;
+    proxy_redirect      off;
     break;
 }
-```
+ ```
 
 ## Step 3: Deployment
 

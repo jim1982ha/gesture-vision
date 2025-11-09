@@ -111,7 +111,7 @@ export const DocsModal = () => {
                             </ul>
                         </aside>
                         <main id="docs-modal-main-content" ref={contentRef} className="flex-1 min-w-0 px-4 desktop:px-0">
-                            <article className="prose dark:prose-invert max-w-none prose-headings:text-text-primary prose-strong:text-text-primary prose-a:text-primary hover:prose-a:text-primary-hover"
+                            <article className="prose dark:prose-invert max-w-none"
                                 dangerouslySetInnerHTML={{ __html: htmlContent }} />
                         </main>
                     </div>

@@ -92,7 +92,7 @@
 {{aboutContactP1}}
 
 <p style="text-align:center;">
-    <a href="mailto:contact@gesturevision.anonaddy.com" class="btn btn-primary" style="font-size: 1.1em; font-weight: bold; padding: 10px 20px; color: var(--text-on-primary, white); text-decoration: none;">{{getInTouch}}</a>
+    <a href="mailto:contact@gesturevision.anonaddy.com" class="btn btn-primary" style="font-size: 1.1em; font-weight: bold; padding: 10px 20px; text-decoration: none;">{{getInTouch}}</a>
 </p>
 <p style="text-align:center; margin-top:20px;">
     <strong>Email:</strong> contact@gesturevision.anonaddy.com
