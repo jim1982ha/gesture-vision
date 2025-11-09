@@ -1,99 +1,44 @@
 /* FILE: packages/frontend/src/services/websocket/ws-lifecycle.ts */
-// Manages the WebSocket lifecycle: connection, events, ping/pong, and reconnection.
 import { WEBSOCKET_EVENTS, UI_EVENTS } from "#shared/index.js";
-import type { WebSocketMessage } from "#shared/index.js"; 
+import type { WebSocketMessage } from "#shared/index.js";
 import { handleWsMessageLogic } from "./ws-message-handler.js";
 import type { WebSocketService } from "../websocket-service.js";
 import { appStore } from '#frontend/core/state/app-store.js';
 
-const RECONNECT_INTERVAL_MIN = 1000;
-const RECONNECT_INTERVAL_MAX = 30000;
+const RECONNECT_INTERVAL_MIN = 1000, RECONNECT_INTERVAL_MAX = 30000;
 const MAX_RECONNECT_ATTEMPTS = 10;
-const PING_INTERVAL = 30 * 1000;
-const PONG_TIMEOUT = 10000;
+const PING_INTERVAL = 25000, PONG_TIMEOUT = 5000;
 
-// --- Connection Management ---
-export function connectLogic(this: WebSocketService): void {
-  const state = this._state;
-  if (state.isConnecting || (state.ws && state.ws.readyState === WebSocket.OPEN)) return;
-
-  state.isConnecting = true;
-  this._publishEvent(WEBSOCKET_EVENTS.CONNECTING);
-  clearReconnectTimerLogic.call(this);
-
-  if (state.ws) this.disconnect(false, false);
-
-  try {
-    state.ws = new WebSocket(state.url);
-    attachWsEventListenersLogic.call(this);
-  } catch (error: unknown) {
-    console.error("[WS Connect] Failed to create WebSocket:", error);
-    state.isConnecting = false; state.ws = null;
-    this._publishError("WS_INIT_FAILED", `Failed to create WebSocket: ${(error as Error).message}`);
-    scheduleReconnectLogic.call(this);
-  }
+function attachWsEventListeners(this: WebSocketService): void {
+  const ws = this._state.ws;
+  if (!ws) { console.error("[WS] Cannot attach listeners: WS instance is null."); return; }
+  ws.onopen = handleWsOpen.bind(this);
+  ws.onmessage = (event: MessageEvent) => handleWsMessageLogic.call(this, event.data);
+  ws.onclose = handleWsClose.bind(this);
+  ws.onerror = handleWsError.bind(this);
 }
 
-export function disconnectLogic(this: WebSocketService, allowReconnect = true, resetGlobalReconnectAttempts = false): void {
-  const wsToClose = this._state.ws;
-
-  // Reject any pending requests as the connection is lost.
-  if (this._state.pendingRequests.size > 0) {
-    const disconnectError = new Error("WebSocket disconnected.");
-    this._state.pendingRequests.forEach(req => req.reject(disconnectError));
-    this._state.pendingRequests.clear();
-  }
-  
-  stopPingTimerLogic.call(this); clearReconnectTimerLogic.call(this);
-  this._state.isConnected = false; this._state.isConnecting = false;
-  this._state.ws = null;
-
-  appStore.getState().actions.setWsConnectionStatus(false);
-  this._publishEvent(WEBSOCKET_EVENTS.DISCONNECTED);
-
-  if (resetGlobalReconnectAttempts) this._state.reconnectAttempts = 0;
-  if (!allowReconnect) this._state.reconnectAttempts = MAX_RECONNECT_ATTEMPTS + 1;
-
-  if (wsToClose) {
-    removeWsEventListenersLogic.call(this, wsToClose);
-    if (wsToClose.readyState === WebSocket.OPEN || wsToClose.readyState === WebSocket.CONNECTING) {
-      try { wsToClose.close(1000, "Client initiated disconnect"); } catch (_e) { /* Ignored */ }
-    }
-  }
-}
-
-// --- Event Handlers ---
-function attachWsEventListenersLogic(this: WebSocketService): void {
-  if (!this._state.ws) { console.error("[WS Events] Cannot attach listeners: WS instance is null."); return; }
-  this._state.ws.onopen = handleWsOpenLogic.bind(this);
-  this._state.ws.onmessage = (event: MessageEvent) => handleWsMessageLogic.call(this, event.data);
-  this._state.ws.onclose = handleWsCloseLogic.bind(this);
-  this._state.ws.onerror = handleWsErrorLogic.bind(this);
-}
-
-function removeWsEventListenersLogic(this: WebSocketService, wsInstance: WebSocket | null): void {
+function removeWsEventListeners(this: WebSocketService, wsInstance: WebSocket | null): void {
   if (wsInstance) { wsInstance.onopen = wsInstance.onmessage = wsInstance.onclose = wsInstance.onerror = null; }
 }
 
-function handleWsOpenLogic(this: WebSocketService, event: Event): void {
-  if (!this._state.ws || this._state.ws !== event.target) return;
-  this._state.isConnected = true; this._state.isConnecting = false; this._state.reconnectAttempts = 0;
+function handleWsOpen(this: WebSocketService, event: Event): void {
+  if (this._state.ws !== event.target) return;
+  const state = this._state;
+  state.isConnected = true; state.isConnecting = false; state.reconnectAttempts = 0;
   appStore.getState().actions.setWsConnectionStatus(true);
   this._publishEvent(WEBSOCKET_EVENTS.CONNECTED);
-  startPingTimerLogic.call(this);
-
-  // Send any queued messages upon successful connection.
-  if (this._state.messageQueue.length > 0) {
-      console.log(`[WS] Connection restored. Sending ${this._state.messageQueue.length} queued messages.`);
-      this._state.messageQueue.forEach(msg => this.sendMessage(msg));
-      this._state.messageQueue = [];
+  startPingTimer.call(this);
+  if (state.messageQueue.length > 0) {
+    console.log(`[WS] Connection restored. Sending ${state.messageQueue.length} queued messages.`);
+    state.messageQueue.forEach(msg => this.sendMessage(msg));
+    state.messageQueue = [];
   }
 }
 
-function handleWsCloseLogic(this: WebSocketService, event: CloseEvent): void {
-  if (this._state.ws === event.target) {
-    this.disconnect(true, false);
-  }
+function handleWsClose(this: WebSocketService, event: CloseEvent): void {
+  if (this._state.ws !== event.target) return;
+  this.disconnect(true, false);
   if (event.code !== 1000 && this._state.reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
     scheduleReconnectLogic.call(this);
   } else if (this._state.reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
@@ -101,41 +46,44 @@ function handleWsCloseLogic(this: WebSocketService, event: CloseEvent): void {
   }
 }
 
-function handleWsErrorLogic(this: WebSocketService, errorEvent: Event): void {
-  if (!this._state.ws || this._state.ws !== errorEvent.target) return;
+function handleWsError(this: WebSocketService, errorEvent: Event): void {
+  if (this._state.ws !== errorEvent.target) return;
   const message = errorEvent instanceof ErrorEvent ? errorEvent.message : `WebSocket error event type: ${errorEvent.type}`;
   this._publishError("WS_GENERIC_ERROR", `WebSocket error: ${message}`);
   if (this._state.isConnecting) this._state.isConnecting = false;
 }
 
-// --- Ping/Pong Keepalive ---
-function startPingTimerLogic(this: WebSocketService): void {
-  stopPingTimerLogic.call(this); 
+function startPingTimer(this: WebSocketService): void {
+  stopPingTimerLogic.call(this);
   this._state.pingIntervalTimer = window.setInterval(() => {
-    const state = this._state;
-    if (state.ws && state.ws.readyState === WebSocket.OPEN) {
-      const pingId = Date.now(); 
-      state.lastPingId = pingId;
-      try {
-        state.ws.send(JSON.stringify({ type: "ping", payload: { id: pingId } }));
-        startPongTimeoutLogic.call(this); 
-      } catch (error: unknown) {
-        this._publishError("WS_SEND_ERROR", `Failed to send PING: ${(error as Error).message}`);
-        state.lastPingId = null; this.disconnect(true); 
-      }
-    } else { stopPingTimerLogic.call(this); }
+    const { ws, lastPingId } = this._state;
+    if (ws?.readyState !== WebSocket.OPEN) { stopPingTimerLogic.call(this); return; }
+    if (lastPingId !== null) { handlePongTimeout.call(this); return; }
+    
+    const pingId = Date.now();
+    this._state.lastPingId = pingId;
+    try {
+      ws.send(JSON.stringify({ type: "ping", payload: { id: pingId } }));
+      this._state.pongTimeoutTimer = window.setTimeout(() => handlePongTimeout.call(this), PONG_TIMEOUT);
+    } catch (error) {
+      this._publishError("WS_SEND_ERROR", `Failed to send PING: ${(error as Error).message}`);
+      this.disconnect(true);
+    }
   }, PING_INTERVAL);
 }
 
-export function stopPingTimerLogic(this: WebSocketService): void {
-  if (this._state.pingIntervalTimer) clearInterval(this._state.pingIntervalTimer);
-  this._state.pingIntervalTimer = null;
-  clearPongTimeoutLogic.call(this); this._state.lastPingId = null; 
+function handlePongTimeout(this: WebSocketService): void {
+  console.warn(`[WS] Pong not received in time. Disconnecting.`);
+  this._state.lastPingId = null;
+  this.disconnect(true);
 }
 
-function startPongTimeoutLogic(this: WebSocketService): void {
-  clearPongTimeoutLogic.call(this); 
-  this._state.pongTimeoutTimer = window.setTimeout(() => handlePongTimeoutLogic.call(this), PONG_TIMEOUT);
+export function handlePongLogic(this: WebSocketService, pongMessage: WebSocketMessage<{ id?: number | string | null }>): void {
+  const receivedId = pongMessage?.payload?.id ?? null;
+  if (receivedId !== null && receivedId === this._state.lastPingId) {
+    clearPongTimeoutLogic.call(this);
+    this._state.lastPingId = null;
+  }
 }
 
 function clearPongTimeoutLogic(this: WebSocketService): void {
@@ -143,32 +91,70 @@ function clearPongTimeoutLogic(this: WebSocketService): void {
   this._state.pongTimeoutTimer = null;
 }
 
-export function handlePongLogic(this: WebSocketService, pongMessage: WebSocketMessage<{id?: number | string | null}>): void {
-  const receivedId = pongMessage?.payload?.id ?? null; 
-  if (receivedId !== null && receivedId === this._state.lastPingId) {
-    clearPongTimeoutLogic.call(this); this._state.lastPingId = null; 
+export function stopPingTimerLogic(this: WebSocketService): void {
+  if (this._state.pingIntervalTimer) clearInterval(this._state.pingIntervalTimer);
+  this._state.pingIntervalTimer = null;
+  clearPongTimeoutLogic.call(this);
+  this._state.lastPingId = null;
+}
+
+export function connectLogic(this: WebSocketService): void {
+  const { isConnecting, ws } = this._state;
+  if (isConnecting || ws?.readyState === WebSocket.OPEN) return;
+  
+  this._state.isConnecting = true;
+  this._publishEvent(WEBSOCKET_EVENTS.CONNECTING);
+  clearReconnectTimerLogic.call(this);
+  if (ws) this.disconnect(false, false);
+
+  try {
+    this._state.ws = new WebSocket(this._state.url);
+    attachWsEventListeners.call(this);
+  } catch (error) {
+    this._state.isConnecting = false;
+    this._state.ws = null;
+    this._publishError("WS_INIT_FAILED", `Failed to create WebSocket: ${(error as Error).message}`);
+    scheduleReconnectLogic.call(this);
   }
 }
 
-function handlePongTimeoutLogic(this: WebSocketService): void {
-  this._state.lastPingId = null; this.disconnect(true); 
+export function disconnectLogic(this: WebSocketService, allowReconnect = true, resetReconnectAttempts = false): void {
+  const wsToClose = this._state.ws;
+  
+  stopPingTimerLogic.call(this);
+  clearReconnectTimerLogic.call(this);
+  
+  this._state.pendingRequests.forEach(req => req.reject(new Error("WebSocket disconnected.")));
+  this._state.pendingRequests.clear();
+  
+  this._state.isConnected = false;
+  this._state.isConnecting = false;
+  this._state.ws = null;
+  appStore.getState().actions.setWsConnectionStatus(false);
+  this._publishEvent(WEBSOCKET_EVENTS.DISCONNECTED);
+
+  if (resetReconnectAttempts) this._state.reconnectAttempts = 0;
+  if (!allowReconnect) this._state.reconnectAttempts = MAX_RECONNECT_ATTEMPTS + 1;
+
+  if (wsToClose) {
+    removeWsEventListeners.call(this, wsToClose);
+    if (wsToClose.readyState < WebSocket.CLOSING) {
+      try { wsToClose.close(1000, "Client initiated disconnect"); } catch { /* no-op */ }
+    }
+  }
 }
 
-// --- Reconnection Logic ---
 export function scheduleReconnectLogic(this: WebSocketService): void {
-  clearReconnectTimerLogic.call(this); 
-
-  if (this._state.reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-    console.error(`[WebSocket Reconnect] Max reconnect attempts (${MAX_RECONNECT_ATTEMPTS}) reached. Giving up.`);
-    return; 
-  }
-
-  if (this._state.isConnecting) { return; }
-
-  const delay = Math.min( RECONNECT_INTERVAL_MIN * 2 ** this._state.reconnectAttempts, RECONNECT_INTERVAL_MAX );
-  this._state.reconnectAttempts++; 
-  console.log(`[WebSocket Reconnect] Scheduling attempt #${this._state.reconnectAttempts} in ${delay / 1000}s.`);
-  this._state.reconnectTimer = window.setTimeout(() => { this._state.reconnectTimer = null; this.connect(); }, delay);
+  clearReconnectTimerLogic.call(this);
+  if (this._state.reconnectAttempts >= MAX_RECONNECT_ATTEMPTS || this._state.isConnecting) return;
+  
+  const delay = Math.min(RECONNECT_INTERVAL_MIN * 2 ** this._state.reconnectAttempts, RECONNECT_INTERVAL_MAX);
+  this._state.reconnectAttempts++;
+  console.log(`[WS] Scheduling reconnect attempt #${this._state.reconnectAttempts} in ${delay / 1000}s.`);
+  this._state.reconnectTimer = window.setTimeout(() => {
+    this._state.reconnectTimer = null;
+    this.connect();
+  }, delay);
 }
 
 export function clearReconnectTimerLogic(this: WebSocketService): void {

@@ -1,16 +1,29 @@
-/* FILE: packages/frontend/src/styles/_sidebars.css */
 @layer components {
-  .sidebar-header {
-    @apply flex-shrink-0 flex items-center justify-between p-4 border-b border-border;
+  .sidebar-container {
+    @apply absolute right-0 h-full w-80 max-w-[90vw] z-sidebar shadow-xl flex flex-col transition-transform duration-300 ease-in-out;
+    background-color: hsl(var(--color-surface));
   }
 
-  /* Make the backdrop non-interactive by default */
+  .sidebar-header {
+    @apply flex-shrink-0 flex items-center justify-between p-4;
+    border-bottom: 1px solid hsl(var(--color-border));
+  }
+  
+  .sidebar-header .header-icon {
+    @apply text-2xl flex-shrink-0;
+    color: hsl(var(--color-primary));
+  }
+
+  .sidebar-header .header-title {
+    @apply text-lg font-semibold truncate;
+    color: hsl(var(--color-text-primary));
+  }
+
   #sidebarBackdrop {
     pointer-events: none;
   }
 
-  /* Only make the backdrop interactive when a sidebar is active on mobile */
-  body.is-mobile.history-sidebar-active #sidebarBackdrop {
+  body.sidebar-active #sidebarBackdrop {
     pointer-events: auto;
   }
 }

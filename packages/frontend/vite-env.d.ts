@@ -1,6 +1,7 @@
 /* FILE: packages/frontend/vite-env.d.ts */
 /// <reference types="vite/client" />
 /// <reference types="vite-plugin-pwa/client" />
+import type { AppContextType } from './src/contexts/AppContext';
 
 // The Screen Orientation API's lock() and unlock() methods are not yet
 // in the default TypeScript DOM library. This declaration file adds them
@@ -16,7 +17,8 @@ interface ScreenOrientation extends EventTarget {
 // Plugins that need specific variables should safely access them, e.g.,
 // const haUrl = window.runtimeConfig?.HA_URL;
 interface Window {
-runtimeConfig?: Record<string, string | undefined>;
+  runtimeConfig?: Record<string, string | undefined>;
+  appContext?: AppContextType;
 }
 
 // Augment Vite's ImportMeta interface for env and hot module replacement
@@ -24,14 +26,6 @@ interface ImportMeta {
 readonly env: Record<string, unknown>;
 readonly hot?: {
   dispose: (callback: (data: Record<string, unknown>) => void) => void;
+  data: Record<string, unknown>;
 };
-}
-
-// Add ImageBitmap to the global scope as it is used by the worker
-// and not exported by MediaPipe's types.
-declare global {
-  type ImageBitmap = unknown;
-  interface Window {
-    ImageBitmap: typeof ImageBitmap;
-  }
 }

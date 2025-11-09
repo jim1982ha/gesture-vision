@@ -19,6 +19,7 @@
     "outDir": "./dist",
     "rootDir": "./",
     "baseUrl": "./",
+    "jsx": "react-jsx",
     "paths": {
       "#backend/*": ["packages/backend/src/*"],
       "#shared/*": ["packages/shared/*"],
@@ -34,9 +35,13 @@
     "packages/backend/**/*.ts",
     "packages/backend/**/*.json",
     "packages/frontend/src/**/*.ts",
+    "packages/frontend/src/**/*.tsx",
     "packages/frontend/src/**/*.d.ts",
     "packages/frontend/vite-env.d.ts",
+    "packages/frontend/src/workers/worker-env.d.ts",
     "extensions/plugins/**/*.ts",
+    "extensions/plugins/**/*.tsx",
+    "extensions/plugins/**/*.js",
     "extensions/plugins/**/*.json"
   ],
   "exclude": [
@@ -64,6 +69,8 @@
     "*.config.js",
     "*.config.mjs",
     "packages/frontend/vite.config.umd.js",
-    "packages/backend/dist-backend"
+    "packages/backend/dist-backend",
+    // EXCEPTION: Exclude plugin backend JS files which are build artifacts
+    "extensions/plugins/*/backend.plugin.js"
   ]
 }

@@ -1,32 +1,20 @@
 /* FILE: packages/frontend/src/camera/camera-manager.ts */
-import { pubsub, UI_EVENTS, WEBCAM_EVENTS, normalizeNameForMtx } from '#shared/index.js';
-import {
-  DEFAULT_WEBCAM_FACING_MODE,
-  MOBILE_WEBCAM_PLACEHOLDER_ID,
-  STORAGE_KEY_LAST_WEBCAM_ID,
-  STORAGE_KEY_SELECTED_CAMERA_SOURCE,
-  STORAGE_KEY_MIRROR_STATE_PER_SOURCE,
-} from '#frontend/constants/app-defaults.js';
+import { pubsub, UI_EVENTS, WEBCAM_EVENTS, normalizeNameForMtx, type RtspSourceConfig } from '#shared/index.js';
+import { DEFAULT_WEBCAM_FACING_MODE, MOBILE_WEBCAM_PLACEHOLDER_ID, STORAGE_KEY_LAST_WEBCAM_ID, STORAGE_KEY_SELECTED_CAMERA_SOURCE, STORAGE_KEY_MIRROR_STATE_PER_SOURCE } from '#frontend/constants/index.js';
 import { secureStorage } from '#shared/services/security-utils.js';
 import type { AppStore } from '#frontend/core/state/app-store.js';
 import type { GestureProcessor } from '#frontend/gestures/processor.js';
-import type { RoiConfig, RtspSourceConfig } from '#shared/index.js';
 import type { TranslationService } from '#frontend/services/translation.service.js';
-
 import { CanvasRenderer } from './canvas-renderer.js';
 import { CameraSourceManager } from './source-manager.js';
 import { CameraStreamService } from './stream-service.js';
 import { WebcamError } from './webcam-error.js';
-
-interface PerformanceStats {
-  resolution: { width: number; height: number };
-}
+import { CameraStateBridge } from './state-bridge.js';
 
 export class CameraManager {
   #videoElement: HTMLVideoElement;
   #stream: MediaStream | null = null;
   #currentDeviceId: string | null = '';
-  #performanceStats: PerformanceStats = { resolution: { width: 0, height: 0 } };
   #appStore: AppStore;
   #gestureProcessorRef: GestureProcessor;
   #canvasRendererRef: CanvasRenderer;
@@ -34,7 +22,8 @@ export class CameraManager {
   #currentFacingMode: 'user' | 'environment' = DEFAULT_WEBCAM_FACING_MODE;
   #cameraSourceManager: CameraSourceManager;
   #streamService: CameraStreamService;
-  #unsubscribeStore: () => void;
+  #stateBridge: CameraStateBridge;
+  #animationFrameId: number | null = null;
 
   constructor(
     videoElement: HTMLVideoElement,
@@ -49,127 +38,72 @@ export class CameraManager {
 
     this.#cameraSourceManager = new CameraSourceManager(this.#appStore, translationService);
     this.#streamService = new CameraStreamService(this);
-
-    this.#canvasRendererRef = new CanvasRenderer(
-      { outputCanvas: outputCanvasElement, videoElement: this.#videoElement },
-      this.#appStore,
-      (sourceId: string | null, roiConfig: RoiConfig) => {
+    this.#canvasRendererRef = new CanvasRenderer({ outputCanvas: outputCanvasElement, videoElement: this.#videoElement }, this.#appStore, (sourceId, roiConfig) => {
         if (!sourceId) return;
         const currentSources = this.#appStore.getState().rtspSources;
-        const patchData = {
-          rtspSources: currentSources.map((s) =>
-            `rtsp:${normalizeNameForMtx(s.name)}` === sourceId
-              ? { ...s, roi: roiConfig }
-              : s
-          ),
-        };
+        const patchData = { rtspSources: currentSources.map((s) => `rtsp:${normalizeNameForMtx(s.name)}` === sourceId ? { ...s, roi: roiConfig } : s) };
         this.#appStore.getState().actions.requestBackendPatch(patchData);
-      }
-    );
-    this.#loadPreferences();
-    this.#attachEventListeners();
-
-    this.#unsubscribeStore = this.#appStore.subscribe((state, prevState) => {
-      if (state.rtspSources !== prevState.rtspSources && this.isStreaming()) {
-        this.#handleLiveRtspConfigUpdate(state.rtspSources);
-      }
-      
-      if (state.processingResolutionWidthPreference !== prevState.processingResolutionWidthPreference && this.isStreaming() && !this.isStreamingRtsp()) {
-        this.start(this.#currentDeviceId || '', null).catch(e => console.error("Error restarting stream after resolution change:", e));
-      }
     });
+    this.#stateBridge = new CameraStateBridge(this, this.#appStore);
+    
+    this.#loadPreferences();
   }
 
-  public async initialize(): Promise<void> {
-    await this.#cameraSourceManager.initialize();
-  }
+  public async initialize(): Promise<void> { await this.#cameraSourceManager.initialize(); }
 
   public destroy(): void {
-    window.removeEventListener('resize', this.#canvasRendererRef.handleResize);
-    this.#unsubscribeStore();
+    this.#stateBridge.destroy();
     this.#cameraSourceManager.destroy();
+    if (this.#animationFrameId) cancelAnimationFrame(this.#animationFrameId);
   }
 
   #loadPreferences(): void {
-    this.#currentDeviceId =
-      (secureStorage.get(STORAGE_KEY_SELECTED_CAMERA_SOURCE) as string | null) ?? '';
+    this.#currentDeviceId = (secureStorage.get(STORAGE_KEY_SELECTED_CAMERA_SOURCE) as string | null) ?? '';
     try {
-      const stored = secureStorage.get(
-        STORAGE_KEY_MIRROR_STATE_PER_SOURCE
-      ) as Record<string, boolean> | null;
+      const stored = secureStorage.get(STORAGE_KEY_MIRROR_STATE_PER_SOURCE) as Record<string, boolean> | null;
       if (stored) this.#mirrorStateMap = new Map(Object.entries(stored));
-    } catch (e) {
-      console.error('[CameraManager] Failed to load mirror state:', e);
-    }
+    } catch (e) { console.error('[CameraManager] Failed to load mirror state:', e); }
   }
 
-  #attachEventListeners(): void {
-    window.addEventListener('resize', () =>
-      this.#canvasRendererRef.handleResize()
-    );
-
-    pubsub.subscribe(UI_EVENTS.REQUEST_MIRROR_TOGGLE, () => {
-        this.toggleMirroringForCurrentStream();
-    });
-  }
-
-  #handleLiveRtspConfigUpdate(newSources: RtspSourceConfig[]): void {
+  public handleLiveRtspConfigUpdate(newSources: RtspSourceConfig[]): void {
     if (!this.isStreamingRtsp() || !this.#currentDeviceId) return;
-  
     const currentNormalizedName = this.#currentDeviceId.substring(5);
     const newConfig = newSources.find(s => normalizeNameForMtx(s.name) === currentNormalizedName);
     const oldConfig = this.#appStore.getState().rtspSources.find(s => normalizeNameForMtx(s.name) === currentNormalizedName);
   
-    if (!newConfig) { // Source was deleted
-      pubsub.publish(UI_EVENTS.SHOW_NOTIFICATION, { messageKey: 'notificationStreamStoppedConfigChanged', type: 'warning' });
+    if (!newConfig || newConfig.url !== oldConfig?.url) {
+      const messageKey = !newConfig ? 'notificationStreamStoppedConfigChanged' : 'notificationStreamUrlChanged';
+      pubsub.publish(UI_EVENTS.SHOW_NOTIFICATION, { messageKey, type: 'warning' });
       this.stop();
       return;
     }
   
-    if (newConfig.url !== oldConfig?.url) {
-      pubsub.publish(UI_EVENTS.SHOW_NOTIFICATION, { messageKey: 'notificationStreamUrlChanged', type: 'warning' });
-      this.stop();
-      return;
-    }
-
     const newRoi = newConfig.roi || null;
-    const oldRoi = oldConfig?.roi || null;
-
-    if (JSON.stringify(newRoi) !== JSON.stringify(oldRoi)) {
+    if (JSON.stringify(newRoi) !== JSON.stringify(oldConfig?.roi || null)) {
       this.#canvasRendererRef.updateSourceInfo(this.#currentDeviceId, newRoi);
       this.#gestureProcessorRef.setActiveStreamRoi(newRoi);
     }
   }
 
-  public async start(
-    targetDeviceId: string,
-    selectedSourceConfig: RtspSourceConfig | null
-  ): Promise<void> {
+  public async start(targetDeviceId: string, selectedSourceConfig: RtspSourceConfig | null): Promise<void> {
     if (this.#stream) await this.stop(false);
 
     this.#currentDeviceId = targetDeviceId;
-    this.#canvasRendererRef.setMirroring(this.isMirrored());
+    this.#videoElement.classList.toggle('mirrored', this.isMirrored());
 
-    this.#videoElement
-      .closest('.video-container')
-      ?.classList.add('video-active');
+    const container = this.#videoElement.closest('.video-container');
+    container?.classList.add('video-active', 'initial-show');
+    setTimeout(() => container?.classList.remove('initial-show'), 4100);
 
     try {
-      const newStream = await this.#streamService.acquireStream(
-        targetDeviceId,
-        selectedSourceConfig,
-        this.#currentFacingMode
-      );
+      const newStream = await this.#streamService.acquireStream(targetDeviceId, selectedSourceConfig, this.#currentFacingMode);
       this.#stream = newStream;
       this.#videoElement.srcObject = newStream;
       await this.#waitForVideoToPlay();
-      this.#handleStreamStartSuccess(selectedSourceConfig);
+      await this.#handleStreamStartSuccess(selectedSourceConfig);
     } catch (error) {
       const specificError = this.#mapToWebcamError(error as Error);
-      pubsub.publish(WEBCAM_EVENTS.ERROR, {
-        code: specificError.code,
-        message: specificError.message,
-      });
+      pubsub.publish(WEBCAM_EVENTS.ERROR, { code: specificError.code, message: specificError.message });
       await this.stop();
       throw specificError;
     }
@@ -177,115 +111,93 @@ export class CameraManager {
 
   async #waitForVideoToPlay(): Promise<void> {
     return new Promise((resolve, reject) => {
-      const playingHandler = () => {
-        cleanup();
-        resolve();
-      };
-      const errorHandler = (e: Event) => {
-        cleanup();
-        const mediaError = (e.target as HTMLVideoElement)?.error;
-        reject(
-          new WebcamError(
-            'VIDEO_ELEMENT_ERROR',
-            `Video error: ${mediaError?.message || `Code ${mediaError?.code}`}`
-          )
-        );
-      };
-      const cleanup = () => {
-        this.#videoElement.removeEventListener('playing', playingHandler);
-        this.#videoElement.removeEventListener('error', errorHandler);
-        clearTimeout(timeoutId);
-      };
-      const timeoutId = setTimeout(() => {
-        cleanup();
-        reject(
-          new WebcamError(
-            'VIDEO_PLAY_TIMEOUT',
-            'Timeout waiting for video to play.'
-          )
-        );
-      }, 10000);
-      this.#videoElement.addEventListener('playing', playingHandler, {
-        once: true,
-      });
-      this.#videoElement.addEventListener('error', errorHandler, { once: true });
-      this.#videoElement.play().catch(errorHandler);
+      const video = this.#videoElement;
+      const timeoutId = window.setTimeout(() => { cleanup(); reject(new WebcamError('VIDEO_PLAY_TIMEOUT', 'Timeout waiting for video to play.')); }, 10000);
+      const cleanup = () => { video.removeEventListener('loadeddata', onLoadedData); video.removeEventListener('error', onError); };
+      const onError = (e: Event) => { cleanup(); const mediaError = (e.target as HTMLVideoElement)?.error; reject(new WebcamError('VIDEO_ELEMENT_ERROR', mediaError ? `Video playback error: ${mediaError.message} (Code: ${mediaError.code})` : 'An unknown error occurred.')); };
+      const onPlaying = () => { clearTimeout(timeoutId); cleanup(); resolve(); };
+      const onLoadedData = () => { video.play().then(onPlaying).catch(onError); };
+      video.addEventListener('loadeddata', onLoadedData, { once: true });
+      video.addEventListener('error', onError, { once: true });
     });
   }
 
-  #handleStreamStartSuccess(rtspSourceConfig: RtspSourceConfig | null): void {
-    this.#performanceStats.resolution = {
-      width: this.#videoElement.videoWidth,
-      height: this.#videoElement.videoHeight,
-    };
+  async #handleStreamStartSuccess(rtspSourceConfig: RtspSourceConfig | null): Promise<void> {
+    this.#appStore.getState().actions.setWebcamRunningStatus(true);
     if (!this.isStreamingRtsp()) {
-        console.log(`[CameraManager] Stream (re)started successfully. Applied resolution: ${this.#videoElement.videoWidth}x${this.#videoElement.videoHeight}.`);
+        console.log(`[CameraManager] Stream started. Resolution: ${this.#videoElement.videoWidth}x${this.#videoElement.videoHeight}.`);
     }
     const actualTrack = this.#stream?.getVideoTracks()[0];
     if (actualTrack && !this.isStreamingRtsp()) {
       const deviceIdFromTrack = actualTrack.getSettings().deviceId;
-      if (deviceIdFromTrack) {
-        this.#currentDeviceId = deviceIdFromTrack;
-        secureStorage.set(STORAGE_KEY_LAST_WEBCAM_ID, deviceIdFromTrack);
-      }
+      if (deviceIdFromTrack) { this.#currentDeviceId = deviceIdFromTrack; secureStorage.set(STORAGE_KEY_LAST_WEBCAM_ID, deviceIdFromTrack); }
     }
 
     const roiForProcessing = this.isStreamingRtsp() ? (rtspSourceConfig?.roi || null) : null;
     this.#gestureProcessorRef.setActiveStreamRoi(roiForProcessing);
-    this.#canvasRendererRef.updateSourceInfo(
-      this.#currentDeviceId,
-      roiForProcessing
-    );
-    
+    this.#canvasRendererRef.updateSourceInfo(this.#currentDeviceId, roiForProcessing);
     this.#canvasRendererRef.drawOutput();
 
-    pubsub.publish(WEBCAM_EVENTS.STREAM_START, {
-      deviceId: this.#currentDeviceId,
-    });
+    pubsub.publish(WEBCAM_EVENTS.STREAM_START, { deviceId: this.#currentDeviceId });
+    
+    await this.#gestureProcessorRef.waitUntilModelsReady();
+    
+    this.#gestureProcessorRef.enableProcessing(true);
+    
+    try {
+        for (let i = 0; i < 3; i++) {
+            await this.#gestureProcessorRef.processFrame({ videoElement: this.#videoElement, imageSourceElement: this.#videoElement, roiConfig: roiForProcessing, timestamp: performance.now() }, true);
+            await new Promise(resolve => setTimeout(resolve, 50));
+        }
+    } catch (e) {
+        console.warn("[CameraManager] Error during processor priming:", e);
+    }
+
+    this.#processingLoop();
   }
 
   public async stop(publishStopEvent = true): Promise<void> {
+    if (this.#animationFrameId) { cancelAnimationFrame(this.#animationFrameId); this.#animationFrameId = null; }
+    this.#gestureProcessorRef.enableProcessing(false);
     this.#streamService.stopStream();
     if (this.#stream) this.#stream.getTracks().forEach((track) => track.stop());
-    this.#stream = null;
-    this.#videoElement.srcObject = null;
-    this.#videoElement.pause();
-    this.#videoElement
-      .closest('.video-container')
-      ?.classList.remove('video-active');
-    this.#performanceStats = { resolution: { width: 0, height: 0 } };
-    
+    this.#stream = null; this.#videoElement.srcObject = null; this.#videoElement.pause();
+    this.#videoElement.closest('.video-container')?.classList.remove('video-active', 'initial-show');
     this.#canvasRendererRef.clearVideoSource();
-
     if (publishStopEvent) pubsub.publish(WEBCAM_EVENTS.STREAM_STOP);
   }
+  
+  #processingLoop = (timestamp?: number): void => {
+    if (!this.isStreaming()) return;
+    this.#gestureProcessorRef.processFrame({ videoElement: this.#videoElement, imageSourceElement: this.#videoElement, roiConfig: this.#gestureProcessorRef.getStateLogic().getActiveStreamRoi(), timestamp: timestamp || performance.now() });
+    this.#animationFrameId = requestAnimationFrame(this.#processingLoop);
+  };
 
   public async flipCamera(): Promise<void> {
     if (!this.canFlipCamera()) return;
-    this.#currentFacingMode =
-      this.#currentFacingMode === 'user' ? 'environment' : 'user';
-    pubsub.publish(UI_EVENTS.CAMERA_LIST_ITEM_CLICKED, {
-      deviceId: MOBILE_WEBCAM_PLACEHOLDER_ID,
-      isFlip: true,
-    });
+
+    this.#currentFacingMode = this.#currentFacingMode === 'user' ? 'environment' : 'user';
+
+    const { actions } = this.#appStore.getState();
+    actions.setIsStreamConnecting(true);
+    try {
+      await this.start(MOBILE_WEBCAM_PLACEHOLDER_ID, null);
+    } catch (error) {
+      console.error('[CameraManager] Error during flipCamera:', error);
+      this.#currentFacingMode = this.#currentFacingMode === 'user' ? 'environment' : 'user';
+    } finally {
+      actions.setIsStreamConnecting(false);
+    }
   }
 
-  public isStreaming(): boolean {
-    return !!this.#stream;
-  }
-  public isStreamingRtsp(): boolean {
-    return !!this.#currentDeviceId?.startsWith('rtsp:');
-  }
-  public canFlipCamera(): boolean {
-    return 'facingMode' in navigator.mediaDevices.getSupportedConstraints();
-  }
+  public isStreaming = (): boolean => !!this.#stream;
+  public isStreamingRtsp = (): boolean => !!this.#currentDeviceId?.startsWith('rtsp:');
+  public canFlipCamera = (): boolean => 'facingMode' in navigator.mediaDevices.getSupportedConstraints();
   public getCanvasRenderer = (): CanvasRenderer => this.#canvasRendererRef;
-  public getCameraSourceManager = (): CameraSourceManager =>
-    this.#cameraSourceManager;
+  public getCameraSourceManager = (): CameraSourceManager => this.#cameraSourceManager;
   public getVideoElement = (): HTMLVideoElement | null => this.#videoElement;
   public getCurrentDeviceId = (): string | null => this.#currentDeviceId;
-  public getCurrentFacingMode = (): 'user' | 'environment' =>
-    this.#currentFacingMode;
+  public getCurrentFacingMode = (): 'user' | 'environment' => this.#currentFacingMode;
   public getAppStore = (): AppStore => this.#appStore;
   public getGestureProcessor = (): GestureProcessor => this.#gestureProcessorRef;
 
@@ -297,36 +209,21 @@ export class CameraManager {
   public toggleMirroringForCurrentStream(): void {
     const deviceId = this.#currentDeviceId;
     if (!deviceId) return;
-
     const newState = !this.isMirrored();
     this.#mirrorStateMap.set(deviceId, newState);
-    secureStorage.set(
-      STORAGE_KEY_MIRROR_STATE_PER_SOURCE,
-      Object.fromEntries(this.#mirrorStateMap)
-    );
-    
-    if (this.isStreaming()) {
-      // Find the config for the current stream to pass it to the start method
-      const sourceConfig = this.isStreamingRtsp() 
-        ? this.#appStore.getState().rtspSources.find(s => `rtsp:${normalizeNameForMtx(s.name)}` === deviceId) || null
-        : null;
-      this.start(deviceId, sourceConfig).catch(e => console.error("Error restarting stream after mirror toggle:", e));
-    }
-    
+    secureStorage.set(STORAGE_KEY_MIRROR_STATE_PER_SOURCE, Object.fromEntries(this.#mirrorStateMap));
+    if (this.isStreaming()) { this.#videoElement.classList.toggle('mirrored', newState); this.#canvasRendererRef.drawOutput(); }
     pubsub.publish(UI_EVENTS.REQUEST_BUTTON_STATE_UPDATE);
   }
 
   #mapToWebcamError = (error: Error): WebcamError => {
     if (error instanceof WebcamError) return error;
-    let code = 'UNKNOWN';
-    let message = `Camera error: ${error.name} - ${error.message}`;
-    if (error.name === 'NotAllowedError') {
-      code = 'PERMISSION_DENIED';
-      message = 'Camera access was denied.';
-    } else if (error.name === 'NotFoundError') {
-      code = 'DEVICE_NOT_FOUND';
-      message = 'The selected camera could not be found.';
+    let code: string;
+    switch (error.name) {
+        case 'NotAllowedError': code = 'PERMISSION_DENIED'; break;
+        case 'NotFoundError': code = 'DEVICE_NOT_FOUND'; break;
+        default: code = 'UNKNOWN';
     }
-    return new WebcamError(code, message);
+    return new WebcamError(code, error.message);
   };
 }

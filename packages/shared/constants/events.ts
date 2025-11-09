@@ -15,8 +15,8 @@ export const UI_EVENTS = {
   REQUEST_SELECTED_CAMERA_DISPLAY_UPDATE:
     "ui:requestSelectedCameraDisplayUpdate",
   VIDEO_VISIBILITY_CHANGED: "ui:videoVisibilityChanged",
+  VIDEO_EXIT_FULLSCREEN: "ui:videoExitFullscreen",
   REQUEST_BUTTON_STATE_UPDATE: "ui:requestButtonStateUpdate",
-  RECEIVE_UI_CONTRIBUTION: "ui:receiveContribution",
   REQUEST_VIDEO_REPARENT: "ui:requestVideoReparent",
   REQUEST_OVERLAY_STATE: "ui:requestOverlayState",
   REQUEST_EDIT_CONFIG: "ui:requestEditConfig",
@@ -27,7 +27,8 @@ export const UI_EVENTS = {
   VIDEO_TOOLBAR_DISPLAY_CLICKED: "ui:videoToolbarDisplayClicked",
   REQUEST_MIRROR_TOGGLE: "ui:requestMirrorToggle",
   ACTION_RESULT_RECEIVED: "ui:actionResultReceived",
-  GESTURE_CONFIG_TRIGGERED: "ui:gestureConfigTriggered", // For immediate UI feedback
+  GESTURE_CONFIG_TRIGGERED: "ui:gestureConfigTriggered",
+  PLUGIN_RENDERERS_UPDATED: "ui:pluginRenderersUpdated",
 } as const;
 
 export const WEBCAM_EVENTS = {
@@ -52,8 +53,7 @@ export const CAMERA_SOURCE_EVENTS = {
 export const GESTURE_EVENTS = {
   PERFORMANCE_UPDATE: "gesture:performance",
   MODEL_LOADED: "gesture:model-loaded",
-  UPDATE_STATUS: "gesture:update-status",
-  UPDATE_PROGRESS: "gesture:update-progress",
+  UI_FEEDBACK_UPDATE: "gesture:ui-feedback-update",
   DETECTED_ALERT: "gesture:detected-alert",
   CONFIDENCE_THRESHOLD_MET: "gesture:confidence-threshold-met",
   TIMERS_RESET: "gesture:timersReset",
@@ -72,21 +72,34 @@ export const GESTURE_EVENTS = {
 } as const;
 
 export const WEBSOCKET_EVENTS = {
+  // Lifecycle & Core
   CONNECTING: "websocket:connecting",
   CONNECTED: "websocket:connected",
   DISCONNECTED: "websocket:disconnected",
   ERROR: "websocket:error",
   INITIAL_STATE: "backend:initialState",
+  
+  // Client to Server
+  GET_FULL_CONFIG: "GET_FULL_CONFIG",
+  PATCH_CONFIG: "PATCH_CONFIG",
+  GET_PLUGIN_GLOBAL_CONFIG: "GET_PLUGIN_GLOBAL_CONFIG",
+  PATCH_PLUGIN_GLOBAL_CONFIG: "PATCH_PLUGIN_GLOBAL_CONFIG",
+  DISPATCH_ACTION: "DISPATCH_ACTION",
+  GET_CUSTOM_GESTURES_METADATA: "GET_CUSTOM_GESTURES_METADATA",
+  UPLOAD_CUSTOM_GESTURE: "UPLOAD_CUSTOM_GESTURE",
+  UPDATE_CUSTOM_GESTURE: "UPDATE_CUSTOM_GESTURE",
+  DELETE_CUSTOM_GESTURE: "DELETE_CUSTOM_GESTURE",
+  RTSP_CONNECT_REQUEST: "rtsp:connectRequest",
+  RTSP_DISCONNECT_REQUEST: "rtsp:disconnectRequest",
+  FINALIZE_UNINSTALL: "plugin:finalizeUninstall",
+
+  // Server to Client
   CONFIG_SAVE_RESULT: "config:saveResult",
   BACKEND_ACTION_RESULT: "backend:actionResult",
   STREAM_STATUS_UPDATE: "streamStatus:update",
-  GET_CUSTOM_GESTURES_METADATA: "GET_CUSTOM_GESTURES_METADATA",
   BACKEND_CUSTOM_GESTURES_METADATA_LIST: "CUSTOM_GESTURES_METADATA_LIST",
-  UPLOAD_CUSTOM_GESTURE: "UPLOAD_CUSTOM_GESTURE",
   BACKEND_UPLOAD_CUSTOM_GESTURE_ACK: "backend:uploadCustomGestureAck",
-  UPDATE_CUSTOM_GESTURE: "UPDATE_CUSTOM_GESTURE",
   BACKEND_UPDATE_CUSTOM_GESTURE_ACK: "backend:updateCustomGestureAck",
-  DELETE_CUSTOM_GESTURE: "DELETE_CUSTOM_GESTURE",
   BACKEND_DELETE_CUSTOM_GESTURE_ACK: "backend:deleteCustomGestureAck",
   PLUGIN_GLOBAL_CONFIG_DATA: "websocket:pluginGlobalConfigData",
   PLUGIN_CONFIG_PATCH_ACK: "websocket:pluginConfigPatchAck",
@@ -94,9 +107,7 @@ export const WEBSOCKET_EVENTS = {
   PLUGIN_TEST_CONNECTION_RESULT: "plugin:testConnectionResult",
   FULL_CONFIG_UPDATE: "backend:fullConfigUpdate",
   PLUGINS_MANIFESTS_UPDATED: "backend:pluginsManifestsUpdated",
-  RTSP_CONNECT_REQUEST: "rtsp:connectRequest",
-  RTSP_DISCONNECT_REQUEST: "rtsp:disconnectRequest",
-  FINALIZE_UNINSTALL: "plugin:finalizeUninstall",
+  RTSP_CONNECT_READY: "rtsp:connectReady",
 } as const;
 
 export const DOCS_MODAL_EVENTS = {

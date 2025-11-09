@@ -1,7 +1,6 @@
 /* FILE: packages/backend/src/services/plugin-manager.service.ts */
 import { watchFile, unwatchFile, watch, type FSWatcher, type StatWatcher } from 'fs';
 import path from 'path';
-import type { Router } from 'express';
 import type { ZodType } from 'zod';
 import { exec } from 'child_process';
 import { promisify } from 'util';
@@ -9,7 +8,7 @@ import fs from 'fs/promises';
 
 import { BaseBackendPlugin } from '#backend/plugins/base-backend.plugin.js';
 import { pubsub, BACKEND_INTERNAL_EVENTS, type PluginManifest, type SectionValidationResult, type ValidationErrorDetail } from '#shared/index.js';
-import type { ConfigRepository } from './config/config-repository.js';
+import { type ConfigRepository } from './config/config.repository.js';
 import { PluginLoaderService } from './plugin-loader.service.js';
 
 import type { BackendPlugin, BackendPluginContext } from '#backend/types/index.js';
@@ -66,10 +65,7 @@ export class PluginManagerService {
   #initializePluginsDirWatcher(): void {
     try {
       this.#pluginsDirWatcher = watch(PLUGINS_DIR, { recursive: true, persistent: false }, (eventType, filename) => {
-        // Trigger on any change, the debounced resync will handle the storm of events from git clone.
-        if (!filename) {
-          return;
-        }
+        if (!filename) return;
         this.#triggerResync();
       });
       this.#pluginsDirWatcher.on('error', (err) => console.error("[PluginManager] Directory watcher error:", err));
@@ -84,14 +80,12 @@ export class PluginManagerService {
     const manifestsOnDisk = await this.#loaderService.discoverPlugins();
     const currentPluginIdsOnDisk = new Set(manifestsOnDisk.map(m => m.id));
 
-    // Unload plugins that are no longer on disk
     for (const pluginId of previousPluginIds) {
       if (!currentPluginIdsOnDisk.has(pluginId)) {
         await this.#unloadAndDeregisterPlugin(pluginId);
       }
     }
 
-    // Load new plugins or update existing ones (e.g., status change)
     await Promise.all(manifestsOnDisk.map(async manifest => {
       const existingPlugin = this.#plugins.get(manifest.id);
       const newStatus = this.#disabledPluginIds.has(manifest.id) ? 'disabled' : 'enabled';
@@ -140,7 +134,6 @@ export class PluginManagerService {
     try {
       const backendEntryPath = manifest.backendEntry ? path.resolve(PLUGINS_DIR, manifest.id, manifest.backendEntry.replace('.js', '.ts')) : null;
       if (backendEntryPath) {
-        // Bust the import cache for dynamic loading/reloading
         const module = await import(`file://${backendEntryPath}?v=${Date.now()}`);
         instance = new module.default();
         instance.manifest = manifest;
@@ -216,17 +209,6 @@ export class PluginManagerService {
   public getPluginInstance = (id: string): BackendPlugin | undefined => this.#plugins.get(id)?.instance;
   public getPluginManifest = (id: string): PluginManifest | undefined => this.#plugins.get(id)?.manifest;
 
-  public getPluginApiRouters = (): Map<string, Router> => {
-    const routers = new Map<string, Router>();
-    for (const [id, p] of this.#plugins.entries()) {
-      if (p.manifest.status === 'enabled') {
-        const r = p.instance.getApiRouter?.();
-        if (r) routers.set(id, r);
-      }
-    }
-    return routers;
-  };
-  
   public async getPluginGlobalConfig<T>(pluginId: string): Promise<T | null> {
     const plugin = this.#plugins.get(pluginId);
     return plugin?.globalConfig as T | null;
@@ -260,7 +242,6 @@ export class PluginManagerService {
     try {
       await execAsync(`git clone --depth 1 ${repoUrl} ${targetDir}`);
       await this.#copyPluginAssetsToWebroot(pluginId);
-      // No pubsub needed, watcher will trigger resync
       return { success: true, message: `Plugin '${pluginId}' installed successfully.` };
     } catch (e) {
       console.error(`[PluginManager] Failed to install plugin from ${repoUrl}:`, e);
@@ -288,13 +269,11 @@ export class PluginManagerService {
   
   public async finalizePluginUninstall(pluginId: string): Promise<{success: boolean, message: string}> {
       if (!this.#pluginsPendingDeletion.has(pluginId)) {
-          // This is now expected in a multi-container setup, so we just log it and proceed.
           console.log(`[PluginManager] Finalize request for '${pluginId}' received, but it was not pending deletion in this instance. Proceeding with deletion check.`);
       }
       console.log(`[PluginManager] Finalizing uninstall for ${pluginId}, deleting files...`);
       const result = await this._performPluginDeletion(pluginId);
       this.#pluginsPendingDeletion.delete(pluginId);
-      // No pubsub needed, watcher will trigger resync
       return result;
   }
   
@@ -331,7 +310,6 @@ export class PluginManagerService {
     }
 
     await this.#loaderService.saveDisabledPluginIds(this.#disabledPluginIds);
-    // No pubsub needed, watcher will trigger resync
     return { success: true, message: `Plugin '${pluginId}' has been ${state}.` };
   }
 

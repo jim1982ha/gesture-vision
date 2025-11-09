@@ -37,7 +37,6 @@ export class CanvasRenderer {
   #lastHandLandmarksData: Landmark[][] = [];
   #lastPoseLandmarksData: Landmark[][] = [];
   #currentAuthoritativeRoiConfig: ROICoordinates | null = null;
-  #isMirrored = false;
   #isSourceActive = false;
   #landmarkVisibilityOverride: LandmarkVisibilityOverride | null = null;
   #focusPointsForDrawing: Set<number> | null = null;
@@ -68,9 +67,22 @@ export class CanvasRenderer {
   public setFocusPointsForDrawing(focusPoints: number[] | null): void { this.#focusPointsForDrawing = focusPoints ? new Set(focusPoints) : null; }
   public setLandmarkVisibilityOverride(override: LandmarkVisibilityOverride | null): void { this.#landmarkVisibilityOverride = override; this.drawOutput(); }
   public clearLandmarkVisibilityOverride(): void { if (this.#landmarkVisibilityOverride) { this.#landmarkVisibilityOverride = null; this.drawOutput(); } }
-  public setMirroring(isMirrored: boolean): void { this.#isMirrored = isMirrored; }
   public updateSourceInfo(sourceId: string | null, authoritativeRoiConfig: ROICoordinates | null): void { this.#isSourceActive = !!sourceId; this.#currentAuthoritativeRoiConfig = authoritativeRoiConfig; this.#roiInteractionHandler.updateSourceInfo(sourceId, authoritativeRoiConfig); }
-  public updateLandmarkData(data: FrameRenderData | undefined): void { if (!data) return; this.#lastHandLandmarksData = data.handLandmarks || []; this.#lastPoseLandmarksData = data.poseLandmarks || []; if (data.roiConfig !== undefined) this.#currentAuthoritativeRoiConfig = data.roiConfig; }
+  
+  public updateLandmarkData(data: FrameRenderData | undefined): void {
+    if (!data) return;
+    // Only update if new data is available. Don't clear on frames with no detections.
+    if (Array.isArray(data.handLandmarks)) {
+        this.#lastHandLandmarksData = data.handLandmarks;
+    }
+    if (Array.isArray(data.poseLandmarks)) {
+        this.#lastPoseLandmarksData = data.poseLandmarks;
+    }
+    if (data.roiConfig !== undefined) {
+        this.#currentAuthoritativeRoiConfig = data.roiConfig;
+    }
+  }
+
   public handleResize(): void { this.#roiInteractionHandler.handleResize(); this.drawOutput(); }
 
   public drawOutput(): void {
@@ -91,19 +103,11 @@ export class CanvasRenderer {
     this.#canvasCtx.scale(dpr, dpr);
     this.#canvasCtx.clearRect(0, 0, displayWidth, displayHeight);
 
-    const state = this.#appStore.getState();
-    this.#canvasCtx.filter = `brightness(${state.lowLightBrightness ?? 100}%) contrast(${state.lowLightContrast ?? 100}%)`;
-    if (this.#isMirrored) { this.#canvasCtx.translate(displayWidth, 0); this.#canvasCtx.scale(-1, 1); }
-    
     const videoAspect = videoWidth / videoHeight, canvasAspect = displayWidth / displayHeight;
     let sWidth = videoWidth, sHeight = videoHeight, sx = 0, sy = 0;
     if (videoAspect > canvasAspect) { sWidth = videoHeight * canvasAspect; sx = (videoWidth - sWidth) / 2; } 
     else { sHeight = videoWidth / canvasAspect; sy = (videoHeight - sHeight) / 2; }
-    this.#canvasCtx.drawImage(this.#videoElement, sx, sy, sWidth, sHeight, 0, 0, displayWidth, displayHeight);
-    this.#canvasCtx.restore();
     
-    this.#canvasCtx.save();
-    this.#canvasCtx.scale(dpr, dpr);
     this.#drawRoiOverlay(videoWidth, videoHeight, sx, sy, sWidth, sHeight, displayWidth, displayHeight);
     this.#drawAllLandmarks(displayWidth, displayHeight, videoWidth, videoHeight, { sx, sy, sWidth, sHeight });
     this.#canvasCtx.restore();
@@ -120,6 +124,7 @@ export class CanvasRenderer {
     inRoiColor: string,
     focusColor: string
   ): (TransformedLandmark | null)[][] {
+    const isVideoMirrored = this.#videoElement.classList.contains('mirrored');
     return landmarksSet.map(singleInstanceLandmarks => {
         if (!Array.isArray(singleInstanceLandmarks) || singleInstanceLandmarks.length === 0) return [];
         return singleInstanceLandmarks.map((lm, index) => {
@@ -133,7 +138,7 @@ export class CanvasRenderer {
             const normX_sliced = (videoPxX - videoSlice.sx) / videoSlice.sWidth;
             const normY_sliced = (videoPxY - videoSlice.sy) / videoSlice.sHeight;
 
-            const finalCanvasX = targetRect.x + (this.#isMirrored ? (1 - normX_sliced) : normX_sliced) * targetRect.width;
+            const finalCanvasX = targetRect.x + (isVideoMirrored ? (1 - normX_sliced) : normX_sliced) * targetRect.width;
             const finalCanvasY = targetRect.y + normY_sliced * targetRect.height;
             
             let finalColor = isRoiActive ? inRoiColor : defaultColor;

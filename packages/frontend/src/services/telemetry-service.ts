@@ -29,6 +29,7 @@ class TelemetryService {
   #appStore: AppStore;
   #isInitialized = false; 
   #unsubscribeStore: () => void;
+  #telemetryEndpoint = '/api/telemetry'; // Define a placeholder endpoint
 
   constructor(appStore: AppStore) {
     this.#appStore = appStore;
@@ -108,7 +109,7 @@ class TelemetryService {
       return;
     }
 
-    const _eventData: TelemetryEvent = {
+    const eventData: TelemetryEvent = {
       event: eventName,
       properties: {
         ...properties,
@@ -117,6 +118,20 @@ class TelemetryService {
           typeof __APP_VERSION__ !== "undefined" ? __APP_VERSION__ : "dev",
       },
     };
+    
+    // Use navigator.sendBeacon for reliable, non-blocking data transmission.
+    // It's ideal for analytics as it attempts to send data even if the page is unloading.
+    try {
+        if (navigator.sendBeacon) {
+            const blob = new Blob([JSON.stringify(eventData)], { type: 'application/json' });
+            navigator.sendBeacon(this.#telemetryEndpoint, blob);
+            if (import.meta.env.MODE === 'development') {
+                console.log('[Telemetry] Beacon sent:', eventData);
+            }
+        }
+    } catch (e) {
+        console.warn('[Telemetry] Could not send beacon:', e);
+    }
   }
 }
 export { TelemetryService };

@@ -3,8 +3,7 @@ import type { AppStore } from '#frontend/core/state/app-store.js';
 import {
   DEFAULT_THEME_BASE_ID,
   DEFAULT_THEME_MODE,
-} from '#frontend/constants/app-defaults.js';
-import { AVAILABLE_THEMES } from '#frontend/ui/ui-themes.js';
+} from '#frontend/constants/index.js';
 import { pubsub } from '#shared/core/pubsub.js';
 
 import type { ThemePreference } from '#frontend/types/index.js';
@@ -19,7 +18,6 @@ type MediaQueryListWithDeprecatedListeners = MediaQueryList & {
 };
 
 export default class ThemeManager {
-  #availableBaseThemes = AVAILABLE_THEMES;
   #defaultBaseTheme = DEFAULT_THEME_BASE_ID;
   #defaultColorMode: ThemePreference['mode'] = DEFAULT_THEME_MODE;
   #themeMetaTag: HTMLMetaElement | null = null;
@@ -48,7 +46,7 @@ export default class ThemeManager {
     this.#setupSystemThemeListener();
 
     this.#unsubscribeStore = this.#appStore.subscribe(
-      this.#handleExternalThemeChange
+        (state, prevState) => this.#handleExternalThemeChange(state, prevState)
     );
 
     this.#applyTheme();
@@ -66,7 +64,8 @@ export default class ThemeManager {
     const effectiveMode = this.#getEffectiveMode();
     const currentBaseTheme = this.getBaseTheme();
     const combinedThemeId = `${currentBaseTheme}-${effectiveMode}`;
-    document.body.dataset.theme = combinedThemeId;
+    // CORRECTED: Apply the theme to the <html> element, not the body.
+    document.documentElement.dataset.theme = combinedThemeId;
     
     // Defer the meta tag update slightly to ensure the new CSS variables are applied.
     requestAnimationFrame(() => this.#updateDeviceThemeColors());
@@ -117,46 +116,15 @@ export default class ThemeManager {
     }
   }
 
-  #handleExternalThemeChange = (state: {
-    themePreference: ThemePreference;
-  }): void => {
-    if (!state.themePreference || typeof state.themePreference !== 'object')
-      return;
-    this.#applyTheme();
+  #handleExternalThemeChange = (
+    state: { themePreference: ThemePreference },
+    prevState: { themePreference: ThemePreference }
+  ): void => {
+    if (JSON.stringify(state.themePreference) !== JSON.stringify(prevState.themePreference)) {
+      this.#applyTheme();
+    }
   };
 
-  setColorModePreference(newPreference: ThemePreference['mode']): void {
-    if (
-      !['light', 'dark', 'system'].includes(newPreference) ||
-      this.getColorModePreference() === newPreference
-    )
-      return;
-    this.#appStore
-      .getState()
-      .actions.setLocalPreference('themePreference', {
-        base: this.getBaseTheme(),
-        mode: newPreference,
-      });
-  }
-
-  setBaseTheme(newBaseThemeId: string): void {
-    if (
-      !this.#availableBaseThemes.some((theme) => theme.id === newBaseThemeId) ||
-      this.getBaseTheme() === newBaseThemeId
-    )
-      return;
-    this.#appStore
-      .getState()
-      .actions.setLocalPreference('themePreference', {
-        base: newBaseThemeId,
-        mode: this.getColorModePreference(),
-      });
-  }
-
-  /**
-   * Reads the computed --color-surface CSS variable and updates the theme-color and
-   * apple-mobile-web-app-status-bar-style meta tags for native-like device chrome.
-   */
   #updateDeviceThemeColors(): void {
     try {
       const surfaceRgb = getComputedStyle(document.body).getPropertyValue('--color-surface').trim();
@@ -170,12 +138,10 @@ export default class ThemeManager {
         }
       }
       
-      // Update standard theme-color for Android and desktop PWAs
       if (this.#themeMetaTag) {
         this.#themeMetaTag.setAttribute('content', hexColor);
       }
 
-      // Update iOS specific status bar style
       if (this.#appleStatusBarMetaTag) {
         const effectiveMode = this.#getEffectiveMode();
         this.#appleStatusBarMetaTag.setAttribute('content', effectiveMode === 'dark' ? 'black' : 'default');
@@ -183,7 +149,6 @@ export default class ThemeManager {
 
     } catch (e: unknown) {
       console.error(`[ThemeManager] Error setting device theme colors:`, e);
-      // Set safe fallbacks on error
       if (this.#themeMetaTag) this.#themeMetaTag.setAttribute('content', '#ffffff');
       if (this.#appleStatusBarMetaTag) this.#appleStatusBarMetaTag.setAttribute('content', 'default');
     }
@@ -191,12 +156,6 @@ export default class ThemeManager {
 
   getColorModePreference = (): ThemePreference['mode'] =>
     this.#appStore.getState().themePreference?.mode || this.#defaultColorMode;
-  getEffectiveColorMode = (): ThemePreference['mode'] => this.#getEffectiveMode();
   getBaseTheme = (): string =>
     this.#appStore.getState().themePreference?.base || this.#defaultBaseTheme;
-  getAvailableBaseThemes = (): Array<{
-    id: string;
-    nameKey: string;
-    icon: string;
-  }> => this.#availableBaseThemes.map((theme) => ({ ...theme }));
 }

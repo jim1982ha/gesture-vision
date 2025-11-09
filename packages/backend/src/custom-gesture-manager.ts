@@ -94,71 +94,56 @@ export async function scanCustomGesturesDir(): Promise<CustomGestureMetadata[]> 
 }
 
 export async function saveCustomGestureFile(
-  name: string,
-  description: string | undefined,
-  type: 'hand' | 'pose',
-  codeString: string,
-  existingDefinitions: CustomGestureMetadata[]
-): Promise<{
-  success: boolean;
-  message?: string;
-  newDefinition?: CustomGestureMetadata;
-}> {
-  if (!name?.trim() || !codeString)
-    return { success: false, message: 'Gesture name and code cannot be empty.' };
-  if (conflictsWithBuiltIn(name))
-    return {
-      success: false,
-      message: `Name "${name}" conflicts with a built-in gesture.`,
-    };
-  const normalizedName = normalizeNameForMtx(name.trim());
-  if (
-    existingDefinitions.some(
-      (d) => normalizeNameForMtx(d.name).toUpperCase() === normalizedName.toUpperCase()
-    )
-  ) {
-    return {
-      success: false,
-      message: `A custom gesture with the name "${name}" already exists.`,
-    };
-  }
-  const expectedFn = type === 'pose' ? 'checkPose' : 'checkGesture';
-  if (!codeString.includes(`export function ${expectedFn}`))
-    return {
-      success: false,
-      message: `Code validation failed: Missing 'export function ${expectedFn}(...)'.`,
-    };
+    name: string,
+    description: string | undefined,
+    type: 'hand' | 'pose',
+    codeString: string,
+    existingDefinitions: CustomGestureMetadata[]
+): Promise<{ success: boolean; message?: string; newDefinition?: CustomGestureMetadata; }> {
+    // Attempt to parse metadata from the code string itself first
+    const parsedMeta = parseMetadataFromCode(codeString);
+    const finalName = parsedMeta?.name || name;
+    const finalDescription = parsedMeta?.description || description;
+    const finalType = parsedMeta?.type || type;
 
-  const metadataToEmbed = JSON.stringify(
-    { name: name.trim(), description: description?.trim() || '', type },
-    null,
-    2
-  );
-  const metadataRegex = /export\s+const\s+metadata\s*=\s*({[\s\S]*?});?/m;
-  const finalCodeString = metadataRegex.test(codeString)
-    ? codeString.replace(metadataRegex, `export const metadata = ${metadataToEmbed};`)
-    : `export const metadata = ${metadataToEmbed};\n\n${codeString}`;
+    if (!finalName?.trim() || !codeString) return { success: false, message: 'Gesture name and code cannot be empty.' };
+    if (conflictsWithBuiltIn(finalName)) return { success: false, message: `Name "${finalName}" conflicts with a built-in gesture.` };
+    
+    const normalizedName = normalizeNameForMtx(finalName.trim());
+    if (existingDefinitions.some(d => normalizeNameForMtx(d.name).toUpperCase() === normalizedName.toUpperCase())) {
+        return { success: false, message: `A custom gesture with the name "${finalName}" already exists.` };
+    }
 
-  const filePath = path.join(CUSTOM_GESTURES_DIR, `${normalizedName}.js`);
-  try {
-    await fs.mkdir(CUSTOM_GESTURES_DIR, { recursive: true });
-    await fs.writeFile(filePath, finalCodeString, 'utf-8');
-    return {
-      success: true,
-      newDefinition: {
-        id: normalizedName,
-        name: name.trim(),
-        description: description?.trim(),
-        filePath,
-        codeString: finalCodeString,
-        type,
-      },
-    };
-  } catch (saveError: unknown) {
-    const message =
-      saveError instanceof Error ? saveError.message : String(saveError);
-    return { success: false, message: `Failed to save gesture file: ${message}` };
-  }
+    const expectedFn = finalType === 'pose' ? 'checkPose' : 'checkGesture';
+    if (!codeString.includes(`export function ${expectedFn}`) && !codeString.includes('export const baseRules')) {
+        return { success: false, message: `Code validation failed: Missing 'export function ${expectedFn}(...)' for dynamic gestures, or 'export const baseRules' for static gestures.` };
+    }
+
+    const metadataToEmbed = JSON.stringify({ name: finalName.trim(), description: finalDescription?.trim() || '', type: finalType }, null, 2);
+    const metadataRegex = /export\s+const\s+metadata\s*=\s*({[\s\S]*?});?/m;
+    const finalCodeString = metadataRegex.test(codeString)
+        ? codeString.replace(metadataRegex, `export const metadata = ${metadataToEmbed};`)
+        : `export const metadata = ${metadataToEmbed};\n\n${codeString}`;
+
+    const filePath = path.join(CUSTOM_GESTURES_DIR, `${normalizedName}.js`);
+    try {
+        await fs.mkdir(CUSTOM_GESTURES_DIR, { recursive: true });
+        await fs.writeFile(filePath, finalCodeString, 'utf-8');
+        return {
+            success: true,
+            newDefinition: {
+                id: normalizedName,
+                name: finalName.trim(),
+                description: finalDescription?.trim(),
+                filePath,
+                codeString: finalCodeString,
+                type: finalType,
+            },
+        };
+    } catch (saveError: unknown) {
+        const message = saveError instanceof Error ? saveError.message : String(saveError);
+        return { success: false, message: `Failed to save gesture file: ${message}` };
+    }
 }
 
 export async function updateCustomGestureFile(

@@ -1,84 +1,86 @@
-/* FILE: packages/frontend/src/styles/_overlays.css */
-
 @layer components {
+  /* --- Keyframes for initial toolbar visibility --- */
+  @keyframes fade-in-then-out {
+    0%, 100% { opacity: 0; }
+    10%, 80% { opacity: 1; }
+  }
+
   /* --- Main Overlay System --- */
   #output_canvas {
-    @apply absolute inset-0 z-10;
-  }
-  #video-overlay-container {
     @apply absolute inset-0 z-10 pointer-events-none;
   }
-  #video-toolbar-container {
-    @apply absolute top-2 right-2 z-30 pointer-events-auto;
-  }
-  #connectingOverlay {
-    @apply pointer-events-none z-20;
-  }
-  #connectingOverlay.overlay-active {
-    @apply pointer-events-auto bg-black/60 backdrop-blur-sm;
+  
+  #video-overlay-container {
+    @apply absolute inset-0 z-20 pointer-events-none flex flex-col justify-between p-2;
   }
 
+  #video-toolbar-container {
+    @apply pointer-events-auto z-40;
+  }
+
+  /* --- Toolbar visibility logic --- */
+  #stream-actions-group { @apply hidden; }
+  .video-container.video-active #stream-actions-group { @apply flex; }
+  .video-container.video-active #video-toolbar-container { @apply opacity-0 transition-opacity duration-300; }
+  .video-container:not(.video-active) #video-toolbar-container { @apply opacity-100; }
+  .video-container.video-active:hover #video-toolbar-container { @apply opacity-100; animation: none; }
+  .video-container.initial-show #video-toolbar-container { animation: fade-in-then-out 4s ease-in-out forwards; }
+
+  /* --- Status Overlay (Connecting/Idle) --- */
+  #status-overlay {
+    @apply absolute inset-0 z-30 flex flex-col items-center justify-center rounded-lg transition-opacity duration-200 pointer-events-none;
+    color: hsl(var(--color-on-primary));
+  }
+  #status-overlay.overlay-active { @apply bg-black/60 backdrop-blur-sm; }
+  #status-overlay .overlay-icon-container,
+  #status-overlay .overlay-text-container { @apply pointer-events-auto; }
+
   .overlay-surface {
-    @apply bg-surface/80 backdrop-blur-sm border border-border shadow-lg;
+    background-color: hsl(var(--color-surface) / 0.8);
+    border: 1px solid hsl(var(--color-border));
+    @apply backdrop-blur-sm shadow-lg;
   }
 
   /* --- Reusable Overlay Panel Component --- */
   .video-overlay-panel {
     @apply overlay-surface rounded-lg p-2 w-72 text-xs;
+    box-shadow: var(--shadow-depth-md);
   }
-  .tuning-sliders-container {
-    @apply flex items-center gap-2;
-  }
-  .slider-group label {
-      @apply w-16 text-right text-text-secondary;
-  }
-  .slider-group output {
-      @apply w-12 text-left font-mono;
-  }
+  .tuning-sliders-container { @apply flex items-center gap-2; }
+  .slider-group label { @apply w-16 text-right; color: hsl(var(--color-text-secondary)); }
+  .slider-group output { @apply w-12 text-left font-mono; }
 
-  /* --- Top Center Status Display (Redesigned for consistency) --- */
-  #gesture-feedback-overlay {
-    @apply overlay-surface rounded-full p-2 items-center gap-2 text-xs;
+  /* --- Top Center Status Display (GestureFeedback) --- */
+  #gesture-feedback-overlay { @apply overlay-surface rounded-full p-2 items-center gap-2 text-xs; }
+  #gesture-feedback-overlay #currentGestureSpan { @apply flex-shrink-0; }
+  #gesture-feedback-overlay .timer-display { @apply flex items-center gap-1 flex-shrink-0; }
+
+  .confidence-bar-container { @apply relative h-4 bg-black/20 rounded-full overflow-hidden border border-white/20 min-w-[6rem] max-w-[9rem] w-full; }
+  .confidence-bar { 
+    @apply h-full rounded-full transition-all duration-150 ease-linear relative flex items-center justify-end;
+    background-image: linear-gradient(to right, hsl(0, 90%, 55%), hsl(60, 90%, 55%), hsl(120, 90%, 55%)); 
+    overflow: visible;
   }
+  .confidence-threshold-marker { @apply absolute top-0 w-0.5 h-full bg-white/80 transition-all duration-300 ease-out; box-shadow: 0 0 2px black; }
   
-  #gesture-feedback-overlay #currentGestureSpan {
-    @apply flex-shrink-0;
-  }
-  
-  #gesture-feedback-overlay .timer-display {
-    @apply flex items-center gap-1 flex-shrink-0;
-  }
-
-  .confidence-bar-container {
-    @apply relative h-4 bg-black/20 rounded-full overflow-hidden border border-white/20;
-    @apply min-w-[6rem] max-w-[9rem] w-full;
-  }
-  .confidence-bar {
-    @apply h-full rounded-full transition-all duration-150 ease-linear flex items-center justify-center text-white font-bold;
-    @apply text-[9px] desktop:text-[10px];
-    text-shadow: 0 0 2px rgba(0,0,0,0.7);
-    background-image: linear-gradient(to right, hsl(0, 90%, 55%), hsl(60, 90%, 55%), hsl(120, 90%, 55%));
-  }
-  .confidence-threshold-marker {
-    @apply absolute top-0 w-0.5 h-full bg-white/80 transition-all duration-300 ease-out;
-    box-shadow: 0 0 2px black;
-  }
-
   /* --- Progress Rings --- */
   #progress-rings-overlay {
     @apply opacity-0 transition-opacity duration-200;
     visibility: hidden;
   }
   #progress-rings-overlay.visible {
-    @apply opacity-100;
+    opacity: 1;
     visibility: visible;
   }
-  #progress-rings-overlay::before {
-    content: '';
-    @apply absolute inset-0 rounded-full bg-surface/30 backdrop-blur-[2px] border border-on-primary/20;
+  #progress-rings-overlay::before { 
+    content: ''; 
+    background-color: hsl(var(--color-surface) / 0.6);
+    border-color: hsl(var(--color-on-primary) / 0.2);
+    @apply absolute inset-0 rounded-full backdrop-blur-md border;
   }
-  .progress-rings {
-    filter: drop-shadow(0 2px 4px rgb(0 0 0 / 0.5));
+  
+  .progress-rings { 
+    filter: drop-shadow(0 4px 6px rgb(0 0 0 / 0.7)); 
   }
   .progress-rings circle {
     fill: none;
@@ -87,38 +89,27 @@
     transform-origin: 50% 50%;
   }
   .gesture-progress {
-    stroke-dasharray: 198;
-    stroke-dashoffset: 198;
-    stroke: theme('colors.primary');
-    filter: drop-shadow(0 0 3px theme('colors.primary / 70%'));
+    stroke: hsl(var(--color-on-primary));
+    stroke-width: 8;
   }
   .cooldown-progress {
     stroke-dasharray: 230;
-    stroke-dashoffset: 230;
-    stroke: theme('colors.border / 50%');
-    opacity: 1;
+    stroke: hsl(var(--color-border) / 0.7);
+    stroke-width: 4;
   }
 
   /* --- Notification Alert Component Styles --- */
-  .alert {
-    @apply fixed bottom-4 right-4 z-alert flex items-center gap-3 rounded-lg border p-4 text-sm font-medium shadow-lg;
-    @apply opacity-0 invisible translate-y-4 transition-all duration-300 ease-out;
+  .alert { 
+    @apply fixed bottom-4 right-4 z-alert flex items-center gap-3 rounded-lg border p-4 text-sm font-medium opacity-0 invisible translate-y-4 transition-all duration-300 ease-out;
+    box-shadow: var(--shadow-depth-lg);
   }
   .alert.visible {
     opacity: 1;
     visibility: visible;
     transform: translateY(0);
   }
-  .alert-info {
-    @apply bg-info/10 border-info/20 text-info;
-  }
-  .alert-success {
-    @apply bg-success/10 border-success/20 text-success;
-  }
-  .alert-warning {
-    @apply bg-warning/10 border-warning/20 text-warning;
-  }
-  .alert-error {
-    @apply bg-error/10 border-error/20 text-error;
-  }
+  .alert-info { background-color: hsl(var(--color-info) / 0.1); border-color: hsl(var(--color-info) / 0.2); color: hsl(var(--color-info)); }
+  .alert-success { background-color: hsl(var(--color-success) / 0.1); border-color: hsl(var(--color-success) / 0.2); color: hsl(var(--color-success)); }
+  .alert-warning { background-color: hsl(var(--color-warning) / 0.1); border-color: hsl(var(--color-warning) / 0.2); color: hsl(var(--color-warning)); }
+  .alert-error { background-color: hsl(var(--color-error) / 0.1); border-color: hsl(var(--color-error) / 0.2); color: hsl(var(--color-error)); }
 }

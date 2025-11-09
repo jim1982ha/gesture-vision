@@ -5,6 +5,7 @@
 export * from './constants/events.js';
 export * from './constants/gestures.js';
 export * from './constants/icons.js';
+export * from './constants/config-defaults.js';
 
 // Core & Services
 export * from './core/pubsub.js';
@@ -14,4 +15,5 @@ export type { LanguageCode, Translations, Substitutions } from './services/trans
 
 // Utils & Validation (Zod schemas are the source of truth for data shapes)
 export * from './utils/index.js';
+export * from './utils/ui-helpers.js';
 export * from './validation/index.js';

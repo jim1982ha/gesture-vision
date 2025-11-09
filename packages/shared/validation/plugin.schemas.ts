@@ -13,7 +13,7 @@ export const PluginManifestSchema = z.object({
     version: z.string(),
     descriptionKey: z.string().optional(),
     author: z.string().optional(),
-    icon: z.object({ type: z.enum(['material-icons', 'mdi', 'material-symbols']), name: z.string() }).optional(),
+    icon: z.object({ type: z.enum(['material-icons', 'mdi', 'material-symbols-outlined']), name: z.string() }).optional(),
     capabilities: z.object({
       hasGlobalSettings: z.boolean().optional(),
       providesActions: z.boolean().optional(),
@@ -47,16 +47,24 @@ export const ActionSettingFieldDescriptorSchema = z.object({
     helpTextKey: z.string().optional(),
     required: z.boolean().optional(),
     rows: z.number().optional(),
-    optionsSource: z.function().optional(),
+    // Use z.any() to prevent Zod from inferring a restrictive function signature (e.g., (...args: never[]) => unknown)
+    // TypeScript will provide the strong typing on the implementation side.
+    optionsSource: z.any().optional(),
     searchable: z.boolean().optional(),
-    dependsOn: z.array(z.string()).optional(),
+    dependsOn: z.union([
+      z.array(z.string()),
+      z.object({
+        field: z.string(),
+        value: z.any(),
+      }),
+    ]).optional(),
     autocomplete: z.enum(['on', 'off', 'name', 'email', 'username', 'new-password', 'current-password', 'url']).optional(),
 });
 export type ActionSettingFieldDescriptor = z.infer<typeof ActionSettingFieldDescriptorSchema>;
 
 export const ActionDisplayDetailSchema = z.object({
   icon: z.string().optional(),
-  iconType: z.enum(['material-icons', 'mdi', 'material-symbols']).optional(),
+  iconType: z.enum(['material-icons', 'mdi', 'material-symbols-outlined']).optional(),
   value: z.string(),
   allowWrap: z.boolean().optional(),
 });

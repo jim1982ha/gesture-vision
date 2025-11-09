@@ -1,5 +1,5 @@
 /* FILE: packages/backend/src/api/routes/plugins.router.ts */
-import { Router } from 'express';
+import { Router, type Request, type Response, type NextFunction } from 'express';
 import { z } from 'zod';
 
 import type { PluginManagerService } from '../../services/plugin-manager.service.js';
@@ -43,19 +43,33 @@ export default function createPluginsRouter(pluginManager: PluginManagerService)
         res.status(result.success ? 200 : 400).json(result);
     }));
 
-    // --- Dynamic API Routes for each enabled plugin ---
-    const allManifests = pluginManager.getAllPluginManifestsSync();
-    allManifests.forEach(manifest => {
-        if (manifest.status === 'enabled') {
-            const pluginInstance = pluginManager.getPluginInstance(manifest.id);
-            const pluginApiRouter = pluginInstance?.getApiRouter?.();
+    // --- Dynamic Middleware for Plugin-Specific API Routes ---
+    // This middleware intercepts any request to /:pluginId/* and routes it to the plugin's
+    // router if the plugin is currently enabled and provides one.
+    router.use('/:pluginId', (req: Request, res: Response, next: NextFunction) => {
+        const { pluginId } = req.params;
+        const plugin = pluginManager.getPlugin(pluginId);
+
+        if (plugin && plugin.manifest.status === 'enabled') {
+            const pluginApiRouter = plugin.instance.getApiRouter?.();
             if (pluginApiRouter) {
-                router.use(`/${manifest.id}`, pluginApiRouter);
+                // Temporarily modify the req.url to strip the pluginId part
+                // so the plugin's router can match its own routes (e.g., '/entities').
+                const originalUrl = req.url;
+                req.url = req.originalUrl.replace(`/api/plugins/${pluginId}`, '');
+                pluginApiRouter(req, res, (err) => {
+                    // Restore the original URL after the plugin router is done
+                    req.url = originalUrl;
+                    next(err);
+                });
+                return;
             }
         }
+        // If plugin not found, disabled, or has no router, proceed to next routes.
+        next();
     });
 
-    // --- Core config and test routes that use :pluginId must come after the dynamic mounts ---
+    // --- Core config and test routes that use :pluginId must come after the dynamic middleware ---
     router.get('/:pluginId/config', asyncHandler(async (req, res) => {
         const config = await pluginManager.getPluginGlobalConfig(req.params.pluginId);
         const manifest = pluginManager.getPluginManifest(req.params.pluginId);
@@ -103,11 +117,8 @@ export default function createPluginsRouter(pluginManager: PluginManagerService)
             return res.status(404).json({ success: false, message: `Plugin '${pluginId}' not found.` });
         }
         
-        // The base plugin provides a default testConnection, so this should always exist.
         const result = await pluginInstance.testConnection!(configToTest);
         
-        // The result from testConnection already has { success, messageKey, error }.
-        // We add the pluginId for context on the frontend.
         res.json({ pluginId, ...result });
     }));
 

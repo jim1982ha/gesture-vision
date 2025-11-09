@@ -45,7 +45,11 @@ export class TranslationService {
         }
     }
 
-    public getCurrentLanguage(): LanguageCode {
+    /**
+     * Gets the current language from the application state.
+     * This is defined as an arrow function to ensure 'this' is always correctly bound.
+     */
+    public getCurrentLanguage = (): LanguageCode => {
         return (this.#appStore.getState().languagePreference as LanguageCode) || defaultLang;
     }
 

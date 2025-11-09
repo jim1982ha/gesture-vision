@@ -22,13 +22,14 @@ export class MtxMonitorService {
     private _configUpdateHandler: (data?: unknown) => void;
 
     constructor() {
-        this._configUpdateHandler = (data?: unknown) => this.#handleConfigChange(data as { updatedConfig: FullConfiguration } | undefined);
+        this._configUpdateHandler = (data?: unknown) => this.#handleConfigChange(data as { updatedConfig: FullConfiguration; rtspChanged?: boolean } | undefined);
         pubsub.subscribe(BACKEND_INTERNAL_EVENTS.CONFIG_PATCHED, this._configUpdateHandler);
         pubsub.subscribe(BACKEND_INTERNAL_EVENTS.CONFIG_RELOADED, this._configUpdateHandler);
     }
 
-    #handleConfigChange = (eventData?: { updatedConfig: FullConfiguration }): void => {
-      if (eventData?.updatedConfig) {
+    #handleConfigChange = (eventData?: { updatedConfig: FullConfiguration; rtspChanged?: boolean }): void => {
+      // Sync only if RTSP sources have actually changed or it's a full reload.
+      if (eventData?.updatedConfig && (eventData.rtspChanged || eventData.rtspChanged === undefined)) {
         this.syncMtxPathsWithConfig(eventData.updatedConfig.rtspSources); 
       }
     }
@@ -37,7 +38,8 @@ export class MtxMonitorService {
         if (this.isRunning) return;
         console.log("[MtxMonitorService] Starting...");
         this.isRunning = true;
-        console.log(`[MtxMonitorService] Started. Relying on webhooks and config events for status updates.`);
+        // Initial sync on startup will be triggered by the first CONFIG_RELOADED event from ConfigService.
+        console.log(`[MtxMonitorService] Started. Awaiting initial config to sync paths.`);
     }
 
     stop() {
@@ -56,10 +58,8 @@ export class MtxMonitorService {
             const currentPaths = new Map((mtxPathsData?.items || []).filter(p => p.name).map(p => [p.name!, p]));
 
             const pathsToRemove = Array.from(currentPaths.keys()).filter(key => !desiredPaths.has(key));
-            const pathsToSync = Array.from(desiredPaths.keys()).filter(key => {
-                const desired = desiredPaths.get(key); const current = currentPaths.get(key);
-                return !current || desired?.url !== current.source || !!desired?.sourceOnDemand !== !!current.sourceOnDemand;
-            });
+            // Always sync all desired paths to ensure their configuration is up-to-date.
+            const pathsToSync = Array.from(desiredPaths.keys());
             
             for (const key of pathsToRemove) await this.deletePathConfig(key);
             for (const key of pathsToSync) await this.addOrUpdatePathConfig(key, desiredPaths.get(key)!);
@@ -77,7 +77,6 @@ export class MtxMonitorService {
         }
 
         // For always-on streams, use runOnReady/NotReady with curl (lighter than wget).
-        // -sS for silent but shows errors, -X POST for method.
         return {
             ...basePayload,
             runOnReady: `sh -c "curl -sS -X POST ${getWebhookUrl('ready')}"`,
@@ -88,6 +87,7 @@ export class MtxMonitorService {
     async addOrUpdatePathConfig(key: string, source: RtspSourceConfig) {
         const payload = this.createPayload(source, key);
         try {
+            // Use 'replace' which acts as add/update, simplifying the logic.
             await callMtxApi(`/v3/config/paths/replace/${key}`, 'POST', payload);
         } catch (err: unknown) {
             console.error(`[MtxMonitorService] Failed to sync path '${key}':`, (err as Error).message);
@@ -99,17 +99,20 @@ export class MtxMonitorService {
         if (!sourceConfig?.url) throw new Error(`Configuration for RTSP source '${pathName}' not found or URL is missing.`);
         
         try {
+            // FIX: Always use addOrUpdatePathConfig to ensure the path is created/updated before connection.
+            // This is robust for both on-demand and always-on streams.
             await this.addOrUpdatePathConfig(pathName, sourceConfig);
             this.streamStatusBroadcaster?.({ pathName, status: 'unknown', message: 'Path config ensured, awaiting client connection.' });
         } catch (error: unknown) {
             const message = (error as Error).message;
             this.streamStatusBroadcaster?.({ pathName, status: 'error', message: `Failed API interaction: ${message}` });
-            throw new Error(`Failed to configure on-demand path '${pathName}': ${message}`);
+            throw new Error(`Failed to configure path '${pathName}': ${message}`);
         }
     }
 
     public async disconnectOnDemandStream(pathName: string) {
-        await this.deletePathConfig(pathName);
+        // For on-demand streams, MediaMTX handles the disconnection automatically after a timeout.
+        // We can optionally kick any readers if immediate disconnect is needed, but it's often not required.
         this.streamStatusBroadcaster?.({ pathName, status: 'inactive', message: 'Disconnected on demand by request.' });
     }
 

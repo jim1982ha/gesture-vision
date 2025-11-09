@@ -1,32 +1,43 @@
-/* FILE: packages/frontend/src/styles/_cards.css */
 @layer components {
   .card-item {
-    @apply bg-surface border border-border rounded-xl p-3 flex flex-col shadow-sm duration-200 ease-in-out;
-    transition: box-shadow 200ms ease-in-out, opacity 200ms ease-in-out;
+    @apply rounded-xl p-3 flex flex-col duration-200 ease-in-out;
+    background-color: hsl(var(--color-surface));
+    border: 1px solid hsl(var(--color-border));
+    box-shadow: var(--shadow-depth-sm);
+    transition: box-shadow 200ms ease-in-out, border-color 200ms ease-in-out, transform 150ms ease-in-out;
   }
   .card-item-clickable {
-    @apply cursor-pointer hover:shadow-md hover:border-primary;
+    @apply cursor-pointer;
+  }
+  .card-item-clickable:hover {
+    box-shadow: var(--shadow-depth-md);
+    border-color: hsl(var(--color-primary) / 0.7);
+    transform: translateY(-2px);
   }
   .card-header {
     @apply flex items-start w-full flex-shrink-0;
   }
   .card-title {
-    @apply font-semibold text-lg text-text-primary truncate flex-grow min-w-0;
+    @apply font-semibold text-lg truncate flex-grow min-w-0;
+    color: hsl(var(--color-text-primary));
   }
   .card-icon {
-    @apply text-text-secondary flex-shrink-0 text-xl;
+    @apply flex-shrink-0 text-xl;
+    color: hsl(var(--color-text-secondary));
   }
   .card-item-actions {
     @apply flex items-center gap-1 flex-shrink-0 ml-auto;
   }
   .card-details {
-    @apply text-sm text-text-secondary flex-col gap-1 flex-grow items-start justify-center;
+    @apply text-sm flex flex-col gap-1 items-start justify-center;
+    color: hsl(var(--color-text-secondary));
   }
   .card-detail-line {
     @apply flex items-center gap-2 min-w-0 w-full;
   }
   .card-detail-icon {
-    @apply text-base text-text-secondary flex-shrink-0;
+    @apply text-base flex-shrink-0;
+    color: hsl(var(--color-text-secondary));
   }
   .card-detail-value {
     @apply flex-grow truncate min-w-0;
@@ -35,14 +46,17 @@
     white-space: normal;
   }
   .card-footer {
-    @apply text-xs text-text-secondary flex items-center justify-between gap-2 mt-auto pt-2 border-t border-border-light flex-shrink-0;
+    @apply text-xs flex items-center justify-between gap-2 mt-auto pt-2 flex-shrink-0;
+    color: hsl(var(--color-text-secondary));
+    border-top: 1px solid hsl(var(--color-border-light));
   }
   .is-editing-highlight {
-    @apply border-primary shadow-md;
+    border-color: hsl(var(--color-primary));
+    box-shadow: var(--shadow-depth-md);
   }
   .config-item-disabled {
     opacity: 0.6;
-    background-color: theme('colors.background');
+    background-color: hsl(var(--color-background));
     pointer-events: none;
   }
   .config-item-disabled .card-item-actions {
@@ -54,12 +68,19 @@
   }
   .confidence-pill,
   .duration-pill {
-    @apply bg-secondary/20 text-text-secondary px-2 py-0.5 rounded-full text-xs font-medium;
+    @apply px-2 py-0.5 rounded-full text-xs font-medium;
+    background-color: hsl(var(--color-secondary) / 0.2);
+    color: hsl(var(--color-text-secondary));
   }
   .footer-pills-wrapper {
     @apply flex items-center gap-1;
   }
   .card-item .plugin-global-settings-form {
     @apply w-full;
+  }
+  .inactive-list-title {
+    @apply col-span-full text-sm font-semibold pb-2 mb-2 mt-4;
+    color: hsl(var(--color-text-secondary));
+    border-bottom: 1px solid hsl(var(--color-border));
   }
 }

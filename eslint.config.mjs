@@ -5,6 +5,10 @@ import { fileURLToPath } from "url";
 import globals from "globals";
 import js from "@eslint/js";
 import tseslint from "typescript-eslint";
+import reactRecommended from "eslint-plugin-react/configs/recommended.js";
+import reactJsxRuntime from "eslint-plugin-react/configs/jsx-runtime.js";
+import reactHooks from "eslint-plugin-react-hooks";
+import reactRefresh from "eslint-plugin-react-refresh";
 
 // Boilerplate to get __dirname in ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -63,9 +67,30 @@ export default [
     languageOptions: { globals: { ...globals.browser, ...globals.node } },
   },
 
-  // 2. TypeScript configuration
+  // 2. --- React/JSX Specific ---
+  { ...reactRecommended, files: ["packages/frontend/src/**/*.tsx", "extensions/plugins/**/*.tsx"] },
+  { ...reactJsxRuntime, files: ["packages/frontend/src/**/*.tsx", "extensions/plugins/**/*.tsx"] },
+  {
+    files: ["packages/frontend/src/**/*.tsx", "extensions/plugins/**/*.tsx"],
+    plugins: { 
+      "react-refresh": reactRefresh,
+      "react-hooks": reactHooks,
+    },
+    rules: {
+        ...reactHooks.configs.recommended.rules,
+        "react-refresh/only-export-components": "warn",
+        "react/prop-types": "off"
+    },
+    settings: {
+        react: {
+            version: "detect"
+        }
+    }
+  },
+
+  // 3. TypeScript configuration
   ...tseslint.config({
-    files: ["packages/**/*.ts", "extensions/plugins/**/*.ts"],
+    files: ["packages/**/*.ts", "packages/**/*.tsx", "extensions/plugins/**/*.ts", "extensions/plugins/**/*.tsx"],
     extends: [...tseslint.configs.recommended],
     rules: {
       "@typescript-eslint/no-explicit-any": "warn",
@@ -100,11 +125,13 @@ export default [
     },
   }),
 
-  // 3. Frontend Specific Overrides
+  // 4. Frontend Specific Overrides
   {
     files: [
       "packages/frontend/src/**/*.ts",
+      "packages/frontend/src/**/*.tsx",
       "extensions/plugins/**/frontend/**/*.ts",
+      "extensions/plugins/**/frontend/**/*.tsx",
     ],
     rules: {},
     languageOptions: {
@@ -132,7 +159,7 @@ export default [
     },
   },
 
-  // 4. Backend Specific Overrides
+  // 5. Backend Specific Overrides
   {
     files: [
       "packages/backend/src/**/*.ts",
@@ -151,7 +178,7 @@ export default [
     },
   },
 
-  // 5. Worker File Specific
+  // 6. Worker File Specific
   {
     files: ["packages/frontend/src/workers/**/*.js"],
     languageOptions: {

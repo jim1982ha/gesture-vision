@@ -1,7 +1,8 @@
-/* FILE: packages/frontend/src/styles/_modals.css */
 @layer components {
   .modal {
-    @apply fixed inset-0 z-modal-overlay bg-black/50 backdrop-blur-sm flex items-start justify-center p-4 opacity-0 transition-opacity duration-300;
+    @apply fixed inset-0 z-modal-overlay flex items-start justify-center p-4 opacity-0 transition-opacity duration-300;
+    background-color: hsl(var(--color-background) / 0.5);
+    backdrop-filter: blur(4px);
     visibility: hidden;
   }
   .modal.visible {
@@ -9,7 +10,9 @@
     opacity: 1;
   }
   .modal-content {
-    @apply bg-surface rounded-lg shadow-2xl w-full max-w-lg flex flex-col max-h-[90vh] scale-95 opacity-0 transition-all duration-300 ease-out;
+    background-color: hsl(var(--color-surface));
+    @apply rounded-lg w-full max-w-lg flex flex-col max-h-[90vh] scale-95 opacity-0 transition-all duration-300 ease-out;
+    box-shadow: var(--shadow-depth-xl);
   }
   .modal.visible .modal-content {
     transform: scale(1);
@@ -20,14 +23,16 @@
     grid-template-rows: auto 1fr auto;
   }
   .modal-header {
-    @apply flex-shrink-0 flex items-center gap-3 p-4 border-b border-border;
+    @apply flex-shrink-0 flex items-center gap-3 p-4 border-b;
+    border-color: hsl(var(--color-border));
   }
   .modal-header .header-icon {
-    color: theme('colors.primary');
+    color: hsl(var(--color-primary));
     font-size: theme('fontSize.2xl');
   }
   .modal-header .header-title {
-    @apply text-lg font-semibold text-text-primary flex-grow;
+    @apply text-lg font-semibold flex-grow;
+    color: hsl(var(--color-text-primary));
   }
   .modal-header .header-close-btn {
     @apply ml-auto;
@@ -36,15 +41,32 @@
     @apply flex-1 p-4 overflow-y-auto;
   }
   .modal-actions {
-    @apply flex-shrink-0 flex items-center justify-end gap-2 p-4 border-t border-border bg-background z-10;
+    @apply flex-shrink-0 flex items-center justify-between gap-2 p-4 border-t z-10;
+    border-color: hsl(var(--color-border));
+    background-color: hsl(var(--color-background));
+  }
+
+  #settings-tabs-mobile-nav {
+    border-bottom: 1px solid hsl(var(--color-border));
+  }
+
+  #settingsTabsDesktopNav {
+    border-color: hsl(var(--color-border));
+    background-color: hsl(var(--color-background));
   }
 
   .settings-tab-nav-button {
-    @apply justify-start font-medium text-text-secondary border-none hover:bg-primary/10 hover:text-primary;
+    @apply justify-start font-medium border-none;
+    background-color: transparent;
+    color: hsl(var(--color-text-secondary));
+  }
+  .settings-tab-nav-button:hover {
+    background-color: hsl(var(--color-primary) / 0.1);
+    color: hsl(var(--color-primary));
   }
   .settings-tab-nav-button.active {
-    background-color: theme('colors.primary / 20%');
-    color: theme('colors.primary');
+    background-color: hsl(var(--color-primary) / 0.15);
+    color: hsl(var(--color-primary));
   }
 
   #modalTocControls .btn {
@@ -59,5 +81,18 @@
   }
   .settings-tab-content.active {
     @apply block;
+  }
+  
+  #plugin-dev-info-container {
+    color: hsl(var(--color-text-secondary));
+  }
+  #plugin-dev-info-container .material-icons {
+    color: hsl(var(--color-primary));
+  }
+  #plugin-dev-info-link {
+    color: hsl(var(--color-primary));
+  }
+  #plugin-dev-info-link:hover {
+    color: hsl(var(--color-primary-hover));
   }
 }

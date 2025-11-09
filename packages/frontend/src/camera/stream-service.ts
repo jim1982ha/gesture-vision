@@ -1,7 +1,7 @@
 /* FILE: packages/frontend/src/camera/stream-service.ts */
 import { WEBSOCKET_EVENTS } from '#shared/index.js';
 import { webSocketService } from '#frontend/services/websocket-service.js';
-import { MOBILE_WEBCAM_PLACEHOLDER_ID } from '#frontend/constants/app-defaults.js';
+import { MOBILE_WEBCAM_PLACEHOLDER_ID } from '#frontend/constants/index.js';
 import { RtspConnector } from './rtsp/connector.js';
 import { WebcamError } from './webcam-error.js';
 import type { CameraManager } from './camera-manager.js';
@@ -110,15 +110,15 @@ export class CameraStreamService {
         `Config for RTSP source ID '${targetDeviceId}' not found.`
       );
     }
+    
+    // Use request/response to ensure backend path is ready before proceeding.
+    await webSocketService.request(WEBSOCKET_EVENTS.RTSP_CONNECT_REQUEST, {
+        pathName: normalizedPathName,
+        url: selectedSourceConfig.url,
+    }, 10000); // 10 second timeout
 
+    // Only track on-demand sources for explicit disconnection.
     if (selectedSourceConfig.sourceOnDemand) {
-      webSocketService.sendMessage({
-        type: WEBSOCKET_EVENTS.RTSP_CONNECT_REQUEST,
-        payload: {
-          pathName: normalizedPathName,
-          url: selectedSourceConfig.url,
-        },
-      });
       this.#activeOnDemandSource = normalizedPathName;
     }
 

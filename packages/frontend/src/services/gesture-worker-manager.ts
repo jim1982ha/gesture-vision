@@ -1,65 +1,101 @@
 /* FILE: packages/frontend/src/services/gesture-worker-manager.ts */
 import { GESTURE_EVENTS, UI_EVENTS, pubsub, type CustomGestureMetadata, type RoiConfig } from '#shared/index.js';
 import type { AppStore } from '#frontend/core/state/app-store.js';
-import type { SnapshotPromise, TestResultPayload, SnapshotData } from '#frontend/types/index.js';
+import type { SnapshotPromise, SnapshotData, TestResultPayload } from '#frontend/types/index.js';
+import type { HandLandmarkerResult, PoseLandmarkerResult } from '@mediapipe/tasks-vision';
 
-export interface WorkerProcessFramePayload {
+// --- Type definitions for worker communication ---
+
+export interface InitializePayload {
+  numHands: number;
+  enableHandProcessing: boolean;
+  enablePoseProcessing: boolean;
+  enableBuiltInHandGestures: boolean;
+  enableCustomHandGestures: boolean;
+  handDetectionConfidence: number;
+  handPresenceConfidence: number;
+  handTrackingConfidence: number;
+  poseDetectionConfidence: number;
+  posePresenceConfidence: number;
+  poseTrackingConfidence: number;
+}
+
+export interface ProcessFramePayload {
   imageBitmap: ImageBitmap;
   timestamp: number;
   roiConfig: RoiConfig | null;
-  testRules: object | null;
-  testTolerance: number;
   requestSnapshot: boolean;
 }
 
-export interface ReconfigurePayload {
-    hand: boolean;
-    pose: boolean;
-    numHands: number;
-    builtIn?: boolean;
-    custom?: boolean;
+interface ResultsMessage {
+  type: 'results';
+  results: {
+    handGestureResults?: HandLandmarkerResult;
+    poseLandmarkerResults?: PoseLandmarkerResult;
+    customActionableGestures?: { categoryName: string; score: number }[];
+    snapshot?: SnapshotData;
+    testResult?: TestResultPayload;
+  };
+  processingTime: number;
 }
 
-/**
- * Manages the lifecycle and communication with the gesture recognition Web Worker.
- */
+interface ErrorMessage { type: 'error'; error: { code: string; message: string; }; }
+interface ModelLoadedMessage { type: 'model_loaded', modelType: 'hand' | 'pose', status: boolean }
+// --- End of type definitions ---
+
+
+let hasInitializedOnce = false;
+
 export class GestureWorkerManager {
   #worker: Worker | null = null;
   #appStore: AppStore;
   #snapshotPromise: SnapshotPromise | null = null;
+  #modelReadyPromise: Promise<void> | null = null;
+  #resolveModelReady: (() => void) | null = null;
 
   constructor(appStore: AppStore) {
     this.#appStore = appStore;
+    this.#resetModelReadyPromise();
   }
 
   async initialize(): Promise<void> {
     try {
-      const workerUrlModule = await import(/* @vite-ignore */ '../workers/gesture-worker.js?url');
-      this.#worker = new Worker(workerUrlModule.default);
+      this.#worker = new Worker(new URL('../workers/gesture-worker.ts', import.meta.url), { type: 'classic' });
       this.#worker.onmessage = this.#handleMessage;
       this.#worker.onerror = this.#handleError;
-      console.info('[Init] Gesture processing worker created.');
-      this.reconfigure();
+      if (!hasInitializedOnce) {
+        console.info('[Init] Gesture processing worker created.');
+        hasInitializedOnce = true;
+      }
     } catch (e) { this.#handleInitializationError(e as Error); }
+  }
+
+  #resetModelReadyPromise(): void {
+    this.#modelReadyPromise = new Promise(resolve => {
+        this.#resolveModelReady = resolve;
+    });
+  }
+
+  public async waitUntilModelsReady(): Promise<void> {
+      await this.#modelReadyPromise;
   }
 
   #handleInitializationError(error: Error): void {
     console.error('[GestureWorkerManager] Failed to create worker:', error);
     pubsub.publish(UI_EVENTS.SHOW_ERROR, { messageKey: 'errorWorkerInit', substitutions: { message: error.message }, type: 'error' });
-    pubsub.publish(GESTURE_EVENTS.MODEL_LOADED, { hand: false, pose: false });
+    this.#appStore.getState().actions.setModelLoadingStatus({ hand: false, pose: false });
   }
 
-  reconfigure(override?: ReconfigurePayload): void {
+  reconfigure(override?: Partial<InitializePayload>): void {
     if (!this.#worker) return;
+    this.#resetModelReadyPromise(); // Reset promise for new configuration
     const state = this.#appStore.getState();
-    const useOverride = !!override;
-
-    const payload = {
-      numHands: useOverride ? override.numHands : state.numHandsPreference,
-      enableHandProcessing: useOverride ? override.hand : (state.enableBuiltInHandGestures || state.enableCustomHandGestures),
-      enablePoseProcessing: useOverride ? override.pose : state.enablePoseProcessing,
-      enableBuiltInHandGestures: useOverride ? override.builtIn : state.enableBuiltInHandGestures,
-      enableCustomHandGestures: useOverride ? override.custom : state.enableCustomHandGestures,
+    const payload: InitializePayload = {
+      numHands: override?.numHands ?? state.numHandsPreference,
+      enableHandProcessing: override?.enableHandProcessing ?? (state.enableBuiltInHandGestures || state.enableCustomHandGestures),
+      enablePoseProcessing: override?.enablePoseProcessing ?? state.enablePoseProcessing,
+      enableBuiltInHandGestures: override?.enableBuiltInHandGestures ?? state.enableBuiltInHandGestures,
+      enableCustomHandGestures: override?.enableCustomHandGestures ?? state.enableCustomHandGestures,
       handDetectionConfidence: state.handDetectionConfidence,
       handPresenceConfidence: state.handPresenceConfidence,
       handTrackingConfidence: state.handTrackingConfidence,
@@ -74,8 +110,8 @@ export class GestureWorkerManager {
     this.#worker?.postMessage({ type: 'LOAD_CUSTOM_GESTURES', payload: { gestures: metadataList } });
   }
 
-  processFrame(payload: WorkerProcessFramePayload, transfer: Transferable[]): void {
-    this.#worker?.postMessage({ type: 'process_frame', ...payload }, transfer);
+  processFrame(payload: ProcessFramePayload, transfer: Transferable[]): void {
+    this.#worker?.postMessage({ type: 'process_frame', payload }, transfer);
   }
 
   getSnapshot(): Promise<SnapshotData> {
@@ -85,55 +121,52 @@ export class GestureWorkerManager {
     });
   }
   
-  public getSnapshotPromise(): SnapshotPromise | null {
-    return this.#snapshotPromise;
-  }
+  public getSnapshotPromise(): SnapshotPromise | null { return this.#snapshotPromise; }
 
   terminate(): void {
     if (this.#worker) {
       this.#worker.terminate();
       this.#worker = null;
-      pubsub.publish(GESTURE_EVENTS.MODEL_LOADED, { hand: false, pose: false });
+      this.#appStore.getState().actions.setModelLoadingStatus({ hand: false, pose: false });
+      hasInitializedOnce = false;
     }
   }
 
   #handleMessage = ({ data }: MessageEvent): void => {
     switch (data.type) {
       case 'results': {
-        const workerResults = data.results;
-        // Remap the worker's nested landmark data to the flat structure expected by the UI renderer.
-        const remappedPayload = {
-          ...workerResults,
-          handLandmarks: workerResults.handGestureResults?.landmarks || [],
-          poseLandmarks: workerResults.poseLandmarkerResults?.landmarks || [],
-          processingTime: data.processingTime,
-        };
-        pubsub.publish(GESTURE_EVENTS.RENDER_OUTPUT, remappedPayload);
+        const { results, processingTime } = data as ResultsMessage;
+        pubsub.publish(GESTURE_EVENTS.RENDER_OUTPUT, { ...results, processingTime });
         
-        if (data.results?.testResult) pubsub.publish(GESTURE_EVENTS.TEST_RESULT, data.results.testResult as TestResultPayload);
-        if (this.#snapshotPromise && data.results?.snapshot) {
-          this.#snapshotPromise.resolve(data.results.snapshot);
+        if (results.testResult) pubsub.publish(GESTURE_EVENTS.TEST_RESULT, results.testResult);
+        if (this.#snapshotPromise && results.snapshot) {
+          this.#snapshotPromise.resolve(results.snapshot);
           this.#snapshotPromise = null;
         }
         break;
       }
-      case 'model_loaded':
-        console.info(`[Model Lifecycle] ${data.modelType.charAt(0).toUpperCase() + data.modelType.slice(1)} model ${data.loaded ? 'loaded' : 'unloaded'}.`);
-        pubsub.publish(GESTURE_EVENTS.MODEL_LOADED, { [data.modelType]: data.loaded });
+      case 'model_loaded': {
+        const { modelType, status } = data as ModelLoadedMessage;
+        console.info(`[Model Lifecycle] Worker reported ${modelType} model loaded status: ${status}.`);
+        this.#appStore.getState().actions.setModelLoadingStatus({ [modelType]: status });
         break;
-      case 'WORKER_REQUESTS_CUSTOM_DEFINITIONS':
-        this.loadCustomGestures(this.#appStore.getState().customGestureMetadataList ?? []);
+      }
+      case 'worker_ready': {
+        console.log('[GestureWorkerManager] Received worker_ready signal.');
+        this.#resolveModelReady?.();
         break;
-      case 'error':
-        const { code = 'WORKER_ERROR', message = 'Unknown worker error' } = data.error || {};
-        pubsub.publish(UI_EVENTS.SHOW_ERROR, { message: `Worker Error [${code}]: ${message}`, type: 'error' });
+      }
+      case 'error': {
+        const { error } = data as ErrorMessage;
+        pubsub.publish(UI_EVENTS.SHOW_ERROR, { message: `Worker Error [${error.code}]: ${error.message}`, type: 'error' });
         break;
+      }
     }
   };
 
   #handleError = (event: ErrorEvent): void => {
     console.error('[GestureWorkerManager] Worker error event:', event);
     pubsub.publish(UI_EVENTS.SHOW_ERROR, { message: event.message || 'Unknown worker error', type: 'error' });
-    pubsub.publish(GESTURE_EVENTS.MODEL_LOADED, { hand: false, pose: false });
+    this.#appStore.getState().actions.setModelLoadingStatus({ hand: false, pose: false });
   };
 }

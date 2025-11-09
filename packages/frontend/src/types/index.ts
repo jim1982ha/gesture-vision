@@ -1,20 +1,47 @@
 /* FILE: packages/frontend/src/types/index.ts */
 // Contains types that are exclusively used by the frontend application.
+import type React from 'react';
+import type { GestureCategoryIconType, ActionSettingFieldDescriptor, ActionDisplayDetail, PluginManifest, FullConfiguration } from '#shared/index.js';
+import type { Landmark, GestureRecognizerResult, PoseLandmarkerResult } from '@mediapipe/tasks-vision';
 
-import type { GestureCategoryIconType, ActionSettingFieldDescriptor, ActionDisplayDetail, PluginManifest, PluginTestConnectionResultPayload } from '#shared/index.js';
-import type { Landmark } from '@mediapipe/tasks-vision';
-
-// Import concrete classes for strong typing
 import type { AppStore } from '#frontend/core/state/app-store.js';
 import type { CameraService } from '#frontend/services/camera.service.js';
 import type { GestureProcessor } from '#frontend/gestures/processor.js';
 import type { TranslationService } from '#frontend/services/translation.service.js';
 import type { PluginUIService } from '#frontend/services/plugin-ui.service.js';
-import type { UIController } from '#frontend/ui/ui-controller-core.js';
-import type { GlobalSettingsModalManager } from '#frontend/ui/modals/global-settings-modal-manager.js';
 import type { WebSocketService } from '#frontend/services/websocket-service.js';
-import type { CardContent } from '#frontend/ui/helpers/card-utils.js';
-import type { modalStack } from '#frontend/ui/managers/modal-manager.js';
+import type ThemeManager from '#frontend/services/theme-manager.js';
+
+import * as constants from '#shared/index.js';
+import * as sharedUtils from '#shared/utils/index.js';
+import * as uiHelpers from '#frontend/ui/helpers/ui-helpers.js';
+
+export interface AppContextType {
+    appStore: AppStore;
+    services: {
+        translationService: TranslationService;
+        pluginUIService: PluginUIService;
+        cameraService: CameraService | null;
+        gestureProcessor: GestureProcessor | null;
+        themeManager: ThemeManager;
+        webSocketService: WebSocketService;
+        pubsub: {
+            publish: (event: string, data?: unknown) => void;
+            subscribe: ( event: string, callback: (...args: unknown[]) => void ) => () => void;
+        };
+    };
+    elements: {
+        videoElement: HTMLVideoElement | null;
+        outputCanvas: HTMLCanvasElement | null;
+    };
+    shared: {
+        constants: typeof constants;
+        utils: typeof sharedUtils;
+        services: {
+            actionDisplayUtils: typeof uiHelpers;
+        };
+    };
+}
 
 export interface ThemePreference {
   base: string;
@@ -50,6 +77,7 @@ export interface SnapshotData {
   landmarks2d: Landmark[] | null;
   landmarks3d: Landmark[] | null;
   imageData: ImageData | null;
+  isMirrored?: boolean;
 }
 
 export interface SnapshotPromise {
@@ -57,10 +85,41 @@ export interface SnapshotPromise {
   reject: (reason?: unknown) => void;
 }
 
-export interface LandmarkVisibilityOverridePayload {
-  hand: boolean;
-  pose: boolean;
-  numHands?: number;
+export interface ConfirmationModalConfig {
+    titleKey?: string;
+    messageKey: string;
+    messageSubstitutions?: Record<string, string | number>;
+    confirmTextKey?: string;
+    cancelTextKey?: string;
+    onConfirm: () => void;
+    onCancel?: () => void;
+    isDangerAction?: boolean;
+}
+
+export interface RenderOutputData {
+    processingTime?: number;
+    handGestureResults?: GestureRecognizerResult;
+    customActionableGestures?: { categoryName?: string; score?: number }[];
+    poseLandmarkerResults?: PoseLandmarkerResult;
+}
+
+export interface SliderConfig {
+    labelKey: string;
+    configKey: keyof FullConfiguration;
+    min: number;
+    max: number;
+    step: number;
+}
+
+export interface SliderProps {
+  label: string;
+  configKey: keyof FullConfiguration;
+  min: number;
+  max: number;
+  step: number;
+  value: number;
+  onInput: (key: keyof FullConfiguration, value: number) => void;
+  onChange: (key: keyof FullConfiguration, value: number) => void;
 }
 
 // --- Frontend Plugin Interfaces ---
@@ -69,47 +128,17 @@ export type ActionDisplayDetailsRendererFn = (
   context: PluginUIContext
 ) => ActionDisplayDetail[];
 
-export interface IPluginActionSettingsComponent {
-  render(currentActionSpecificSettings: unknown | null, context: PluginUIContext): HTMLElement;
-  getActionSettingsToSave(): unknown | null;
-  validate?(): { isValid: boolean; errors?: string[] };
-  destroy?(): void;
-  applyTranslations?(): void;
-}
-
-export interface IPluginGlobalSettingsComponent {
-  isPending: boolean;
-  isTestingConnection: boolean;
-  lastTestResult: PluginTestConnectionResultPayload | null;
-  testButtonTimeout: number | null;
-  manifest: PluginManifest;
-  
-  getElement(): HTMLElement;
-  update(newConfig?: object | null): void;
-  updateToggleButtonState(): void;
-  updateTestState(isTesting: boolean, result?: PluginTestConnectionResultPayload | null): void;
-  destroy?(): void;
-  applyTranslations?(): void;
-  switchToEditMode(): void;
-  switchToViewMode(): void;
-  isEditing(): boolean;
-  getFormValues(): object | null;
-}
-
 export interface FrontendPluginModule {
-  manifest: PluginManifest;
   actionSettingsFields?:
     | ActionSettingFieldDescriptor[]
     | ((context: PluginUIContext) => ActionSettingFieldDescriptor[]);
   init?(context: PluginUIContext): Promise<void>;
   destroy?(): void;
-  createGlobalSettingsComponent?: (
-    pluginId: string,
-    manifest: PluginManifest,
-    context: PluginUIContext,
-  ) => IPluginGlobalSettingsComponent;
+  GlobalSettingsComponent?: React.ComponentType<{ manifest: PluginManifest; onSaveSuccess?: () => void; onCancel?: () => void; }>;
+  UIComponent?: React.ComponentType;
+  HeaderComponent?: React.ComponentType;
   getActionDisplayDetails?: ActionDisplayDetailsRendererFn;
-  launchModal?(): void;
+  pluginSlot?: string;
 }
 
 export interface PluginUIContext {
@@ -119,39 +148,20 @@ export interface PluginUIContext {
   cameraService?: CameraService;
   gesture?: GestureProcessor;
   webSocketService?: WebSocketService;
-  globalSettingsModalManager?: GlobalSettingsModalManager;
-  uiController?: UIController;
   requestCloseSettingsModal?: () => void;
   data: Record<string, unknown>;
   services: {
     translationService: TranslationService;
     pubsub: {
       publish: (event: string, data?: unknown) => void;
-      subscribe: (
-        event: string,
-        callback: (...args: unknown[]) => void
-      ) => () => void;
+      subscribe: ( event: string, callback: (...args: unknown[]) => void ) => () => void;
     };
-  };
-  uiComponents: {
-    createCardElement: (content: CardContent) => HTMLDivElement;
-    setIcon: (element: Element | null | undefined, iconIdentifier: GestureCategoryIconType | string) => void;
-    setElementVisibility: (element: HTMLElement | null | undefined, isVisible: boolean) => void;
-    updateButtonGroupActiveState: (
-      groupElement: HTMLElement | null | undefined,
-      activeValue: string | number | boolean | null | undefined,
-      isGroupDisabled?: boolean
-    ) => void;
-    BasePluginGlobalSettingsComponent: typeof import('#frontend/ui/components/plugins/base-plugin-global-settings.component.js').BasePluginGlobalSettingsComponent;
-    GenericPluginActionSettingsComponent: typeof import('#frontend/ui/components/plugins/generic-plugin-action-settings.component.js').GenericPluginActionSettingsComponent;
-    ActionPluginUIManager: typeof import('#frontend/ui/components/gesture-form/action-plugin-ui-manager.js').ActionPluginUIManager;
-    modalStack: typeof modalStack;
   };
   shared: {
-    constants: unknown;
+    constants: typeof constants;
     services: {
-      actionDisplayUtils: unknown;
+      actionDisplayUtils: typeof uiHelpers;
     };
-    utils: unknown;
+    utils: typeof sharedUtils;
   };
 }

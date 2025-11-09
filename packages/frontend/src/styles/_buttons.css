@@ -1,39 +1,85 @@
-/* FILE: packages/frontend/src/styles/_buttons.css */
 @layer components {
   .btn {
     @apply inline-flex items-center justify-center gap-2 font-medium leading-normal whitespace-nowrap flex-shrink-0 text-center no-underline rounded-md border transition-all duration-200 ease-in-out cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 px-4 py-2 h-10 text-sm;
   }
-  .btn.active {
-    background-color: theme('colors.primary');
-    color: theme('colors.on-primary');
-    border-color: theme('colors.primary');
-  }
-  .btn.active .material-icons,
-  .btn.active .mdi {
-    color: theme('colors.on-primary');
-  }
-  .btn-primary {
-    @apply bg-primary text-on-primary border-primary hover:bg-primary-hover hover:border-primary-hover;
-  }
-  .btn-secondary {
-    @apply bg-surface text-text-secondary border-border hover:bg-background hover:text-text-primary hover:border-text-secondary;
-  }
-  .btn-secondary.btn-toggled {
-    background-color: theme('colors.primary / 20%');
-    color: theme('colors.primary');
-    border-color: theme('colors.primary / 30%');
-  }
-  .btn-danger {
-    @apply bg-error text-white border-error hover:bg-error-hover hover:border-error-hover;
+  
+  .btn:focus-visible {
+    outline: 2px solid transparent;
+    outline-offset: 2px;
+    --tw-ring-color: hsl(var(--color-primary));
+    box-shadow: 0 0 0 2px hsl(var(--color-surface)), 0 0 0 4px hsl(var(--color-primary));
   }
 
+  .btn-primary {
+    background-color: hsl(var(--color-primary));
+    color: hsl(var(--color-on-primary));
+    border-color: hsl(var(--color-primary));
+  }
+  .btn-primary:hover {
+    background-color: hsl(var(--color-primary-hover));
+    border-color: hsl(var(--color-primary-hover));
+  }
+
+  .btn-secondary {
+    background-color: hsl(var(--color-surface));
+    color: hsl(var(--color-text-secondary));
+    border-color: hsl(var(--color-border));
+  }
+  .btn-secondary:hover {
+    background-color: hsl(var(--color-background));
+    color: hsl(var(--color-text-primary));
+    border-color: hsl(var(--color-secondary));
+  }
+  .btn-secondary.active {
+    background-color: hsl(var(--color-primary));
+    color: hsl(var(--color-on-primary));
+    border-color: hsl(var(--color-primary));
+  }
+  .btn-secondary.active:hover {
+    background-color: hsl(var(--color-primary-hover));
+    border-color: hsl(var(--color-primary-hover));
+  }
+
+  .btn-danger {
+    background-color: hsl(var(--color-error));
+    color: hsl(var(--color-on-primary));
+    border-color: hsl(var(--color-error));
+  }
+  .btn-danger:hover {
+    background-color: hsl(var(--color-error-hover));
+    border-color: hsl(var(--color-error-hover));
+  }
+  
   .btn-icon {
-    @apply p-2 h-10 w-10 min-w-[2.5rem] rounded-full border-none transition-colors duration-200 hover:bg-black/30 dark:hover:bg-white/10;
+    @apply p-2 h-10 w-10 min-w-[2.5rem] rounded-full border-none transition-colors duration-200;
+    color: hsl(var(--color-text-secondary));
   }
+  .btn-icon:hover {
+    background-color: hsl(var(--color-primary) / 0.1);
+    color: hsl(var(--color-primary));
+  }
+
+  .btn-icon.active {
+    background-color: hsl(var(--color-primary));
+    color: hsl(var(--color-on-primary));
+  }
+  .btn-icon.active:hover {
+    background-color: hsl(var(--color-primary-hover));
+  }
+
   .btn-icon-primary {
-    @apply text-primary bg-primary/10 hover:bg-primary/20;
+    color: hsl(var(--color-primary));
+    background-color: hsl(var(--color-primary) / 0.1);
   }
+  .btn-icon-primary:hover {
+    background-color: hsl(var(--color-primary) / 0.2);
+  }
+  
   .btn-icon-danger {
-    @apply text-error bg-transparent hover:bg-error/10;
+    color: hsl(var(--color-error));
+    background-color: transparent;
+  }
+  .btn-icon-danger:hover {
+    background-color: hsl(var(--color-error) / 0.1);
   }
 }

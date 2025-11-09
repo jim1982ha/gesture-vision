@@ -25,10 +25,12 @@ export class CameraService {
       throw new Error('CameraService requires a valid CameraManager instance.');
     }
     this.#cameraManager = cameraManager;
-    this.#subscribeToWebcamEvents();
+    this.#subscribeToEvents();
   }
 
-  #subscribeToWebcamEvents(): void {
+  // This subscription is for informing OTHER parts of the app about stream state.
+  // It no longer triggers actions itself, preventing loops.
+  #subscribeToEvents(): void {
     pubsub.subscribe(WEBCAM_EVENTS.STREAM_START, (data?: unknown) => {
       pubsub.publish(CAMERA_SERVICE_EVENTS.STREAM_STARTED, data);
     });
@@ -45,24 +47,32 @@ export class CameraService {
 
     if (this.isStreamActive()) {
       await this.stopStream();
-      // Brief pause to allow resources to release before restarting
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
+    
+    const { actions } = this.#cameraManager.getAppStore().getState();
+    actions.setIsStreamConnecting(true);
 
-    let rtspConfig: RtspSourceConfig | null = null;
-    if (options.cameraId.startsWith('rtsp:')) {
-      const appStore = this.#cameraManager.getAppStore();
-      const rtspSources = appStore.getState().rtspSources || [];
-      const normalizedPathName = normalizeNameForMtx(options.cameraId.substring(5));
-      rtspConfig = rtspSources.find(
-        (s) => normalizeNameForMtx(s.name) === normalizedPathName
-      ) || null;
+    try {
+      let rtspConfig: RtspSourceConfig | null = null;
+      if (options.cameraId.startsWith('rtsp:')) {
+        const appStore = this.#cameraManager.getAppStore();
+        const rtspSources = appStore.getState().rtspSources || [];
+        const normalizedPathName = normalizeNameForMtx(options.cameraId.substring(5));
+        rtspConfig = rtspSources.find(
+          (s) => normalizeNameForMtx(s.name) === normalizedPathName
+        ) || null;
+      }
+  
+      await this.#cameraManager.start(
+        options.cameraId,
+        rtspConfig
+      );
+    } catch (error) {
+        console.error(`[CameraService] Stream start failed for ${options.cameraId}.`, error);
+    } finally {
+        actions.setIsStreamConnecting(false);
     }
-
-    await this.#cameraManager.start(
-      options.cameraId,
-      rtspConfig
-    );
   }
 
   public async stopStream(): Promise<void> {

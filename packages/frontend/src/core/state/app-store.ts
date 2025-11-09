@@ -1,252 +1,74 @@
 /* FILE: packages/frontend/src/core/state/app-store.ts */
-import { createStore } from 'zustand/vanilla';
-import {
-  PreferenceService,
-  type PreferenceKey,
-  type PreferenceValue,
-} from '#frontend/services/preference.service.js';
-import { webSocketService } from '#frontend/services/websocket-service.js';
-import { UI_EVENTS, PLUGIN_CONFIG_UPDATED_EVENT_PREFIX, pubsub } from '#shared/index.js';
-import type {
-  FullConfiguration,
-  InitialStatePayload,
-  CustomGestureMetadata,
-  PluginManifest,
-  ActionResultPayload,
-  ConfigPatchAckPayload,
-} from '#shared/index.js';
-import type { ThemePreference, HistoryEntry } from '#frontend/types/index.js';
-import { MAX_HISTORY_ITEMS } from '#frontend/constants/app-defaults.js';
+import { createStore, type StoreApi } from 'zustand/vanilla';
+import { produce } from 'immer';
+import type { InitialStatePayload } from '#shared/index.js';
 
-export type FrontendFullState = FullConfiguration & {
-  numHandsPreference: number;
-  processingResolutionWidthPreference: number;
-  languagePreference: string;
-  themePreference: ThemePreference;
-  showHandLandmarks: boolean;
-  showPoseLandmarks: boolean;
-  performanceMetrics: { fps: number; processingTime: number; memory: number };
-  streamStatus: Map<string, string>;
-  isInitialConfigLoaded: boolean;
-  isWsConnected: boolean;
-  isWebcamRunning: boolean;
-  isStreamConnecting: boolean;
-  customGestureMetadataList: CustomGestureMetadata[];
-  pluginManifests: PluginManifest[];
-  pluginGlobalConfigs: Map<string, unknown>;
-  pluginExtDataCache: Map<string, unknown>;
-  historyEntries: HistoryEntry[];
-  handModelLoaded: boolean;
-  poseModelLoaded: boolean;
-  isActionDispatchSuppressed: boolean;
+import { createConfigSlice, type ConfigSlice } from './slices/configSlice.js';
+import { createHistorySlice, type HistorySlice } from './slices/historySlice.js';
+import { createPluginSlice, type PluginSlice } from './slices/pluginSlice.js';
+import { createStatusSlice, type StatusSlice } from './slices/statusSlice.js';
+import { createUiSlice, type UiSlice } from './slices/uiSlice.js';
+
+export type AppStateSlices = ConfigSlice & HistorySlice & PluginSlice & StatusSlice & UiSlice;
+
+// This combines the state properties and the nested actions objects
+export type AppState = Omit<ConfigSlice, 'actions'> & Omit<HistorySlice, 'actions'> & Omit<PluginSlice, 'actions'> & Omit<StatusSlice, 'actions'> & Omit<UiSlice, 'actions'> & {
+    actions:
+        ConfigSlice['actions'] &
+        HistorySlice['actions'] &
+        PluginSlice['actions'] &
+        StatusSlice['actions'] &
+        UiSlice['actions'];
 };
 
-const preferenceService = new PreferenceService();
+export type AppStore = StoreApi<AppState>;
 
-const getInitialState = (): FrontendFullState => ({
-  globalCooldown: 2.0,
-  rtspSources: [],
-  gestureConfigs: [],
-  targetFpsPreference: 30,
-  telemetryEnabled: false,
-  enableCustomHandGestures: false,
-  enablePoseProcessing: false,
-  enableBuiltInHandGestures: true,
-  lowLightBrightness: 100,
-  lowLightContrast: 100,
-  handDetectionConfidence: 0.5,
-  handPresenceConfidence: 0.5,
-  handTrackingConfidence: 0.4,
-  poseDetectionConfidence: 0.5,
-  posePresenceConfidence: 0.5,
-  poseTrackingConfidence: 0.4,
-  numHandsPreference: preferenceService.get('numHandsPreference'),
-  processingResolutionWidthPreference: preferenceService.get('processingResolutionWidthPreference'),
-  languagePreference: preferenceService.get('languagePreference'),
-  themePreference: preferenceService.get('themePreference'),
-  showHandLandmarks: preferenceService.get('showHandLandmarks'),
-  showPoseLandmarks: preferenceService.get('showPoseLandmarks'),
-  performanceMetrics: { fps: 0, processingTime: 0, memory: 0 },
-  streamStatus: new Map<string, string>(),
-  isInitialConfigLoaded: false,
-  isWsConnected: false,
-  isWebcamRunning: false,
-  isStreamConnecting: false,
-  customGestureMetadataList: [],
-  pluginManifests: [],
-  pluginGlobalConfigs: new Map<string, unknown>(),
-  pluginExtDataCache: new Map<string, unknown>(),
-  historyEntries: [],
-  handModelLoaded: false,
-  poseModelLoaded: false,
-  isActionDispatchSuppressed: false,
+// A specific type for the actions object that includes the dynamically added `setInitialState`
+export type AppStoreActionsWithHydration = AppState['actions'] & {
+    setInitialState: (payload: InitialStatePayload) => void;
+};
+
+
+const createAppStore = () => createStore<AppState>()((...a) => {
+    const configSlice = createConfigSlice(...a);
+    const historySlice = createHistorySlice(...a);
+    const pluginSlice = createPluginSlice(...a);
+    const statusSlice = createStatusSlice(...a);
+    const uiSlice = createUiSlice(...a);
+
+    return {
+        ...configSlice,
+        ...historySlice,
+        ...pluginSlice,
+        ...statusSlice,
+        ...uiSlice,
+        // Combine all actions from the different slices into a single 'actions' object
+        actions: {
+            ...configSlice.actions,
+            ...historySlice.actions,
+            ...pluginSlice.actions,
+            ...statusSlice.actions,
+            ...uiSlice.actions,
+        },
+    };
 });
 
-interface AppStoreActions {
-  setInitialState: (payload: InitialStatePayload) => void;
-  setFullConfig: (config: FullConfiguration) => void;
-  setPluginGlobalConfig: (pluginId: string, config: unknown) => void;
-  setPluginManifests: (manifests: PluginManifest[]) => void;
-  setCustomGestureMetadata: (metadata: CustomGestureMetadata[]) => void;
-  setLocalPreference: <K extends PreferenceKey>(key: K, value: PreferenceValue<K>) => void;
-  requestBackendPatch: (patchData: Partial<FullConfiguration>) => Promise<void>;
-  setStreamStatus: (pathName: string, status: string) => void;
-  setPluginExtData: (pluginId: string, data: unknown) => void;
-  clearPluginExtData: (pluginId: string) => void;
-  setLowLightSettings: (payload: { lowLightBrightness?: number; lowLightContrast?: number; }) => void;
-  addHistoryEntry: (entry: Partial<HistoryEntry>) => void;
-  handleBackendActionResult: (result: ActionResultPayload) => void;
-  clearHistory: () => void;
-  setModelLoadingStatus: (status: { hand?: boolean, pose?: boolean }) => void;
-  setIsActionDispatchSuppressed: (isSuppressed: boolean) => void;
-  setWsConnectionStatus: (isConnected: boolean) => void;
-  setWebcamRunningStatus: (isRunning: boolean) => void;
-  setIsStreamConnecting: (isConnecting: boolean) => void;
-}
+export const appStore = createAppStore();
 
-export type AppStore = ReturnType<typeof createAppStore>;
+// A special action to hydrate the store with initial data from the backend.
+const setInitialState = (payload: InitialStatePayload) => {
+  appStore.setState(produce((draft: AppState) => {
+    // Apply global config
+    Object.assign(draft, payload.globalConfig);
+    // Set plugin manifests and configs
+    draft.pluginManifests = payload.manifests;
+    draft.pluginGlobalConfigs = new Map(Object.entries(payload.pluginConfigs));
+    // Set custom gestures
+    draft.customGestureMetadataList = payload.customGestureMetadata;
+    // Mark as loaded
+    draft.isInitialConfigLoaded = true;
+  }));
+};
 
-export function createAppStore(initialState: FrontendFullState) {
-  return createStore<FrontendFullState & { actions: AppStoreActions }>()(
-    (set, get) => ({
-      ...initialState,
-      actions: {
-        setInitialState: (payload: InitialStatePayload) => {
-          set((state) => ({
-            ...state,
-            ...payload.globalConfig,
-            isInitialConfigLoaded: true,
-            pluginManifests: payload.manifests,
-            pluginGlobalConfigs: new Map(Object.entries(payload.pluginConfigs)),
-            customGestureMetadataList: payload.customGestureMetadata,
-          }));
-        },
-        setFullConfig: (config: FullConfiguration) => {
-          set((state) => ({ ...state, ...config }));
-        },
-        setPluginGlobalConfig: (pluginId: string, config: unknown) => {
-          set((state) => {
-            const newConfigs = new Map(state.pluginGlobalConfigs);
-            newConfigs.set(pluginId, config);
-            return { pluginGlobalConfigs: newConfigs };
-          });
-          pubsub.publish(`${PLUGIN_CONFIG_UPDATED_EVENT_PREFIX}${pluginId}`, config);
-        },
-        setPluginManifests: (manifests: PluginManifest[]) => {
-          set({ pluginManifests: manifests });
-        },
-        setCustomGestureMetadata: (metadata: CustomGestureMetadata[]) => {
-          set({ customGestureMetadataList: metadata });
-        },
-        setLocalPreference: <K extends PreferenceKey>(key: K, value: PreferenceValue<K>) => {
-          preferenceService.set(key, value);
-          set({ [key]: value } as unknown as Pick<FrontendFullState, K>);
-        },
-        requestBackendPatch: async (patchData: Partial<FullConfiguration>) => {
-          if (!webSocketService.isConnected()) {
-            pubsub.publish(UI_EVENTS.SHOW_ERROR, { messageKey: 'wsDisconnected', type: 'error' });
-            return;
-          }
-          try {
-            const result = await webSocketService.request<ConfigPatchAckPayload>('PATCH_CONFIG', patchData, 10000);
-            if (result?.success) {
-              webSocketService.sendMessage({ type: 'GET_FULL_CONFIG', payload: null });
-            }
-            if (result?.validationErrors) {
-              pubsub.publish(UI_EVENTS.CONFIG_VALIDATION_ERROR, result.validationErrors);
-            }
-          } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : 'Config patch request failed.';
-            pubsub.publish(UI_EVENTS.SHOW_ERROR, { message: errorMessage, type: 'error' });
-          }
-        },
-        setStreamStatus: (pathName: string, status: string) => {
-          set((state) => {
-            const newStatusMap = new Map(state.streamStatus);
-            newStatusMap.set(pathName, status);
-            return { streamStatus: newStatusMap };
-          });
-        },
-        setPluginExtData: (pluginId: string, data: unknown) => {
-          set((state) => {
-            const newCache = new Map(state.pluginExtDataCache);
-            newCache.set(pluginId, data);
-            return { pluginExtDataCache: newCache };
-          });
-        },
-        clearPluginExtData: (pluginId: string) => {
-            set((state) => {
-                const newCache = new Map(state.pluginExtDataCache);
-                if (newCache.has(pluginId)) {
-                    newCache.delete(pluginId);
-                    return { pluginExtDataCache: newCache };
-                }
-                return state; 
-            });
-        },
-        setLowLightSettings: (payload: { lowLightBrightness?: number; lowLightContrast?: number; }) => {
-          set(payload);
-        },
-        addHistoryEntry: (entry: Partial<HistoryEntry>) => {
-          if (!entry || !entry.gesture) return;
-          const newEntry: HistoryEntry = {
-            id: entry.id || `${Date.now()}-${Math.random().toString(16).substring(2)}`,
-            timestamp: entry.timestamp instanceof Date ? entry.timestamp : new Date(entry.timestamp || Date.now()),
-            gesture: entry.gesture,
-            actionType: entry.actionType || 'none',
-            gestureCategory: entry.gestureCategory || 'UNKNOWN',
-            success: entry.success,
-            reason: entry.reason || (entry.actionType !== 'none' ? 'AWAITING_RESULT' : null),
-            details: entry.details,
-          };
-          const currentHistory = get().historyEntries;
-          const newHistory = [newEntry, ...currentHistory].slice(0, MAX_HISTORY_ITEMS);
-          set({ historyEntries: newHistory });
-        },
-        handleBackendActionResult: (result: ActionResultPayload) => {
-            if (!result?.gestureName || result.pluginId === 'none') return;
-            
-            // 1. Update history state
-            const currentHistory = get().historyEntries;
-            let entryUpdated = false;
-            const newHistory = currentHistory.map((entry) => {
-                if (!entryUpdated && entry.gesture === result.gestureName && entry.actionType === result.pluginId && entry.reason === 'AWAITING_RESULT') {
-                    entryUpdated = true;
-                    return { ...entry, success: result.success, reason: result.message || (result.success ? 'OK' : 'FAILED'), };
-                }
-                return entry;
-            });
-            if (entryUpdated) {
-                set({ historyEntries: newHistory });
-            }
-
-            // 2. Publish a clean UI event for other components to consume
-            pubsub.publish(UI_EVENTS.ACTION_RESULT_RECEIVED, result);
-        },
-        clearHistory: () => {
-          set({ historyEntries: [] });
-        },
-        setModelLoadingStatus: (status: { hand?: boolean, pose?: boolean }) => {
-          const updates: Partial<Pick<FrontendFullState, 'handModelLoaded' | 'poseModelLoaded'>> = {};
-          if (typeof status.hand === 'boolean') updates.handModelLoaded = status.hand;
-          if (typeof status.pose === 'boolean') updates.poseModelLoaded = status.pose;
-          if (Object.keys(updates).length > 0) set(updates);
-        },
-        setIsActionDispatchSuppressed: (isSuppressed: boolean) => {
-          set({ isActionDispatchSuppressed: isSuppressed });
-        },
-        setWsConnectionStatus: (isConnected: boolean) => {
-          set({ isWsConnected: isConnected });
-        },
-        setWebcamRunningStatus: (isRunning: boolean) => {
-            set({ isWebcamRunning: isRunning });
-        },
-        setIsStreamConnecting: (isConnecting: boolean) => {
-            set({ isStreamConnecting: isConnecting });
-        },
-      },
-    })
-  );
-}
-
-export const appStore = createAppStore(getInitialState());
+// Expose this special action through the store instance, using the extended type.
+(appStore.getState().actions as AppStoreActionsWithHydration).setInitialState = setInitialState;

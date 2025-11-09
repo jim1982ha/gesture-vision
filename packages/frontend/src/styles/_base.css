@@ -1,107 +1,130 @@
-/* FILE: packages/frontend/src/styles/_base.css */
 @layer base {
+  /* --- DEFAULT THEME: Main Light (Refined Palette) --- */
   :root,
-  body[data-theme="main-light"] {
-    --color-primary: 24 80 214;
-    --color-primary-hover: 19 63 168;
-    --color-secondary: 108 117 125;
-    --color-secondary-hover: 90 98 104;
-    --color-surface: 255 255 255;
-    --color-background: 240 242 245;
-    --color-on-primary: 255 255 255;
-    --color-text-primary: 52 58 64;
-    --color-text-secondary: 108 117 125;
-    --color-border: 206 212 218;
-    --color-border-light: 222 226 230;
-    --color-error: 220 53 69;
-    --color-error-hover: 200 35 51;
-    --color-success: 40 167 69;
-    --color-success-hover: 33 136 56;
-    --color-warning: 255 193 7;
-    --color-warning-hover: 224 168 0;
-    --color-info: 23 162 184;
-    --color-info-hover: 17 122 139;
+  html[data-theme='main-light'] {
+    --color-primary: 220 86% 57%;
+    --color-primary-hover: 220 86% 52%;
+    --color-secondary: 215 14% 34%;
+    --color-secondary-hover: 215 14% 24%;
+    --color-surface: 0 0% 100%;
+    --color-background: 220 20% 97%;
+    --color-on-primary: 0 0% 100%;
+    --color-text-primary: 215 25% 27%;
+    --color-text-secondary: 215 14% 44%;
+    --color-border: 220 15% 88%;
+    --color-border-light: 220 15% 94%;
+    --color-error: 354 70% 54%;
+    --color-error-hover: 354 70% 49%;
+    --color-success: 145 63% 41%;
+    --color-success-hover: 145 63% 36%;
+    --color-warning: 38 92% 50%;
+    --color-warning-hover: 38 92% 45%;
+    --color-info: 195 80% 41%;
+    --color-info-hover: 195 80% 36%;
+  }
+
+  /* --- DARK THEMES --- */
+  html[data-theme='main-dark'] {
+    --color-primary: 217 89% 64%;
+    --color-primary-hover: 217 89% 69%;
+    --color-secondary: 215 12% 65%;
+    --color-secondary-hover: 215 12% 75%;
+    --color-surface: 216 12% 24%;
+    --color-background: 216 12% 16%;
+    --color-on-primary: 210 20% 98%;
+    --color-text-primary: 210 40% 98%;
+    --color-text-secondary: 210 15% 65%;
+    --color-border: 216 12% 32%;
+    --color-border-light: 216 12% 27%;
+    --color-error: 354 81% 68%;
+    --color-error-hover: 354 81% 63%;
+    --color-success: 145 62% 59%;
+    --color-success-hover: 145 62% 54%;
+  }
+
+  html[data-theme='ocean-light'] {
+    --color-primary: 200 100% 39%;
+    --color-primary-hover: 200 100% 34%;
+    --color-secondary: 195 91% 71%;
+    --color-surface: 0 0% 100%;
+    --color-background: 195 53% 94%;
+    --color-text-primary: 199 100% 13%;
+    --color-border: 195 30% 85%;
+    --color-border-light: 195 30% 92%;
+  }
+
+  html[data-theme='ocean-dark'] {
+    --color-primary: 195 91% 71%;
+    --color-primary-hover: 195 91% 76%;
+    --color-secondary: 195 91% 81%;
+    --color-surface: 214 98% 18%;
+    --color-background: 236 96% 10%;
+    --color-text-primary: 195 53% 94%;
+    --color-border: 214 98% 25%;
+    --color-border-light: 214 98% 22%;
+  }
+
+  html[data-theme='forest-light'] {
+    --color-primary: 98 39% 49%;
+    --color-primary-hover: 98 39% 44%;
+    --color-secondary: 85 20% 58%;
+    --color-surface: 0 0% 100%;
+    --color-background: 85 24% 95%;
+    --color-text-primary: 100 24% 20%;
+    --color-border: 85 20% 85%;
+    --color-border-light: 85 20% 92%;
+  }
+  
+  html[data-theme='forest-dark'] {
+    --color-primary: 98 49% 65%;
+    --color-primary-hover: 98 49% 70%;
+    --color-secondary: 85 25% 75%;
+    --color-surface: 100 24% 20%;
+    --color-background: 100 24% 15%;
+    --color-text-primary: 85 24% 95%;
+    --color-border: 100 24% 28%;
+    --color-border-light: 100 24% 23%;
+  }
+
+  html[data-theme='sunset-light'] {
+    --color-primary: 32 80% 54%;
+    --color-primary-hover: 32 80% 49%;
+    --color-secondary: 28 87% 62%;
+    --color-surface: 35 100% 99%;
+    --color-background: 35 100% 96%;
+    --color-text-primary: 25 54% 20%;
+    --color-border: 35 90% 88%;
+    --color-border-light: 35 90% 94%;
+  }
+
+  html[data-theme='sunset-dark'] {
+    --color-primary: 32 80% 64%;
+    --color-primary-hover: 32 80% 69%;
+    --color-secondary: 28 87% 72%;
+    --color-surface: 25 54% 20%;
+    --color-background: 25 54% 15%;
+    --color-text-primary: 35 100% 96%;
+    --color-border: 25 54% 28%;
+    --color-border-light: 25 54% 23%;
+  }
+  
+  /* --- GLOBAL DEFINITIONS (independent of theme) --- */
+  :root {
+    --shadow-depth-sm: 0 1px 2px hsl(var(--color-text-primary) / 0.07),
+      0 2px 4px hsl(var(--color-text-primary) / 0.07);
+    --shadow-depth-md: 0 4px 6px -1px hsl(var(--color-text-primary) / 0.1),
+      0 2px 4px -2px hsl(var(--color-text-primary) / 0.1);
+    --shadow-depth-lg: 0 10px 15px -3px hsl(var(--color-text-primary) / 0.1),
+      0 4px 6px -4px hsl(var(--color-text-primary) / 0.1);
+    --shadow-depth-xl: 0 20px 25px -5px hsl(var(--color-text-primary) / 0.1),
+      0 8px 10px -6px hsl(var(--color-text-primary) / 0.1);
 
     --radius-small: 0.25rem;
     --radius-medium: 0.5rem;
     --radius-large: 0.75rem;
-    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1),
-      0 2px 4px -2px rgb(0 0 0 / 0.1);
-    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1),
-      0 4px 6px -4px rgb(0 0 0 / 0.1);
-    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1),
-      0 8px 10px -6px rgb(0 0 0 / 0.1);
-    --shadow-2xl: 0 25px 50px -12px rgb(0 0 0 / 0.25);
 
     --icon-size-status: 1.25rem;
-
-    /* Tunable horizontal padding for the main content area on desktop */
-    --main-content-horizontal-padding-desktop: 2rem; /* Corresponds to Tailwind's px-8 */
-
-  }
-  body[data-theme="main-dark"] {
-    --color-primary: 74 128 232;
-    --color-primary-hover: 108 159 255;
-    --color-secondary: 134 142 150;
-    --color-secondary-hover: 158 165 172;
-    --color-surface: 44 48 52;
-    --color-background: 33 37 41;
-    --color-on-primary: 255 255 255;
-    --color-text-primary: 248 249 250;
-    --color-text-secondary: 173 181 189;
-    --color-border: 73 80 87;
-    --color-border-light: 54 59 64;
-    --color-error: 234 76 70;
-    --color-error-hover: 224 49 43;
-    --color-success: 64 192 87;
-    --color-success-hover: 54 162 71;
-    --color-warning: 250 176 5;
-    --color-warning-hover: 252 192 49;
-    --color-info: 51 154 240;
-    --color-info-hover: 85 171 243;
-  }
-  body[data-theme="ocean-light"] {
-    --color-primary: 0 119 182;
-    --color-secondary: 0 180 216;
-    --color-surface: 240 247 249;
-    --color-background: 202 240 248;
-    --color-text-primary: 2 48 71;
-  }
-  body[data-theme="ocean-dark"] {
-    --color-primary: 129 236 236;
-    --color-secondary: 173 232 244;
-    --color-surface: 2 62 138;
-    --color-background: 3 4 94;
-    --color-text-primary: 202 240 248;
-  }
-  body[data-theme="forest-light"] {
-    --color-primary: 67 160 71;
-    --color-secondary: 129 199 132;
-    --color-surface: 250 250 250;
-    --color-background: 232 245 233;
-    --color-text-primary: 27 94 32;
-  }
-  body[data-theme="forest-dark"] {
-    --color-primary: 165 214 167;
-    --color-secondary: 129 199 132;
-    --color-surface: 46 125 50;
-    --color-background: 27 94 32;
-    --color-text-primary: 232 245 233;
-  }
-  body[data-theme="sunset-light"] {
-    --color-primary: 233 196 106;
-    --color-secondary: 244 162 97;
-    --color-surface: 255 250 240;
-    --color-background: 255 248 237;
-    --color-text-primary: 38 70 83;
-  }
-  body[data-theme="sunset-dark"] {
-    --color-primary: 233 196 106;
-    --color-secondary: 244 162 97;
-    --color-surface: 42 157 143;
-    --color-background: 38 70 83;
-    --color-text-primary: 255 250 240;
+    --main-content-horizontal-padding-desktop: 2rem;
   }
 
   html,
@@ -110,26 +133,29 @@
     margin: 0;
     padding: 0;
     overflow: hidden;
-    background-color: theme('colors.background');
-    color: theme('colors.text-primary');
+    background-color: hsl(var(--color-background));
+    color: hsl(var(--color-text-primary));
     font-family: theme('fontFamily.sans');
+    background-image: radial-gradient(circle at 1px 1px, hsl(var(--color-border) / 0.3) 1px, transparent 0);
+    background-size: 20px 20px;
   }
+
   ::-webkit-scrollbar {
     width: theme('spacing.2');
     height: theme('spacing.2');
   }
   ::-webkit-scrollbar-track {
-    background-color: theme('colors.surface');
+    background-color: hsl(var(--color-surface));
   }
   ::-webkit-scrollbar-thumb {
-    background-color: theme('colors.border');
+    background-color: hsl(var(--color-border));
     border-radius: theme('borderRadius.full');
   }
   ::-webkit-scrollbar-thumb:hover {
-    background-color: theme('colors.secondary');
+    background-color: hsl(var(--color-secondary));
   }
   .material-icons,
-  .material-symbols-outlined { /* ADDED: New base class */
+  .material-symbols-outlined {
     vertical-align: middle;
   }
 }

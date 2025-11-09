@@ -34,8 +34,6 @@
     <script src="/vendor/markdown/marked.min.js" defer></script>
     <script src="/vendor/markdown/purify.min.js" defer></script>
     
-    <script src="/worker-lib/worker-gesture-utils.js" defer></script>
-
     <script>
       // Global registry for GestureVision frontend plugin modules
       window.GestureVisionPlugins = {};
@@ -45,22 +43,19 @@
     <script>
       // PWA Detection & Window Controls Overlay script with improved logic and logging
       (function() {
-        // A desktop PWA is identified by either being in standalone mode OR having the Window Controls Overlay API available.
         const isDesktopPWA = window.matchMedia('(display-mode: standalone)').matches || 'windowControlsOverlay' in navigator;
         
         if (isDesktopPWA) {
           document.documentElement.classList.add('is-pwa-desktop');
         }
 
-        // Separately, handle the geometry of the window controls overlay if the feature exists.
-        // This toggles a class for styling the title bar padding.
         if ('windowControlsOverlay' in navigator) {
           const handleGeometryChange = () => {
             const isVisible = navigator.windowControlsOverlay.visible;
             document.documentElement.classList.toggle('is-pwa-with-overlay', isVisible);
           };
           navigator.windowControlsOverlay.addEventListener('geometrychange', handleGeometryChange);
-          handleGeometryChange(); // Initial check on load
+          handleGeometryChange();
         }
       })();
     </script>
@@ -71,7 +66,6 @@
 <body>
     <script>
       // Pre-boot theme application script.
-      // MUST be the first element in <body> to prevent Flash of Unstyled Content (FOUC).
       (function() {
         try {
           const storedPrefsRaw = localStorage.getItem('themePreference');
@@ -85,36 +79,13 @@
           const themeId = `${prefs.base || 'main'}-${effectiveMode}`;
           document.body.dataset.theme = themeId;
         } catch (e) {
-          // Fallback to a default theme on error
           document.body.dataset.theme = 'main-light';
           console.error('Error applying pre-boot theme:', e);
         }
       })();
     </script>
-    <div id="app-container" class="h-full flex flex-col">
-        <!-- header-inject -->
-        <div class="main-content-wrapper flex-1 flex overflow-hidden relative">
-            <!-- main-content-inject -->
-            <!-- history-sidebar-inject -->
-            <!-- modal-sidebar-backdrop-inject -->
-        </div>
-    </div>
-    
-    <!-- Modals are outside the main app container for correct stacking context -->
-    <div id="mainSettingsModal" class="modal">
-        <div class="modal-content">
-            <!-- modal-settings-head-inject -->
-            <!-- modal-settings-footer-inject -->
-        </div>
-    </div>
-
-    <!-- modal-camera-select-inject -->
-    <!-- modal-documentation-inject -->
-    <!-- modal-gesture-alert-inject -->
-    <!-- modal-confirmation-inject -->
-    <!-- modal-gesture-config-inject -->
-    
-    <script type="module" src="/src/main.ts"></script>
+    <div id="root" class="h-full"></div>
+    <script type="module" src="/src/main.tsx"></script>
 </body>
 
 </html>

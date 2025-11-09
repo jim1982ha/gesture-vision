@@ -1,5 +1,5 @@
 /* FILE: packages/frontend/src/ui/ui-themes.ts */
-import { DEFAULT_THEME_BASE_ID } from "#frontend/constants/app-defaults.js";
+import { DEFAULT_THEME_BASE_ID } from "#frontend/constants/index.js";
 
 interface Theme {
   id: string;

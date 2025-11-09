@@ -1,6 +1,7 @@
 /* FILE: packages/shared/validation/config.schemas.ts */
 import { z } from 'zod';
 import { ActionConfigSchema } from './plugin.schemas.js';
+import * as DEFAULTS from '../constants/config-defaults.js';
 
 export const RoiConfigSchema = z.object({
   x: z.number().min(0).max(100),
@@ -41,25 +42,26 @@ export type PoseConfig = z.infer<typeof PoseConfigSchema>;
 const allowedFpsValues = [24, 30, 60] as const;
 
 export const FullConfigurationSchema = z.object({
-  globalCooldown: z.number().min(0),
-  rtspSources: z.array(RtspSourceConfigSchema),
-  gestureConfigs: z.array(z.union([GestureConfigSchema, PoseConfigSchema])),
+  globalCooldown: z.number().min(0).default(DEFAULTS.DEFAULT_GLOBAL_COOLDOWN),
+  rtspSources: z.array(RtspSourceConfigSchema).default([]),
+  gestureConfigs: z.array(z.union([GestureConfigSchema, PoseConfigSchema])).default([]),
   targetFpsPreference: z.coerce.number().pipe(z.union([z.literal(24), z.literal(30), z.literal(60)], {
     message: `Target FPS must be one of: ${allowedFpsValues.join(', ')}`,
-  })),
-  telemetryEnabled: z.boolean().optional(),
-  enableCustomHandGestures: z.boolean(),
-  enablePoseProcessing: z.boolean(),
-  enableBuiltInHandGestures: z.boolean(),
-  lowLightBrightness: z.number().min(0).max(5000).optional(),
-  lowLightContrast: z.number().min(0).max(5000).optional(),
-  handDetectionConfidence: z.number().min(0.1).max(0.9).optional(),
-  handPresenceConfidence: z.number().min(0.1).max(0.9).optional(),
-  handTrackingConfidence: z.number().min(0.1).max(0.9).optional(),
-  poseDetectionConfidence: z.number().min(0.1).max(0.9).optional(),
-  posePresenceConfidence: z.number().min(0.1).max(0.9).optional(),
-  poseTrackingConfidence: z.number().min(0.1).max(0.9).optional(),
+  })).default(DEFAULTS.DEFAULT_TARGET_FPS),
+  telemetryEnabled: z.boolean().default(DEFAULTS.DEFAULT_TELEMETRY_ENABLED),
+  enableCustomHandGestures: z.boolean().default(DEFAULTS.DEFAULT_ENABLE_CUSTOM_HAND_GESTURES),
+  enablePoseProcessing: z.boolean().default(DEFAULTS.DEFAULT_ENABLE_POSE_PROCESSING),
+  enableBuiltInHandGestures: z.boolean().default(DEFAULTS.DEFAULT_ENABLE_BUILT_IN_HAND_GESTURES),
+  lowLightBrightness: z.number().min(0).max(5000).default(DEFAULTS.DEFAULT_LOW_LIGHT_BRIGHTNESS),
+  lowLightContrast: z.number().min(0).max(5000).default(DEFAULTS.DEFAULT_LOW_LIGHT_CONTRAST),
+  handDetectionConfidence: z.number().min(0.1).max(0.9).default(DEFAULTS.DEFAULT_HAND_DETECTION_CONFIDENCE),
+  handPresenceConfidence: z.number().min(0.1).max(0.9).default(DEFAULTS.DEFAULT_HAND_PRESENCE_CONFIDENCE),
+  handTrackingConfidence: z.number().min(0.1).max(0.9).default(DEFAULTS.DEFAULT_HAND_TRACKING_CONFIDENCE),
+  poseDetectionConfidence: z.number().min(0.1).max(0.9).default(DEFAULTS.DEFAULT_POSE_DETECTION_CONFIDENCE),
+  posePresenceConfidence: z.number().min(0.1).max(0.9).default(DEFAULTS.DEFAULT_POSE_PRESENCE_CONFIDENCE),
+  poseTrackingConfidence: z.number().min(0.1).max(0.9).default(DEFAULTS.DEFAULT_POSE_TRACKING_CONFIDENCE),
   _migrationVersion: z.number().optional(),
 });
 export type FullConfiguration = z.infer<typeof FullConfigurationSchema>;
-export type SanitizedFullConfiguration = Required<FullConfiguration>;
+// This type is no longer needed as Zod's .default() makes all fields present after parsing.
+export type SanitizedFullConfiguration = FullConfiguration;

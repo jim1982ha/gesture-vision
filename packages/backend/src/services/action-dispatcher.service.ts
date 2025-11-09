@@ -1,5 +1,5 @@
 /* FILE: packages/backend/src/services/action-dispatcher.service.ts */
-import { createErrorResult } from '#backend/utils/action-helpers.js';
+import { createErrorResult } from '#backend/utils/index.js';
 import type { ActionDetails, ActionConfig, ActionResult, GestureConfig, PoseConfig } from '#shared/index.js';
 import type { BackendPluginContext } from '#backend/types/index.js';
 import type { PluginManagerService } from './plugin-manager.service.js';
@@ -20,6 +20,9 @@ export class ActionDispatcherService {
   public async dispatch(config: GestureConfig | PoseConfig, details: ActionDetails): Promise<ActionResult> {
     const configName = 'gesture' in config ? config.gesture : config.pose;
     const actionConfig = config.actionConfig as ActionConfig | null;
+
+    // LOGGING: Log every dispatch request received by the backend.
+    console.log(`[ActionDispatcher] Received dispatch request for gesture '${configName}' -> plugin '${actionConfig?.pluginId || 'none'}'`);
 
     if (!actionConfig?.pluginId || actionConfig.pluginId === 'none') {
       return createErrorResult(`No action configured for ${configName}.`, { success: true });

@@ -1,13 +1,9 @@
 /* FILE: packages/frontend/src/services/preference.service.ts */
 import {
-  LOCAL_STORAGE_KEYS_CORE_PREFS,
-  DEFAULT_LANGUAGE,
-  DEFAULT_THEME_PREFERENCE,
-  DEFAULT_PROCESSING_WIDTH,
-  DEFAULT_NUM_HANDS_PREFERENCE,
-  DEFAULT_SHOW_HAND_LANDMARKS,
+  LOCAL_STORAGE_KEYS_CORE_PREFS, DEFAULT_LANGUAGE, DEFAULT_THEME_PREFERENCE,
+  DEFAULT_PROCESSING_WIDTH, DEFAULT_NUM_HANDS_PREFERENCE, DEFAULT_SHOW_HAND_LANDMARKS,
   DEFAULT_SHOW_POSE_LANDMARKS,
-} from '#frontend/constants/app-defaults.js';
+} from '#frontend/constants/index.js';
 
 import { secureStorage } from '#shared/services/security-utils.js';
 

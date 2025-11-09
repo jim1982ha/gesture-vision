@@ -1,35 +1,46 @@
-/* FILE: packages/frontend/src/styles/_layout.css */
 @layer components {
   .main-content-wrapper {
     @apply flex-1 relative overflow-hidden;
   }
 
-  /* --- Styles for PWA Window Controls Overlay (Windowed & Fullscreen) --- */
+  .main-content {
+    --video-desktop-width: 60%;
+  }
 
-  /* This style applies whenever the JS detects a desktop PWA mode. */
-  /* It makes the header fixed, acting as the primary title bar. This rule is */
-  /* PERMANENT for the session once applied and handles both windowed and fullscreen. */
+  #app-header {
+    background-color: hsl(var(--color-surface));
+    border-color: hsl(var(--color-border));
+    box-shadow: var(--shadow-depth-sm);
+  }
+  
+  #app-header h1 {
+    color: hsl(var(--color-text-primary));
+  }
+  
+  .section-title {
+    @apply flex items-center gap-2 text-lg font-semibold mb-3;
+    color: hsl(var(--color-text-primary));
+  }
+  .section-title .config-title-icon {
+    color: hsl(var(--color-primary));
+  }
+
+  /* --- PWA Window Controls Overlay Styles --- */
   .is-pwa-desktop #app-container > header {
     @apply fixed top-0 left-0 right-0 w-full;
     -webkit-app-region: drag;
-    height: env(titlebar-area-height, 3.5rem); /* Fallback for fullscreen */
+    height: env(titlebar-area-height, 3.5rem);
   }
 
-  /* Ensure buttons within the draggable header remain clickable. */
   .is-pwa-desktop #app-container > header .btn,
-  .is-pwa-desktop #app-container > header .dropdown-container,
-  .is-pwa-desktop #app-container > header .language-selector-container {
+  .is-pwa-desktop #app-container > header .dropdown-container {
     -webkit-app-region: no-drag;
   }
 
-  /* Push the main content down to avoid being hidden by the fixed header. */
   .is-pwa-desktop .main-content-wrapper {
     padding-top: env(titlebar-area-height, 3.5rem);
   }
 
-  /* This more specific rule applies padding ONLY when the JS detects the */
-  /* window controls overlay is VISIBLE (i.e., windowed mode on macOS/Windows). */
-  /* It is toggled on and off by the geometrychange event listener. */
   .is-pwa-with-overlay #app-container > header {
     padding-left: env(titlebar-area-x, 10px);
     padding-right: calc(
@@ -37,41 +48,30 @@
     );
   }
 
-
-  /* --- Styles for Mobile Fullscreen Video --- */
-  body.video-fullscreen-active #app-container > header,
-  body.video-fullscreen-active #main-content > h2,
-  body.video-fullscreen-active #configListContainer {
-    display: none;
+  /* --- Video Container Sizing & Layout --- */
+  .video-container {
+    @apply w-full desktop:w-[var(--video-desktop-width)] max-w-full mx-auto;
+    box-shadow: var(--shadow-depth-md);
+  }
+  
+  .main-content.video-is-expanded {
+    --video-desktop-width: 100%;
   }
 
-  body.video-fullscreen-active #main-content {
-    position: absolute;
-    inset: 0px;
-    padding: 0px;
+  @media (max-width: 1023px) {
+    .main-content.video-is-expanded .video-container {
+      @apply fixed inset-0 z-[1000] w-screen h-screen rounded-none;
+    }
+  }
+  
+  #app-container.video-fullscreen-active > #app-header,
+  #app-container.video-fullscreen-active #main-content > *:not(.video-container),
+  #app-container.video-fullscreen-active #historySidebar,
+  #app-container.video-fullscreen-active #gestureSettingsSidebar {
+    @apply hidden;
   }
 
-  body.video-fullscreen-active .video-container {
-    height: 100%;
-    width: 100%;
-    max-height: 100%;
-    max-width: 100%;
-    border-radius: 0;
-    margin: 0;
-  }
-
-  body.video-fullscreen-active #historySidebar {
-    transform: translateX(100%);
-  }
-
-  /* Hide main content and sidebars when dashboard is active */
-  body.dashboard-active #main-content,
-  body.dashboard-active #historySidebar {
-    visibility: hidden;
-    opacity: 0;
-  }
-
-  .video-container.size-constrained {
-    @apply desktop:w-1/2 desktop:mx-auto;
+  .video-container video.mirrored {
+    transform: scaleX(-1);
   }
 }

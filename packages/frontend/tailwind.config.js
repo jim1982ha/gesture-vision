@@ -6,8 +6,8 @@ import typography from '@tailwindcss/typography';
 export default {
   content: [
     './index.html',
-    './src/**/*.{ts,js,html}',
-    '../../extensions/plugins/**/frontend/**/*.{js,html}',
+    './src/**/*.{js,ts,jsx,tsx,html}',
+    '../../extensions/plugins/**/frontend/**/*.{js,ts,jsx,tsx,html}',
   ],
   darkMode: 'class',
   theme: {
@@ -18,35 +18,9 @@ export default {
       spacing: {
         'main-x-desktop': 'var(--main-content-horizontal-padding-desktop, 2rem)',
       },
-      colors: {
-        primary: 'rgb(var(--color-primary) / <alpha-value>)',
-        'primary-hover': 'rgb(var(--color-primary-hover) / <alpha-value>)',
-        secondary: 'rgb(var(--color-secondary) / <alpha-value>)',
-        'secondary-hover': 'rgb(var(--color-secondary-hover) / <alpha-value>)',
-        surface: 'rgb(var(--color-surface) / <alpha-value>)',
-        background: 'rgb(var(--color-background) / <alpha-value>)',
-        'on-primary': 'rgb(var(--color-on-primary) / <alpha-value>)',
-        'text-primary': 'rgb(var(--color-text-primary) / <alpha-value>)',
-        'text-secondary': 'rgb(var(--color-text-secondary) / <alpha-value>)',
-        border: 'rgb(var(--color-border) / <alpha-value>)',
-        'border-light': 'rgb(var(--color-border-light) / <alpha-value>)',
-        error: {
-          DEFAULT: 'rgb(var(--color-error) / <alpha-value>)',
-          hover: 'rgb(var(--color-error-hover) / <alpha-value>)',
-        },
-        success: {
-          DEFAULT: 'rgb(var(--color-success) / <alpha-value>)',
-          hover: 'rgb(var(--color-success-hover) / <alpha-value>)',
-        },
-        warning: {
-          DEFAULT: 'rgb(var(--color-warning) / <alpha-value>)',
-          hover: 'rgb(var(--color-warning-hover) / <alpha-value>)',
-        },
-        info: {
-          DEFAULT: 'rgb(var(--color-info) / <alpha-value>)',
-          hover: 'rgb(var(--color-info-hover) / <alpha-value>)',
-        },
-      },
+      // The 'colors' object has been removed to enforce the use of direct CSS variables
+      // and prevent build-time race conditions with Tailwind's utility generation.
+      // The single source of truth for all theme colors is now `_base.css`.
       fontFamily: {
         sans: [
           'Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont',

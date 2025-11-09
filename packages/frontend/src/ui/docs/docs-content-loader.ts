@@ -15,6 +15,31 @@ declare global {
     }
 }
 
+async function waitForExternalLibrary(
+    libraryName: 'marked' | 'DOMPurify',
+    timeout = 3000
+  ): Promise<void> {
+    return new Promise((resolve, reject) => {
+      if (window[libraryName]) {
+        console.log(`[Docs] Library '${libraryName}' already available.`);
+        resolve();
+        return;
+      }
+      console.log(`[Docs] Waiting for external library '${libraryName}'...`);
+      const startTime = Date.now();
+      const interval = setInterval(() => {
+        if (window[libraryName]) {
+          clearInterval(interval);
+          console.log(`[Docs] Library '${libraryName}' loaded successfully.`);
+          resolve();
+        } else if (Date.now() - startTime > timeout) {
+          clearInterval(interval);
+          reject(new Error(`Timeout waiting for external library: ${libraryName}`));
+        }
+      }, 100);
+    });
+  }
+
 export class DocsContentLoader {
     #docsContent: DocsContent | null = null;
     #docsContentPromise: Promise<void> | null = null;
@@ -33,46 +58,69 @@ export class DocsContentLoader {
 
     async #loadContentFile(): Promise<void> {
         try {
+            console.log("[Docs] Fetching content.json...");
             const response = await fetch('/docs/content.json');
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             this.#docsContent = await response.json();
+            console.log("[Docs] content.json fetched successfully.");
         } catch (error) {
-            console.error("[DocsContentLoader] Failed to load docs/content.json:", error);
+            console.error("[Docs] Failed to load docs/content.json:", error);
             this.#docsContent = null;
         }
     }
 
-    public async fetchAndProcess(docPath: string, currentLang: LanguageCode): Promise<string> {
-        const response = await fetch(docPath);
-        if (!response.ok) throw new Error(`HTTP ${response.status} fetching ${docPath}`);
+    public async fetchAndProcess(docPath: string, getCurrentLanguage: () => LanguageCode): Promise<string> {
+        try {
+            console.log(`[Docs] Starting process for: ${docPath}`);
+            await Promise.all([ waitForExternalLibrary('marked'), waitForExternalLibrary('DOMPurify') ]);
 
-        const docText = await response.text();
-        const rawHtml = window.marked.parse(docText, { gfm: true, breaks: true });
-        
-        const domPurifyConfig = { USE_PROFILES: { html: true }, ALLOW_DATA_ATTR: false };
-        let finalHtml = window.DOMPurify.sanitize(rawHtml, domPurifyConfig);
+            const fullPath = docPath.startsWith('/') ? docPath : `/${docPath}`;
+            console.log(`[Docs] Fetching markdown file: ${fullPath}`);
+            const response = await fetch(fullPath);
+            if (!response.ok) throw new Error(`HTTP ${response.status} fetching ${fullPath}`);
+            const docText = await response.text();
+            console.log(`[Docs] Markdown file fetched successfully. Length: ${docText.length}`);
 
-        await this.#docsContentPromise;
-        if (this.#docsContent) {
-            const langContent = this.#docsContent[currentLang] || this.#docsContent.en;
-            finalHtml = finalHtml.replace(/\{\{([\w.-]+)}}/g, (_match: string, key: string) => {
-                return langContent[key] || `[${key}]`;
-            });
-        }
-
-        // Inject diagrams after translation
-        for (const placeholderId in this.#diagrams) {
-            let diagramHtml = this.#diagrams[placeholderId];
-            if(this.#docsContent) {
-                 const langContent = this.#docsContent[currentLang] || this.#docsContent.en;
-                 diagramHtml = diagramHtml.replace(/\{\{([\w.-]+)}}/g, (_match: string, key: string) => {
+            await this.#docsContentPromise;
+            console.log("[Docs] Content JSON promise resolved. Proceeding with translation.");
+            let translatedText = docText;
+            if (this.#docsContent) {
+                const currentLang = getCurrentLanguage();
+                const langContent = this.#docsContent[currentLang] || this.#docsContent.en;
+                translatedText = translatedText.replace(/\{\{([\w.-]+)}}/g, (_match: string, key: string) => {
                     return langContent[key] || `[${key}]`;
                 });
+                console.log("[Docs] Template placeholders replaced with translations.");
+            } else {
+                console.warn("[Docs] docsContent is null. Skipping translation.");
             }
-            const placeholderRegex = new RegExp(`<div id="${placeholderId}"></div>`, 'g');
-            finalHtml = finalHtml.replace(placeholderRegex, diagramHtml);
-        }
+            
+            let diagramInjectedText = translatedText;
+            for (const placeholderId in this.#diagrams) {
+                let diagramHtml = this.#diagrams[placeholderId];
+                if(this.#docsContent) {
+                     const currentLang = getCurrentLanguage();
+                     const langContent = this.#docsContent[currentLang] || this.#docsContent.en;
+                     diagramHtml = diagramHtml.replace(/\{\{([\w.-]+)}}/g, (_match: string, key: string) => {
+                        return langContent[key] || `[${key}]`;
+                    });
+                }
+                const placeholderRegex = new RegExp(`<div id="${placeholderId}"></div>`, 'g');
+                diagramInjectedText = diagramInjectedText.replace(placeholderRegex, diagramHtml);
+            }
+            console.log("[Docs] SVG diagrams injected.");
 
-        return finalHtml;
+            const rawHtml = window.marked.parse(diagramInjectedText, { gfm: true, breaks: true });
+            console.log(`[Docs] Markdown parsed to HTML. Raw length: ${rawHtml.length}`);
+            
+            const domPurifyConfig = { USE_PROFILES: { html: true }, ALLOW_DATA_ATTR: false, ADD_ATTR: ['style'] };
+            const finalHtml = window.DOMPurify.sanitize(rawHtml, domPurifyConfig);
+            console.log(`[Docs] HTML sanitized. Final length: ${finalHtml.length}. Process complete.`);
+
+            return finalHtml;
+        } catch (error) {
+            console.error(`[Docs] CRITICAL ERROR in fetchAndProcess for ${docPath}:`, error);
+            throw error;
+        }
     }
 }

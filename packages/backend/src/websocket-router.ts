@@ -1,15 +1,32 @@
 /* FILE: packages/backend/src/websocket-router.ts */
 import type WebSocket from 'ws';
-
 import { WEBSOCKET_EVENTS, type WebSocketMessage } from "#shared/index.js";
-
 import { dispatchActionHandler, rtspConnectRequestHandler, rtspDisconnectRequestHandler, finalizePluginUninstallHandler } from "./websocket-handlers/core-handlers.js";
 import { getPluginGlobalConfigHandler, patchConfigHandler, patchPluginGlobalConfigHandler } from "./websocket-handlers/config-message-handler.js";
 import { deleteCustomGestureHandler, getCustomGesturesMetadataHandler, updateCustomGestureHandler, uploadCustomGestureHandler } from "./websocket-handlers/custom-gesture-message-handler.js";
 import type { HandlerDependencies } from './websocket-handlers/handler-dependencies.type.js';
-import { sendMessageToClient, sendErrorMessageToClient } from "./websocket-handlers/ws-response-utils.js";
+import { sendMessageToClient, sendErrorMessageToClient } from "#backend/utils/index.js";
 
 type MessageHandler = (ws: WebSocket, message: WebSocketMessage<unknown>, dependencies: HandlerDependencies) => Promise<void>;
+type ServiceKey = keyof HandlerDependencies;
+
+/**
+ * Higher-order function to create a handler that first checks for required service dependencies.
+ * @param requiredServices - An array of service keys that must be available.
+ * @param handler - The actual message handler function.
+ * @returns A new MessageHandler that performs the dependency check.
+ */
+function withDependencies(requiredServices: ServiceKey[], handler: MessageHandler): MessageHandler {
+  return async (ws, message, dependencies) => {
+    for (const service of requiredServices) {
+      if (!dependencies[service]) {
+        await sendErrorMessageToClient(ws, 'SERVER_ERROR', `Core service '${service}' is not available.`);
+        return;
+      }
+    }
+    await handler(ws, message, dependencies);
+  };
+}
 
 async function pingHandler(ws: WebSocket, message: WebSocketMessage<unknown>): Promise<void> {
     const payload = message.payload as { id?: number | string | null } | null;
@@ -28,23 +45,21 @@ export class WebSocketRouter {
     #registerHandlers(): void {
         const handlers: Record<string, MessageHandler> = {
             "ping": pingHandler,
-            "GET_FULL_CONFIG": async (ws) => {
-                if (this.#dependencies.configService) {
-                    const config = await this.#dependencies.configService.getFullConfig();
-                    await sendMessageToClient(ws, { type: WEBSOCKET_EVENTS.FULL_CONFIG_UPDATE, payload: { config } });
-                }
-            },
-            "PATCH_CONFIG": patchConfigHandler,
-            "GET_PLUGIN_GLOBAL_CONFIG": getPluginGlobalConfigHandler,
-            "PATCH_PLUGIN_GLOBAL_CONFIG": patchPluginGlobalConfigHandler,
-            "DISPATCH_ACTION": dispatchActionHandler,
+            [WEBSOCKET_EVENTS.GET_FULL_CONFIG]: withDependencies(['configService'], async (ws, _, { configService }) => {
+                const config = await configService!.getFullConfig();
+                await sendMessageToClient(ws, { type: WEBSOCKET_EVENTS.FULL_CONFIG_UPDATE, payload: { config } });
+            }),
+            [WEBSOCKET_EVENTS.PATCH_CONFIG]: withDependencies(['configService'], patchConfigHandler),
+            [WEBSOCKET_EVENTS.GET_PLUGIN_GLOBAL_CONFIG]: withDependencies(['pluginManagerService'], getPluginGlobalConfigHandler),
+            [WEBSOCKET_EVENTS.PATCH_PLUGIN_GLOBAL_CONFIG]: withDependencies(['pluginManagerService'], patchPluginGlobalConfigHandler),
+            [WEBSOCKET_EVENTS.DISPATCH_ACTION]: withDependencies(['actionDispatcher'], dispatchActionHandler),
             [WEBSOCKET_EVENTS.GET_CUSTOM_GESTURES_METADATA]: getCustomGesturesMetadataHandler,
             [WEBSOCKET_EVENTS.UPLOAD_CUSTOM_GESTURE]: uploadCustomGestureHandler,
-            [WEBSOCKET_EVENTS.UPDATE_CUSTOM_GESTURE]: updateCustomGestureHandler,
-            [WEBSOCKET_EVENTS.DELETE_CUSTOM_GESTURE]: deleteCustomGestureHandler,
-            [WEBSOCKET_EVENTS.RTSP_CONNECT_REQUEST]: rtspConnectRequestHandler,
-            [WEBSOCKET_EVENTS.RTSP_DISCONNECT_REQUEST]: rtspDisconnectRequestHandler,
-            [WEBSOCKET_EVENTS.FINALIZE_UNINSTALL]: finalizePluginUninstallHandler,
+            [WEBSOCKET_EVENTS.UPDATE_CUSTOM_GESTURE]: withDependencies(['configService'], updateCustomGestureHandler),
+            [WEBSOCKET_EVENTS.DELETE_CUSTOM_GESTURE]: withDependencies(['configService'], deleteCustomGestureHandler),
+            [WEBSOCKET_EVENTS.RTSP_CONNECT_REQUEST]: withDependencies(['mtxMonitorService', 'configService'], rtspConnectRequestHandler),
+            [WEBSOCKET_EVENTS.RTSP_DISCONNECT_REQUEST]: withDependencies(['mtxMonitorService'], rtspDisconnectRequestHandler),
+            [WEBSOCKET_EVENTS.FINALIZE_UNINSTALL]: withDependencies(['pluginManagerService'], finalizePluginUninstallHandler),
         };
         for (const [type, handler] of Object.entries(handlers)) {
             this.#handlers.set(type, handler);
