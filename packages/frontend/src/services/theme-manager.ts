@@ -5,6 +5,7 @@ import {
   DEFAULT_THEME_MODE,
 } from '#frontend/constants/index.js';
 import { pubsub } from '#shared/core/pubsub.js';
+import { UI_EVENTS } from '#shared/index.js';
 
 import type { ThemePreference } from '#frontend/types/index.js';
 
@@ -17,6 +18,25 @@ type MediaQueryListWithDeprecatedListeners = MediaQueryList & {
   ) => void;
 };
 
+/**
+ * Converts HSL color values to a HEX string.
+ * @param h Hue (0-360)
+ * @param s Saturation (0-100)
+ * @param l Lightness (0-100)
+ * @returns The HEX color string (e.g., "#RRGGBB").
+ */
+function hslToHex(h: number, s: number, l: number): string {
+  l /= 100;
+  const a = (s * Math.min(l, 1 - l)) / 100;
+  const f = (n: number) => {
+    const k = (n + h / 30) % 12;
+    const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+    return Math.round(255 * color).toString(16).padStart(2, '0');
+  };
+  return `#${f(0)}${f(8)}${f(4)}`;
+}
+
+
 export default class ThemeManager {
   #defaultBaseTheme = DEFAULT_THEME_BASE_ID;
   #defaultColorMode: ThemePreference['mode'] = DEFAULT_THEME_MODE;
@@ -26,6 +46,7 @@ export default class ThemeManager {
   #systemThemeChangeHandler: ((event: MediaQueryListEvent) => void) | null = null;
   #appStore: AppStore;
   #unsubscribeStore: () => void;
+  #appInitSubscription: () => void;
 
   constructor(appStore: AppStore) {
     this.#appStore = appStore;
@@ -49,6 +70,13 @@ export default class ThemeManager {
         (state, prevState) => this.#handleExternalThemeChange(state, prevState)
     );
 
+    // Subscribe to the app initialized event to run a final color check.
+    this.#appInitSubscription = pubsub.subscribe(UI_EVENTS.APP_INITIALIZED, () => {
+      console.log("[ThemeManager] App initialized. Running final theme color update.");
+      this.#updateDeviceThemeColors();
+    });
+
+    // Initial application of the theme.
     this.#applyTheme();
   }
 
@@ -64,10 +92,8 @@ export default class ThemeManager {
     const effectiveMode = this.#getEffectiveMode();
     const currentBaseTheme = this.getBaseTheme();
     const combinedThemeId = `${currentBaseTheme}-${effectiveMode}`;
-    // CORRECTED: Apply the theme to the <html> element, not the body.
     document.documentElement.dataset.theme = combinedThemeId;
     
-    // Defer the meta tag update slightly to ensure the new CSS variables are applied.
     requestAnimationFrame(() => this.#updateDeviceThemeColors());
   }
 
@@ -104,9 +130,12 @@ export default class ThemeManager {
     else if (typeof mql.addListener === 'function')
       mql.addListener(this.#systemThemeChangeHandler);
   }
-
+  
+  // --- MEMORY LEAK FIX: Cleanup Logic ---
+  // Unsubscribes from the store, pubsub, and system media query listeners.
   destroy(): void {
     this.#unsubscribeStore();
+    this.#appInitSubscription(); // Unsubscribe from the app init event.
     if (this.#mediaQueryList && this.#systemThemeChangeHandler) {
       const mql = this.#mediaQueryList as MediaQueryListWithDeprecatedListeners;
       if (mql.removeEventListener)
@@ -127,14 +156,20 @@ export default class ThemeManager {
 
   #updateDeviceThemeColors(): void {
     try {
-      const surfaceRgb = getComputedStyle(document.body).getPropertyValue('--color-surface').trim();
+      const surfaceHslString = getComputedStyle(document.documentElement).getPropertyValue('--color-surface').trim();
+      console.log(`[ThemeManager TRACE] Active theme: ${document.documentElement.dataset.theme}. Reading '--color-surface':`, surfaceHslString);
+      
       let hexColor = '#ffffff'; // Default fallback
 
-      if (surfaceRgb) {
-        const rgbValues = surfaceRgb.match(/\d+/g);
-        if (rgbValues && rgbValues.length >= 3) {
-          const toHex = (c: number) => ('0' + c.toString(16)).slice(-2);
-          hexColor = `#${toHex(Number(rgbValues[0]))}${toHex(Number(rgbValues[1]))}${toHex(Number(rgbValues[2]))}`;
+      if (surfaceHslString) {
+        const hslValues = surfaceHslString.match(/(\d+(\.\d+)?)/g);
+        if (hslValues && hslValues.length >= 3) {
+            const [h, s, l] = hslValues.map(parseFloat);
+            console.log(`[ThemeManager TRACE] Parsed HSL values: h=${h}, s=${s}, l=${l}`);
+            hexColor = hslToHex(h, s, l);
+            console.log(`[ThemeManager TRACE] Converted to HEX: ${hexColor}. Applying to <meta name="theme-color">.`);
+        } else {
+           console.warn(`[ThemeManager TRACE] Could not parse HSL values from '${surfaceHslString}'. Falling back to default.`);
         }
       }
       

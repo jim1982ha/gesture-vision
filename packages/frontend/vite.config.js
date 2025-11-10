@@ -1,3 +1,4 @@
+// packages/frontend/vite.config.js
 import dns from "dns";
 import fs from "fs";
 import path, { dirname } from "path";
@@ -36,8 +37,6 @@ export default defineConfig(({ mode }) => {
       registerType: 'autoUpdate',
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff2,task,json}'],
-        // FIX: Exclude large MediaPipe models from the precache manifest.
-        // They are not needed for the initial app shell and exceed the default 2MB limit.
         globIgnores: ['**/models/*.task'],
       },
       manifest: false,
@@ -64,6 +63,9 @@ export default defineConfig(({ mode }) => {
       host: "0.0.0.0",
       port: parseInt(env.DEV_VITE_PORT || "8001"),
       fs: { allow: [projectRoot] },
+      watch: {
+        ignored: ['**/extensions/plugins/**'],
+      },
       proxy: {
         "/api": { target: `http://localhost:${backendInternalPort}`, changeOrigin: true, secure: false },
         "/ws/": { target: `ws://localhost:${backendInternalPort}`, ws: true, changeOrigin: true, secure: false },
@@ -89,7 +91,7 @@ export default defineConfig(({ mode }) => {
           entryFileNames: `assets/[name]-[hash].js`,
           chunkFileNames: `assets/[name]-[hash].js`,
           assetFileNames: (assetInfo) => {
-            const name = assetInfo.name || "";
+            const name = assetInfo.names?.name || "";
             if (name.includes("vision_wasm")) return "wasm/[name][extname]";
             if (name.endsWith(".task")) return "models/[name][extname]";
             return `assets/[name]-[hash][extname]`;

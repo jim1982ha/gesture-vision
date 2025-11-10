@@ -4,22 +4,29 @@ import { webSocketService } from '#frontend/services/websocket-service.js';
 import { MOBILE_WEBCAM_PLACEHOLDER_ID } from '#frontend/constants/index.js';
 import { RtspConnector } from './rtsp/connector.js';
 import { WebcamError } from './webcam-error.js';
-import type { CameraManager } from './camera-manager.js';
 import type { RtspSourceConfig } from '#shared/index.js';
+import type { AppStore } from '#frontend/core/state/app-store.js';
 
 let streamPromiseAbortController: AbortController | null = null;
+
+// Interface for the dependencies injected from CameraManager, breaking the circular reference.
+export interface StreamServiceDependencies {
+  getAppStore: () => AppStore;
+  canFlipCamera: () => boolean;
+}
 
 /**
  * Manages the low-level details of acquiring and stopping camera streams,
  * whether from a local webcam or an RTSP source via WHEP.
+ * Now receives its dependencies instead of the full CameraManager instance.
  */
 export class CameraStreamService {
-  #cameraManagerRef: CameraManager;
+  #deps: StreamServiceDependencies;
   #rtspConnectorInstance: RtspConnector | null = null;
   #activeOnDemandSource: string | null = null;
 
-  constructor(cameraManager: CameraManager) {
-    this.#cameraManagerRef = cameraManager;
+  constructor(dependencies: StreamServiceDependencies) {
+    this.#deps = dependencies;
   }
 
   public async acquireStream(
@@ -34,8 +41,9 @@ export class CameraStreamService {
     const signal = streamPromiseAbortController.signal;
 
     try {
-      if (signal.aborted)
+      if (signal.aborted) {
         throw new DOMException('Aborted before start', 'AbortError');
+      }
 
       const isRtsp = targetDeviceId.startsWith('rtsp:');
       const stream = isRtsp
@@ -52,11 +60,7 @@ export class CameraStreamService {
       return stream;
     } catch (error) {
       streamPromiseAbortController = null;
-      if ((error as Error).name === 'AbortError') {
-        if ((error as Error).message !== 'New stream start initiated') {
-          await this.#cameraManagerRef.stop(false);
-        }
-      }
+      // Re-throw the original error to be handled by CameraManager
       throw error;
     }
   }
@@ -89,13 +93,7 @@ export class CameraStreamService {
         'getUserMedia API not supported.'
       );
     }
-
-    try {
-      return await navigator.mediaDevices.getUserMedia(constraints);
-    } catch (error) {
-      console.error('Error getting user media:', error);
-      throw error;
-    }
+    return navigator.mediaDevices.getUserMedia(constraints);
   }
 
   async #startRtspStream(
@@ -111,13 +109,11 @@ export class CameraStreamService {
       );
     }
     
-    // Use request/response to ensure backend path is ready before proceeding.
     await webSocketService.request(WEBSOCKET_EVENTS.RTSP_CONNECT_REQUEST, {
         pathName: normalizedPathName,
         url: selectedSourceConfig.url,
-    }, 10000); // 10 second timeout
+    }, 10000);
 
-    // Only track on-demand sources for explicit disconnection.
     if (selectedSourceConfig.sourceOnDemand) {
       this.#activeOnDemandSource = normalizedPathName;
     }
@@ -131,8 +127,7 @@ export class CameraStreamService {
     targetDeviceId: string,
     facingMode: 'user' | 'environment'
   ): MediaStreamConstraints {
-    const { processingResolutionWidthPreference, targetFpsPreference } =
-      this.#cameraManagerRef.getAppStore().getState();
+    const { processingResolutionWidthPreference, targetFpsPreference } = this.#deps.getAppStore().getState();
     const constraints: MediaStreamConstraints = {
       audio: false,
       video: {
@@ -141,16 +136,9 @@ export class CameraStreamService {
       },
     };
     if (targetDeviceId && targetDeviceId !== MOBILE_WEBCAM_PLACEHOLDER_ID) {
-      (constraints.video as MediaTrackConstraints).deviceId = {
-        exact: targetDeviceId,
-      };
-    } else if (
-      targetDeviceId === MOBILE_WEBCAM_PLACEHOLDER_ID &&
-      this.#cameraManagerRef.canFlipCamera()
-    ) {
-      (constraints.video as MediaTrackConstraints).facingMode = {
-        exact: facingMode,
-      };
+      (constraints.video as MediaTrackConstraints).deviceId = { exact: targetDeviceId };
+    } else if (targetDeviceId === MOBILE_WEBCAM_PLACEHOLDER_ID && this.#deps.canFlipCamera()) {
+      (constraints.video as MediaTrackConstraints).facingMode = { exact: facingMode };
     }
     return constraints;
   }

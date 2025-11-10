@@ -50,6 +50,9 @@
     color: hsl(var(--color-text-secondary));
     border-top: 1px solid hsl(var(--color-border-light));
   }
+  .card-footer .card-icon {
+    @apply text-base; /* Make footer icons slightly smaller */
+  }
   .is-editing-highlight {
     border-color: hsl(var(--color-primary));
     box-shadow: var(--shadow-depth-md);

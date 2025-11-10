@@ -1,5 +1,5 @@
 /* FILE: packages/frontend/src/components/shared/Tabs.tsx */
-import React, { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { setIcon } from '#frontend/ui/helpers/ui-helpers.js';
 import type { GestureCategoryIconType } from '#shared/index.js';
 
@@ -7,7 +7,7 @@ export interface Tab {
   key: string;
   label: string;
   icon: GestureCategoryIconType | string;
-  component: React.ReactNode;
+  component: ReactNode;
 }
 
 interface TabsProps {

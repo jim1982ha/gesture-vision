@@ -27,6 +27,7 @@ export class CameraSourceManager {
   #rtspSourcesCache: RtspSourceConfig[] = [];
   #isMobile = false;
   #unsubscribeStore: () => void;
+  #subscriptions: (() => void)[] = [];
 
   constructor(appStore: AppStore, translationService: TranslationService) {
     this.#appStore = appStore;
@@ -75,13 +76,15 @@ export class CameraSourceManager {
   }
 
   #attachEventListeners(): void {
-    pubsub.subscribe(PERMISSION_EVENTS.CAMERA_CHANGED, () => this.refreshDeviceList());
-    pubsub.subscribe(UI_EVENTS.REQUEST_CAMERA_LIST_RENDER, () =>
-      pubsub.publish(
-        CAMERA_SOURCE_EVENTS.MAP_UPDATED,
-        new Map(this.#combinedDeviceMap)
-      )
-    );
+    this.#subscriptions.push(pubsub.subscribe(PERMISSION_EVENTS.CAMERA_CHANGED, () => this.refreshDeviceList()));
+    this.#subscriptions.push(pubsub.subscribe(UI_EVENTS.REQUEST_CAMERA_LIST_RENDER, () =>
+      pubsub.publish(CAMERA_SOURCE_EVENTS.MAP_UPDATED, new Map(this.#combinedDeviceMap))
+    ));
+    // --- MODIFICATION: React to the initial state being loaded ---
+    this.#subscriptions.push(pubsub.subscribe(UI_EVENTS.INITIAL_STATE_LOADED, () => {
+        this.#rtspSourcesCache = this.#appStore.getState().rtspSources || [];
+        this.#rebuildAndValidate();
+    }));
   }
 
   #handleRtspSourceUpdate = (newSources?: RtspSourceConfig[]): void => {
@@ -169,5 +172,9 @@ export class CameraSourceManager {
 
   public getSelectedCameraSource = (): string => this.#selectedCameraSource;
   public getCombinedDeviceMap = (): Map<string, string> => new Map(this.#combinedDeviceMap);
-  public destroy(): void { this.#unsubscribeStore(); }
+  public destroy(): void {
+    this.#unsubscribeStore();
+    this.#subscriptions.forEach(unsub => unsub());
+    this.#subscriptions = [];
+  }
 }

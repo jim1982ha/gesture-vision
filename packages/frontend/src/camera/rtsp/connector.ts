@@ -30,6 +30,8 @@ export class RtspConnector {
     if (this.#abortController) {
       this.#abortController.abort("User cancelled connection");
     }
+    // --- MEMORY LEAK FIX: Explicit Cleanup ---
+    // Ensure that calling abort also immediately triggers resource cleanup.
     this.disconnect(); 
   }
 

@@ -5,6 +5,7 @@ import { appStore, type AppStoreActionsWithHydration } from '#frontend/core/stat
 
 import type { WebSocketMessage, ErrorPayload, ActionResultPayload, StreamStatusPayload, InitialStatePayload, CustomGestureMetadata, FullConfiguration, PluginManifest, ConfigPatchAckPayload, UploadCustomGestureAckPayload, UpdateCustomGestureAckPayload, DeleteCustomGestureAckPayload, PluginTestConnectionResultPayload } from "#shared/index.js";
 import type { WebSocketService } from "../websocket-service.js";
+import { pubsub } from "#shared/core/pubsub.js";
 
 type PendingRequestPayload = ConfigPatchAckPayload | { pluginId: string, config: unknown } | PluginTestConnectionResultPayload | UpdateCustomGestureAckPayload | UploadCustomGestureAckPayload | { pathName: string };
 
@@ -50,7 +51,11 @@ export function handleWsMessageLogic(this: WebSocketService, rawData: string | A
   const { actions } = appStore.getState();
 
   switch (message.type) {
-    case WEBSOCKET_EVENTS.INITIAL_STATE: (actions as AppStoreActionsWithHydration).setInitialState(message.payload as InitialStatePayload); break;
+    case WEBSOCKET_EVENTS.INITIAL_STATE:
+      (actions as AppStoreActionsWithHydration).setInitialState(message.payload as InitialStatePayload);
+      // --- MODIFICATION: Signal that the initial state has been loaded ---
+      pubsub.publish(UI_EVENTS.INITIAL_STATE_LOADED);
+      break;
     case WEBSOCKET_EVENTS.FULL_CONFIG_UPDATE: actions.setFullConfig((message.payload as { config: FullConfiguration }).config); break;
     case WEBSOCKET_EVENTS.PLUGINS_MANIFESTS_UPDATED: actions.setPluginManifests((message.payload as { manifests: PluginManifest[] }).manifests); break;
     case WEBSOCKET_EVENTS.BACKEND_CUSTOM_GESTURES_METADATA_LIST: actions.setCustomGestureMetadata((message.payload as { definitions: CustomGestureMetadata[] }).definitions); break;

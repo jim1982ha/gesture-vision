@@ -3,8 +3,20 @@ import type { StateCreator } from 'zustand';
 import { produce } from 'immer';
 import { PreferenceService, type PreferenceKey, type PreferenceValue } from '#frontend/services/preference.service.js';
 import type { ThemePreference, ConfirmationModalConfig } from '#frontend/types/index.js';
+import type { GestureConfig, PoseConfig } from '#shared/index.js';
 
 const preferenceService = new PreferenceService();
+
+interface OverlayState {
+  id: string;
+}
+
+// Internal helper function to reset all modal data states.
+const clearAllModalData = (draft: UiSlice) => {
+    draft.docsModalKey = null;
+    draft.confirmationModalConfig = null;
+    draft.gestureFormConfig = null;
+};
 
 export interface UiSlice {
   // User preferences
@@ -16,39 +28,31 @@ export interface UiSlice {
   showPoseLandmarks: boolean;
   
   // UI State
-  isSettingsModalOpen: boolean;
-  isCameraSelectModalOpen: boolean;
-  isDocsModalOpen: boolean;
   isDashboardActive: boolean;
   isHistorySidebarOpen: boolean;
-  isGestureSettingsSidebarOpen: boolean;
-  editingGestureConfigName: string | null;
-  confirmationModalConfig: ConfirmationModalConfig | null;
-  docsModalKey: string | null;
   isVideoExpanded: boolean;
   isVideoVisible: boolean;
-  modalStack: string[];
+  activeOverlays: OverlayState[];
+
+  // Data for overlays, now decoupled from visibility
+  confirmationModalConfig: ConfirmationModalConfig | null;
+  docsModalKey: string | null;
+  gestureFormConfig: GestureConfig | PoseConfig | null;
 
   // Actions
   actions: {
     setLocalPreference: <K extends PreferenceKey>(key: K, value: PreferenceValue<K>) => void;
-    toggleSettingsModal: (isOpen?: boolean) => void;
-    toggleCameraSelectModal: (isOpen?: boolean) => void;
-    toggleDocsModal: (isOpen?: boolean, docKey?: string) => void;
     toggleDashboard: (isActive?: boolean) => void;
     toggleHistorySidebar: (isOpen?: boolean) => void;
-    toggleGestureSettingsSidebar: (isOpen?: boolean, editingConfigName?: string | null) => void;
-    showConfirmationModal: (config: ConfirmationModalConfig) => void;
-    hideConfirmationModal: () => void;
+    openOverlay: (id: string, payload?: unknown) => void;
+    closeCurrentOverlay: () => void;
     toggleVideoExpanded: () => void;
     toggleVideoVisibility: (isVisible?: boolean) => void;
-    pushToModalStack: (id: string) => void;
-    removeFromModalStack: (id: string) => void;
   };
 }
 
-export const createUiSlice: StateCreator<UiSlice, [], [], UiSlice> = (set, get) => ({
-  // User preferences with initial values from PreferenceService
+export const createUiSlice: StateCreator<UiSlice, [], [], UiSlice> = (set) => ({
+  // User preferences
   numHandsPreference: preferenceService.get('numHandsPreference'),
   processingResolutionWidthPreference: preferenceService.get('processingResolutionWidthPreference'),
   languagePreference: preferenceService.get('languagePreference'),
@@ -57,18 +61,14 @@ export const createUiSlice: StateCreator<UiSlice, [], [], UiSlice> = (set, get) 
   showPoseLandmarks: preferenceService.get('showPoseLandmarks'),
 
   // UI State
-  isSettingsModalOpen: false,
-  isCameraSelectModalOpen: false,
-  isDocsModalOpen: false,
   isDashboardActive: false,
   isHistorySidebarOpen: false,
-  isGestureSettingsSidebarOpen: false,
-  editingGestureConfigName: null,
-  confirmationModalConfig: null,
-  docsModalKey: null,
   isVideoExpanded: false,
   isVideoVisible: true,
-  modalStack: [],
+  activeOverlays: [],
+  confirmationModalConfig: null,
+  docsModalKey: null,
+  gestureFormConfig: null,
   
   // Actions
   actions: {
@@ -76,54 +76,34 @@ export const createUiSlice: StateCreator<UiSlice, [], [], UiSlice> = (set, get) 
       preferenceService.set(key, value);
       set({ [key]: value } as unknown as Pick<UiSlice, typeof key>);
     },
-    pushToModalStack: (id) => set(produce((draft: UiSlice) => {
-      if (!draft.modalStack.includes(id)) draft.modalStack.push(id);
-    })),
-    removeFromModalStack: (id) => set(produce((draft: UiSlice) => {
-      draft.modalStack = draft.modalStack.filter(item => item !== id);
-    })),
-    toggleSettingsModal: (isOpen) => {
-      const newIsOpen = isOpen ?? !get().isSettingsModalOpen;
-      if (newIsOpen) get().actions.pushToModalStack('settings');
-      else get().actions.removeFromModalStack('settings');
-      set({ isSettingsModalOpen: newIsOpen });
-    },
-    toggleCameraSelectModal: (isOpen) => {
-      const newIsOpen = isOpen ?? !get().isCameraSelectModalOpen;
-      if (newIsOpen) get().actions.pushToModalStack('cameraSelect');
-      else get().actions.removeFromModalStack('cameraSelect');
-      set({ isCameraSelectModalOpen: newIsOpen });
-    },
-    toggleDocsModal: (isOpen, docKey) => {
-      const newIsOpen = isOpen ?? !get().isDocsModalOpen;
-      if (newIsOpen) get().actions.pushToModalStack('docs');
-      else get().actions.removeFromModalStack('docs');
-      set({ isDocsModalOpen: newIsOpen, docsModalKey: newIsOpen ? (docKey || 'ABOUT') : null });
-    },
     toggleDashboard: (isActive) => set(state => ({ isDashboardActive: isActive ?? !state.isDashboardActive })),
     toggleHistorySidebar: (isOpen) => set(state => ({ isHistorySidebarOpen: isOpen ?? !state.isHistorySidebarOpen })),
-    toggleGestureSettingsSidebar: (isOpen, editingConfigName = null) => set(state => {
-        const reallyIsOpen = isOpen ?? !state.isGestureSettingsSidebarOpen;
-        return { 
-            isGestureSettingsSidebarOpen: reallyIsOpen,
-            editingGestureConfigName: reallyIsOpen ? (editingConfigName || null) : null
-        };
-    }),
-    showConfirmationModal: (config) => {
-      get().actions.pushToModalStack('confirmation');
-      set({ confirmationModalConfig: config });
-    },
-    hideConfirmationModal: () => {
-      get().actions.removeFromModalStack('confirmation');
-      set({ confirmationModalConfig: null });
-    },
+    
+    openOverlay: (id, payload) => set(produce((draft: UiSlice) => {
+        if (draft.activeOverlays.some(o => o.id === id)) return;
+
+        // Atomically clear old data, set new data, then show the overlay.
+        clearAllModalData(draft);
+
+        if (id === 'docs' && typeof payload === 'string') draft.docsModalKey = payload;
+        if (id === 'confirmation') draft.confirmationModalConfig = payload as ConfirmationModalConfig;
+        if (id === 'gestureForm') draft.gestureFormConfig = payload as GestureConfig | PoseConfig | null;
+
+        draft.activeOverlays.push({ id });
+    })),
+    
+    closeCurrentOverlay: () => set(produce((draft: UiSlice) => {
+        draft.activeOverlays.pop();
+        // Always clear all modal data when the top-most modal is closed.
+        clearAllModalData(draft);
+    })),
+
     toggleVideoExpanded: () => set(produce((draft: UiSlice) => {
         const expanding = !draft.isVideoExpanded;
         draft.isVideoExpanded = expanding;
-        if (expanding) {
-            draft.isVideoVisible = true;
-        }
+        if (expanding) draft.isVideoVisible = true;
     })),
+    
     toggleVideoVisibility: (isVisible) => set(state => ({ isVideoVisible: isVisible ?? !state.isVideoVisible })),
   }
 });

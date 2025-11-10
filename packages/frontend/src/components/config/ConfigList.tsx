@@ -3,6 +3,7 @@ import { useContext } from 'react';
 import { AppContext } from '#frontend/contexts/AppContext.js';
 import { useAppStore } from '#frontend/hooks/useAppStore.js';
 import { ConfigCard } from '#frontend/components/shared/cards/ConfigCard.js';
+import { OnboardingGuide } from '#frontend/components/main/OnboardingGuide.js';
 import type { GestureConfig, PoseConfig } from '#shared/index.js';
 
 export function ConfigList() {
@@ -47,7 +48,7 @@ export function ConfigList() {
   const inactiveConfigs = sortedConfigs.filter(c => !getCardStatus(c).isActive);
 
   if (configs.length === 0) {
-    return <p id="config-list-placeholder" className="list-placeholder">{translate("noGesturesConfigured")}</p>;
+    return <OnboardingGuide />;
   }
 
   return (

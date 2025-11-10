@@ -33,7 +33,8 @@
   }
 
   .is-pwa-desktop #app-container > header .btn,
-  .is-pwa-desktop #app-container > header .dropdown-container {
+  /* Make dropdown trigger and panel non-draggable */
+  .is-pwa-desktop #app-container > header [id$='-container'] {
     -webkit-app-region: no-drag;
   }
 
@@ -66,12 +67,16 @@
   
   #app-container.video-fullscreen-active > #app-header,
   #app-container.video-fullscreen-active #main-content > *:not(.video-container),
-  #app-container.video-fullscreen-active #historySidebar,
-  #app-container.video-fullscreen-active #gestureSettingsSidebar {
+  #app-container.video-fullscreen-active #historySidebar {
     @apply hidden;
   }
 
   .video-container video.mirrored {
     transform: scaleX(-1);
+  }
+
+  /* --- Mobile Kebab Menu --- */
+  #header-kebab-menu-panel {
+    @apply right-0;
   }
 }

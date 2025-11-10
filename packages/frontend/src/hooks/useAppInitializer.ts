@@ -6,60 +6,83 @@ import { CameraService } from '#frontend/services/camera.service.js';
 import { GestureProcessor } from '#frontend/gestures/processor.js';
 import { TelemetryService } from '#frontend/services/telemetry-service.js';
 import { NotificationManager } from '#frontend/services/notification-manager.js';
+import { CanvasRenderer } from '#frontend/camera/canvas-renderer.js';
+import { CameraSourceManager } from '#frontend/camera/source-manager.js';
+import { CameraStreamService } from '#frontend/camera/stream-service.js';
+import { CameraStateBridge } from '#frontend/camera/state-bridge.js';
+import { pubsub, UI_EVENTS, normalizeNameForMtx } from '#shared/index.js';
 
-let hasInitialized = false;
-
-export const useAppInitializer = (baseContext: AppContextType): AppContextType => {
-  // FIX: Use useRef to create a stable context object that will not change reference across re-renders.
-  const contextRef = useRef<AppContextType>(baseContext);
+/**
+ * A hook that runs once to connect singleton services to the DOM and handle their cleanup.
+ * The services themselves are created once in main.tsx.
+ */
+export const useAppInitializer = (context: AppContextType): AppContextType => {
+  const initializedRef = useRef(false);
 
   useEffect(() => {
-    if (hasInitialized) return;
-    hasInitialized = true;
-    console.log('[AppInitializer] Running effect: Initializing services...');
+    // This guard prevents the effect from running more than once in its lifecycle,
+    // but StrictMode will still cause a mount-unmount-mount sequence.
+    if (initializedRef.current) return;
+    initializedRef.current = true;
+    console.log('[AppInitializer TRACE] Initializer hook effect is running.');
     
     const videoElement = document.getElementById("webcam") as HTMLVideoElement;
     const outputCanvas = document.getElementById("output_canvas") as HTMLCanvasElement;
     if (!videoElement || !outputCanvas) {
-      console.error("DOM element query failed post-render.");
+      console.error("[AppInitializer] Fatal: DOM elements for video/canvas not found.");
       return;
     }
 
-    const { appStore, services } = contextRef.current;
-    const { translationService, pluginUIService } = services;
+    const { appStore, services } = context;
 
-    // These services depend on DOM elements or are closely tied to the component lifecycle.
-    const gestureProcessor = new GestureProcessor(appStore, translationService);
-    const cameraManager = new CameraManager(videoElement, outputCanvas, appStore, gestureProcessor, translationService);
+    const canvasRenderer = new CanvasRenderer({ outputCanvas, videoElement }, appStore, (sourceId, roiConfig) => {
+        if (!sourceId) return;
+        const currentSources = appStore.getState().rtspSources;
+        const patchData = { rtspSources: currentSources.map((s) => `rtsp:${normalizeNameForMtx(s.name)}` === sourceId ? { ...s, roi: roiConfig } : s) };
+        appStore.getState().actions.requestBackendPatch(patchData);
+    });
+    
+    const gestureProcessor = new GestureProcessor(appStore, services.translationService, canvasRenderer);
+    const sourceManager = new CameraSourceManager(appStore, services.translationService);
+    
+    const streamService = new CameraStreamService({
+        getAppStore: () => appStore,
+        canFlipCamera: () => 'facingMode' in navigator.mediaDevices.getSupportedConstraints(),
+    });
+    
+    const cameraManager = new CameraManager(videoElement, appStore, gestureProcessor, canvasRenderer, sourceManager, streamService);
+    const stateBridge = new CameraStateBridge(cameraManager, appStore);
+    cameraManager.setStateBridge(stateBridge);
+    
     const cameraService = new CameraService(cameraManager);
-    new TelemetryService(appStore);
-    new NotificationManager(appStore, translationService);
+    
+    const telemetryService = new TelemetryService(appStore);
+    const notificationManager = new NotificationManager(appStore, services.translationService);
 
-    gestureProcessor.setCanvasRenderer(cameraManager.getCanvasRenderer());
-    pluginUIService.setDependencies({ cameraService, gestureProcessor });
+    services.pluginUIService.setDependencies({ cameraService, gestureProcessor });
+    services.cameraService = cameraService;
+    services.gestureProcessor = gestureProcessor;
+    context.elements.videoElement = videoElement;
+    context.elements.outputCanvas = outputCanvas;
+    
     cameraManager.initialize();
 
+    if (import.meta.env.MODE === 'development') window.appContext = context;
+    
     const versionElement = document.getElementById('appVersionDisplaySettings');
     if (versionElement) versionElement.textContent = `v${__APP_VERSION__}`;
-    
-    // FIX: Mutate the properties of the stable context object instead of creating a new one.
-    contextRef.current.services.cameraService = cameraService;
-    contextRef.current.services.gestureProcessor = gestureProcessor;
-    contextRef.current.elements.videoElement = videoElement;
-    contextRef.current.elements.outputCanvas = outputCanvas;
 
-    if (import.meta.env.MODE === 'development') window.appContext = contextRef.current;
+    pubsub.publish(UI_EVENTS.APP_INITIALIZED);
 
-    // This cleanup function should ONLY destroy services created within this hook.
-    // Services like ThemeManager, created in the base context, must persist.
     return () => {
-      console.log('[AppInitializer] Cleanup effect: Destroying services...');
+      initializedRef.current = false; // Allow re-initialization on next mount
       cameraManager.destroy();
       gestureProcessor.destroy();
-      hasInitialized = false;
+      telemetryService.destroy();
+      notificationManager.destroy();
+      console.log("[AppInitializer] Component-level services have been cleaned up.");
     };
-  }, []); // Empty dependency array ensures this effect runs only once on mount.
+  }, [context]); // Rerun if the base context itself were to change (it won't).
 
-  // FIX: Always return the same stable context object reference.
-  return contextRef.current;
+  return context;
 };

@@ -1,14 +1,14 @@
 {
   "name": "gesture-vision-app",
   "private": true,
-  "version": "3.6.9",
+  "version": "3.7.0",
   "type": "module",
   "scripts": {
     "copy:wasm": "mkdir -p packages/frontend/public/wasm && cp -r node_modules/@mediapipe/tasks-vision/wasm/* packages/frontend/public/wasm/",
     "copy:models": "mkdir -p packages/frontend/public/models && cp node_modules/@mediapipe/tasks-vision/web/vision/dist/files/*.task packages/frontend/public/models/",
     "build:backend": "tsc -b tsconfig.json",
     "dev:frontend": "cd packages/frontend && vite --host 0.0.0.0",
-    "dev:backend": "nodemon --watch packages --watch extensions --ext ts,json --ignore 'extensions/plugins/' --ignore 'extensions/plugins/*/config.*.json' --exec \"tsx --experimental-specifier-resolution=node --tsconfig tsconfig.json packages/backend/src/server.ts\"",
+    "dev:backend": "nodemon --watch packages/backend --watch packages/shared --ext ts,json --ignore 'packages/*/dist/' --exec \"tsx --experimental-specifier-resolution=node --tsconfig tsconfig.json packages/backend/src/server.ts\"",
     "dev:mediamtx": "mediamtx",
     "predev": "echo 'Prerequisites built into Docker image. Starting servers...'",
     "dev": "npm-run-all --parallel dev:mediamtx dev:frontend dev:backend",

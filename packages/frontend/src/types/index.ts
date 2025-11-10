@@ -132,8 +132,8 @@ export interface FrontendPluginModule {
   actionSettingsFields?:
     | ActionSettingFieldDescriptor[]
     | ((context: PluginUIContext) => ActionSettingFieldDescriptor[]);
-  init?(context: PluginUIContext): Promise<void>;
-  destroy?(): void;
+  init?(context: PluginUIContext): Promise<void | (() => void)>;
+  destroy?(): void | Promise<void>;
   GlobalSettingsComponent?: React.ComponentType<{ manifest: PluginManifest; onSaveSuccess?: () => void; onCancel?: () => void; }>;
   UIComponent?: React.ComponentType;
   HeaderComponent?: React.ComponentType;

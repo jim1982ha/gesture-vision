@@ -1,5 +1,5 @@
 /* FILE: packages/frontend/src/components/shared/cards/Card.tsx */
-import React, { type ReactNode, type HTMLAttributes, forwardRef } from 'react';
+import { type ReactNode, type HTMLAttributes, forwardRef } from 'react';
 import { clsx, setIcon } from '#frontend/ui/helpers/ui-helpers.js';
 import type { GestureCategoryIconType } from '#shared/index.js';
 

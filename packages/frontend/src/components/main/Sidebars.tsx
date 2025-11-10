@@ -3,7 +3,6 @@ import { useContext, useEffect } from 'react';
 import { AppContext } from '#frontend/contexts/AppContext.js';
 import { useAppStore } from '#frontend/hooks/useAppStore.js';
 import { setIcon, clsx } from '#frontend/ui/helpers/ui-helpers.js';
-import { GestureSettingsSidebar } from './GestureSettingsSidebar.js';
 import { HistoryCard } from '#frontend/components/shared/cards/HistoryCard.js';
 
 const HistorySidebar = ({ isOpen }: { isOpen: boolean }) => {
@@ -17,7 +16,7 @@ const HistorySidebar = ({ isOpen }: { isOpen: boolean }) => {
     if (!context) return null;
 
     const handleClearHistory = () => {
-        actions.showConfirmationModal({
+        actions.openOverlay('confirmation', {
             titleKey: 'confirmClearHistory',
             messageKey: 'confirmClearHistory',
             confirmTextKey: 'clearHistory',
@@ -66,25 +65,22 @@ const HistorySidebar = ({ isOpen }: { isOpen: boolean }) => {
 
 export const Sidebars = () => {
     const context = useContext(AppContext);
-    const { isHistorySidebarOpen, isGestureSettingsSidebarOpen, actions } = useAppStore(state => ({
+    const { isHistorySidebarOpen, actions } = useAppStore(state => ({
         isHistorySidebarOpen: state.isHistorySidebarOpen,
-        isGestureSettingsSidebarOpen: state.isGestureSettingsSidebarOpen,
         actions: state.actions
     }));
     
     useEffect(() => {
-        const anySidebarOpen = isHistorySidebarOpen || isGestureSettingsSidebarOpen;
-        document.body.classList.toggle('sidebar-active', anySidebarOpen);
-    }, [isHistorySidebarOpen, isGestureSettingsSidebarOpen]);
+        document.body.classList.toggle('sidebar-active', isHistorySidebarOpen);
+    }, [isHistorySidebarOpen]);
     
     if (!context) return null;
     const isMobile = window.matchMedia('(any-pointer: coarse)').matches;
 
-    const showBackdrop = (isHistorySidebarOpen || isGestureSettingsSidebarOpen) && isMobile;
+    const showBackdrop = isHistorySidebarOpen && isMobile;
 
     return (
         <>
-            <GestureSettingsSidebar isOpen={isGestureSettingsSidebarOpen} />
             <HistorySidebar isOpen={isHistorySidebarOpen} />
             <div 
                 id="sidebarBackdrop" 
@@ -94,7 +90,6 @@ export const Sidebars = () => {
                 )}
                 onClick={() => {
                     if (isHistorySidebarOpen) actions.toggleHistorySidebar(false);
-                    if (isGestureSettingsSidebarOpen) actions.toggleGestureSettingsSidebar(false);
                 }}
             ></div>
         </>

@@ -10,8 +10,7 @@ export function ConfirmationModal() {
         confirmationModalConfig: state.confirmationModalConfig
     }));
     
-    if (!context) return null;
-    if (!confirmationModalConfig) return null;
+    if (!context || !confirmationModalConfig) return null;
 
     const { translate } = context.services.translationService;
     const { actions } = context.appStore.getState();
@@ -24,12 +23,12 @@ export function ConfirmationModal() {
 
     const handleConfirm = () => {
         onConfirm();
-        actions.hideConfirmationModal();
+        actions.closeCurrentOverlay();
     };
 
     const handleCancel = () => {
         onCancel?.();
-        actions.hideConfirmationModal();
+        actions.closeCurrentOverlay();
     };
 
     return (

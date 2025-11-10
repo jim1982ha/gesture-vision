@@ -1,9 +1,5 @@
 /* FILE: packages/frontend/src/contexts/appContextFactory.ts */
 import { appStore } from '#frontend/core/state/app-store.js';
-import { TranslationService } from '#frontend/services/translation.service.js';
-import { PluginUIService } from '#frontend/services/plugin-ui.service.js';
-import ThemeManager from '#frontend/services/theme-manager.js';
-import { webSocketService } from '#frontend/services/websocket-service.js';
 import { pubsub } from '#shared/index.js';
 import * as constants from '#shared/index.js';
 import * as sharedUtils from '#shared/utils/index.js';
@@ -15,17 +11,15 @@ import type { AppContextType } from '#frontend/types/index.js';
  * This can be safely called before React renders the application.
  */
 export function createAppContext(): AppContextType {
-    const translationService = new TranslationService(appStore);
-    const pluginUIService = new PluginUIService(appStore, translationService);
-    const themeManager = new ThemeManager(appStore);
-
+    // Services are now instantiated in main.tsx and assigned to the context there.
+    // This function now only creates the shell.
     return {
         appStore,
         services: {
-            translationService,
-            pluginUIService,
-            themeManager,
-            webSocketService,
+            translationService: null!,
+            pluginUIService: null!,
+            themeManager: null!,
+            webSocketService: null!,
             pubsub,
             cameraService: null,
             gestureProcessor: null,

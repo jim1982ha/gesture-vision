@@ -1,5 +1,5 @@
 // FILE: packages/frontend/src/components/settings/CustomGesturesTab.tsx
-import React, { useState, useEffect, useRef, useContext } from 'react';
+import { useState, useEffect, useRef, useContext } from 'react';
 import { AppContext } from '#frontend/contexts/AppContext.js';
 import { useAppStore } from '#frontend/hooks/useAppStore.js';
 import { setIcon } from '#frontend/ui/helpers/ui-helpers.js';

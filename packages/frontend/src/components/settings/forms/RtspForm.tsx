@@ -1,5 +1,5 @@
 /* FILE: packages/frontend/src/components/settings/forms/RtspForm.tsx */
-import React, { useState, useContext } from 'react';
+import { useState, useContext } from 'react';
 import { AppContext } from '#frontend/contexts/AppContext.js';
 import { setIcon } from '#frontend/ui/helpers/ui-helpers.js';
 import { pubsub, UI_EVENTS, type RtspSourceConfig } from '#shared/index.js';

@@ -1,5 +1,5 @@
 /* FILE: packages/frontend/src/components/config/FormField.tsx */
-import React, { useState, useEffect, useContext } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import { AppContext } from '#frontend/contexts/AppContext.js';
 import type { ActionSettingFieldDescriptor, ActionSettingFieldOption } from '#shared/index.js';
 

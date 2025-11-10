@@ -96,6 +96,11 @@
     color: hsl(var(--color-primary-hover));
   }
   
+  #gesture-config-modal-content .form-actions-container {
+    @apply mt-6 pt-4 border-t;
+    border-color: hsl(var(--color-border));
+  }
+  
   /* --- Dark Mode fix for Tailwind Prose --- */
   /* This overrides the CSS variables used by @tailwindcss/typography's `prose-invert` class */
   .prose.dark\:prose-invert {

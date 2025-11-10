@@ -1,5 +1,5 @@
 /* FILE: packages/frontend/src/components/shared/PluginSettingsActions.tsx */
-import React, { useContext } from 'react';
+import { useContext } from 'react';
 import { setIcon } from '#frontend/ui/helpers/ui-helpers.js';
 import { AppContext } from '#frontend/contexts/AppContext.js';
 import type { PluginManifest } from '#shared/index.js';

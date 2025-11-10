@@ -19,7 +19,7 @@ export const CustomGestureCard = ({ def, onEdit }: CustomGestureCardProps) => {
     if (!context) return null;
     
     const handleDelete = () => {
-        actions.showConfirmationModal({
+        actions.openOverlay('confirmation', {
             titleKey: 'confirmDeleteGestureTitle',
             messageKey: 'confirmDeleteMessage',
             messageSubstitutions: { item: def.name },

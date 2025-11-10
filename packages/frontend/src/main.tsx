@@ -9,6 +9,10 @@ import { App } from './App.js';
 import { initializeErrorHandlingService } from "./services/error-handling.service.js";
 import { appStore } from './core/state/app-store.js';
 import { TranslationService } from './services/translation.service.js';
+import { PluginUIService } from './services/plugin-ui.service.js';
+import ThemeManager from './services/theme-manager.js';
+import { webSocketService } from './services/websocket-service.js';
+import { createAppContext } from './contexts/appContextFactory.js';
 import './index.css'; // Import Tailwind CSS entry point
 import type { AppContextType } from './types/index.js';
 
@@ -19,8 +23,15 @@ declare global {
   }
 }
 
+// --- Create Singleton Services and Context Here ---
+const appContext = createAppContext();
+// Assign the singleton services to the context
+appContext.services.translationService = new TranslationService(appStore);
+appContext.services.pluginUIService = new PluginUIService(appStore, appContext.services.translationService);
+appContext.services.themeManager = new ThemeManager(appStore);
+appContext.services.webSocketService = webSocketService;
+
 async function initializeApplication() {
-  // Enable Immer's Map and Set plugin before any state management occurs.
   enableMapSet();
 
   const rootElement = document.getElementById('root');
@@ -28,18 +39,14 @@ async function initializeApplication() {
     throw new Error("Fatal: #root element not found in index.html.");
   }
 
-  // Pre-React initialization for services that don't depend on the DOM.
-  const translationService = new TranslationService(appStore);
-  initializeErrorHandlingService(translationService);
+  initializeErrorHandlingService(appContext.services.translationService);
 
-  // Render the main React application
   ReactDOM.createRoot(rootElement).render(
     <React.StrictMode>
-      <App />
+      <App context={appContext} />
     </React.StrictMode>
   );
 
-  // Final setup steps
   registerSW({ immediate: true });
   
   const metaEnv = import.meta.env;

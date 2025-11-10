@@ -1,5 +1,5 @@
 /* FILE: packages/frontend/src/components/video/TuningPanels.tsx */
-import React, { useState, useEffect, useContext } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import { AppContext } from '#frontend/contexts/AppContext.js';
 import { useAppStore } from '#frontend/hooks/useAppStore.js';
 import { appStore } from '#frontend/core/state/app-store.js';

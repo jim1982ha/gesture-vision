@@ -1,12 +1,12 @@
 /* FILE: packages/frontend/src/components/shared/Dropdown.tsx */
-import React, { useState } from 'react';
+import { useState, isValidElement, cloneElement, type ReactNode } from 'react';
 import { useClickOutside } from '#frontend/hooks/useClickOutside.js';
 import { clsx } from '#frontend/ui/helpers/ui-helpers.js';
 
 interface DropdownProps {
   id: string;
-  trigger: React.ReactNode;
-  children: React.ReactNode;
+  trigger: ReactNode;
+  children: ReactNode;
   panelClassName?: string;
 }
 
@@ -18,9 +18,8 @@ export const Dropdown = ({ id, trigger, children, panelClassName }: DropdownProp
     setIsOpen(prev => !prev);
   };
 
-  // Clone the trigger element to attach the onClick handler
-  const triggerWithHandler = React.isValidElement(trigger)
-    ? React.cloneElement(trigger as React.ReactElement, { onClick: handleTriggerClick })
+  const triggerWithHandler = isValidElement(trigger)
+    ? cloneElement(trigger, { onClick: handleTriggerClick })
     : trigger;
 
   return (

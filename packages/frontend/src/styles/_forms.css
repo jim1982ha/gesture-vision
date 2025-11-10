@@ -67,7 +67,7 @@
     font-size: theme('fontSize.xs');
   }
   .header-dropdown-panel {
-    @apply absolute top-full mt-1 z-dropdown rounded-md shadow-lg p-1 flex-col gap-1 max-h-[250px] overflow-y-auto opacity-0 transition-all;
+    @apply absolute top-full mt-1 z-dropdown rounded-md shadow-lg p-1 flex flex-col gap-1 opacity-0 transition-all;
     background-color: hsl(var(--color-surface));
     border: 1px solid hsl(var(--color-border));
     visibility: hidden;

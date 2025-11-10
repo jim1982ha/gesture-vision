@@ -4,6 +4,8 @@
 export const PLUGIN_CONFIG_UPDATED_EVENT_PREFIX = "pluginConfigUpdated:";
 
 export const UI_EVENTS = {
+  APP_INITIALIZED: "ui:appInitialized",
+  INITIAL_STATE_LOADED: "ui:initialStateLoaded",
   CAMERA_LIST_ITEM_CLICKED: "ui:cameraListItemClicked",
   REQUEST_STOP_STREAM: "ui:requestStopStream",
   REQUEST_CLOSE_ALL_PANELS_EXCEPT: "ui:requestCloseAllPanelsExcept",

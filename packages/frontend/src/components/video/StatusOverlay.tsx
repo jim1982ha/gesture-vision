@@ -31,7 +31,7 @@ export const StatusOverlay = () => {
                 </div>
             )}
             {state === 'idle' && (
-                <div id="status-overlay-idle" className="overlay-icon-container h-16 w-16 cursor-pointer items-center justify-center rounded-full transition-all duration-200" onClick={() => actions.toggleCameraSelectModal(true)}>
+                <div id="status-overlay-idle" className="overlay-icon-container h-16 w-16 cursor-pointer items-center justify-center rounded-full transition-all duration-200" onClick={() => actions.openOverlay('cameraSelect')}>
                     <span ref={el => el && setIcon(el, 'UI_PLAY')} className="material-icons text-4xl"></span>
                 </div>
             )}

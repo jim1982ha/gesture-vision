@@ -26,29 +26,29 @@ interface TelemetryEvent {
 
 class TelemetryService {
   #isEnabled = false;
-  #appStore: AppStore;
   #isInitialized = false; 
   #unsubscribeStore: () => void;
-  #telemetryEndpoint = '/api/telemetry'; // Define a placeholder endpoint
+  #telemetryEndpoint = '/api/telemetry';
+  #subscriptions: (() => void)[] = [];
 
   constructor(appStore: AppStore) {
-    this.#appStore = appStore;
     this.#subscribeToEvents();
     
-    if (this.#appStore.getState().isInitialConfigLoaded) { 
-      this.#initializeState();
+    if (appStore.getState().isInitialConfigLoaded) { 
+      this.#initializeState(appStore);
     } else {
-      const unsubscribe = this.#appStore.subscribe(
+      const unsubscribe = appStore.subscribe(
         (state) => {
           if (state.isInitialConfigLoaded) {
-            this.#initializeState();
+            this.#initializeState(appStore);
             unsubscribe();
           }
         }
       );
+      this.#subscriptions.push(unsubscribe);
     }
     
-    this.#unsubscribeStore = this.#appStore.subscribe(
+    this.#unsubscribeStore = appStore.subscribe(
         (state) => {
             if (this.#isInitialized) {
                 this.#isEnabled = !!state.telemetryEnabled;
@@ -57,20 +57,25 @@ class TelemetryService {
     );
   }
 
-  #initializeState(): void {
+  #initializeState(appStore: AppStore): void {
     if (this.#isInitialized) return; 
-    this.#isEnabled = this.#appStore.getState().telemetryEnabled ?? false; 
+    this.#isEnabled = appStore.getState().telemetryEnabled ?? false; 
     this.#isInitialized = true;
   }
 
   #subscribeToEvents(): void {
-    pubsub.subscribe(GESTURE_EVENTS.RECORDED, (dataUnknown?: unknown) => this.#handleGestureRecorded(dataUnknown as { gesture?: string; actionType?: string /* This is pluginId */ } | undefined));
-    pubsub.subscribe(WEBSOCKET_EVENTS.BACKEND_ACTION_RESULT, (dataUnknown?: unknown) => this.#handleActionResult(dataUnknown as ActionResultPayload | undefined));
-    pubsub.subscribe(GESTURE_EVENTS.MODEL_LOADED, (dataUnknown?: unknown) => this.#handleModelLoaded(dataUnknown as { hand?: boolean; pose?: boolean } | undefined));
+    this.#subscriptions.push(
+      pubsub.subscribe(GESTURE_EVENTS.RECORDED, (dataUnknown?: unknown) => this.#handleGestureRecorded(dataUnknown as { gesture?: string; actionType?: string } | undefined)),
+      pubsub.subscribe(WEBSOCKET_EVENTS.BACKEND_ACTION_RESULT, (dataUnknown?: unknown) => this.#handleActionResult(dataUnknown as ActionResultPayload | undefined)),
+      pubsub.subscribe(GESTURE_EVENTS.MODEL_LOADED, (dataUnknown?: unknown) => this.#handleModelLoaded(dataUnknown as { hand?: boolean; pose?: boolean } | undefined))
+    );
   }
 
+  // --- MEMORY LEAK FIX: Cleanup Logic ---
   destroy() {
     this.#unsubscribeStore();
+    this.#subscriptions.forEach(unsub => unsub());
+    this.#subscriptions = [];
   }
 
   #handleGestureRecorded = (payload?: { gesture?: string; actionType?: string /* pluginId */ }): void => { 
@@ -119,8 +124,6 @@ class TelemetryService {
       },
     };
     
-    // Use navigator.sendBeacon for reliable, non-blocking data transmission.
-    // It's ideal for analytics as it attempts to send data even if the page is unloading.
     try {
         if (navigator.sendBeacon) {
             const blob = new Blob([JSON.stringify(eventData)], { type: 'application/json' });

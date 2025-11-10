@@ -3,7 +3,7 @@ import { useContext } from 'react';
 import { AppContext } from '#frontend/contexts/AppContext.js';
 import { useAppStore } from '#frontend/hooks/useAppStore.js';
 import { setIcon } from '#frontend/ui/helpers/ui-helpers.js';
-import { pubsub, UI_EVENTS, getGestureDisplayInfo, type GestureConfig, type PoseConfig } from '#shared/index.js';
+import { getGestureDisplayInfo, type GestureConfig, type PoseConfig } from '#shared/index.js';
 import { ActionDetailsDisplay } from '#frontend/components/shared/ActionDetailsDisplay.js';
 import { CardRoot, CardHeader, CardIcon, CardTitle, CardActions, CardFooter } from './Card.js';
 
@@ -28,7 +28,7 @@ export const ConfigCard = ({ config }: { config: GestureConfig | PoseConfig }) =
         : translate('actionTypeNone');
 
     const handleDelete = () => {
-        actions.showConfirmationModal({
+        actions.openOverlay('confirmation', {
             messageKey: "confirmDeleteMessage",
             messageSubstitutions: { item: gestureName },
             confirmTextKey: 'delete',
@@ -40,7 +40,8 @@ export const ConfigCard = ({ config }: { config: GestureConfig | PoseConfig }) =
             },
         });
     };
-    const handleEdit = () => pubsub.publish(UI_EVENTS.REQUEST_EDIT_CONFIG, gestureName);
+    
+    const handleEdit = () => actions.openOverlay('gestureForm', config);
 
     return (
         <CardRoot id={`config-card-${gestureName}`} data-gesture-name={gestureName} onClick={handleEdit}>
@@ -61,7 +62,12 @@ export const ConfigCard = ({ config }: { config: GestureConfig | PoseConfig }) =
 
             <CardFooter
                 id={`config-card-footer-${gestureName}`}
-                leftContent={<span className="truncate">{cardFooterText}</span>}
+                leftContent={
+                    <>
+                        {manifest?.icon && <CardIcon id={`config-card-footer-icon-${gestureName}`} iconKey={manifest.icon.name} />}
+                        <span className="truncate">{cardFooterText}</span>
+                    </>
+                }
                 rightContent={
                     <>
                         <span id={`config-card-confidence-pill-${gestureName}`} className="confidence-pill">{config.confidence}%</span>

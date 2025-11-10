@@ -1,5 +1,5 @@
 /* FILE: packages/frontend/src/components/modals/SettingsModal.tsx */
-import { useContext } from 'react';
+import { useContext, useMemo } from 'react';
 import { AppContext } from '#frontend/contexts/AppContext.js';
 import { useAppStore } from '#frontend/hooks/useAppStore.js';
 import { setIcon } from '#frontend/ui/helpers/ui-helpers.js';
@@ -11,22 +11,27 @@ import { AppearanceTab } from '#frontend/components/settings/AppearanceTab.js';
 import { CustomGesturesTab } from '#frontend/components/settings/CustomGesturesTab.js';
 
 export function SettingsModal() {
+  // --- FIX: All hooks must be called at the top level, before any conditional returns. ---
   const context = useContext(AppContext);
   // This hook ensures the component re-renders when language changes, updating all translated text.
   useAppStore(state => state.languagePreference); 
 
-  if (!context) return null;
-
-  const { translate } = context.services.translationService;
-  const { actions } = context.appStore.getState();
-
-  const tabs: Tab[] = [
+  const { translate } = context!.services.translationService;
+  
+  // This prevents the Tabs component from resetting its internal state when the SettingsModal re-renders.
+  // The 'translate' function is the correct dependency, as it implies a change when the language updates.
+  const tabs: Tab[] = useMemo(() => [
     { key: 'general', label: translate('generalSettingsTitle'), icon: 'UI_SETTINGS', component: <GeneralTab /> },
     { key: 'customGestures', label: translate('customGesturesTabButton'), icon: 'UI_GESTURE', component: <CustomGesturesTab /> },
     { key: 'plugins', label: translate('pluginsTabTitle'), icon: 'UI_EXTENSION', component: <PluginsTab /> },
     { key: 'rtsp', label: translate('rtspSourcesTitle'), icon: 'UI_RTSP_STREAM', component: <RtspTab /> },
     { key: 'appearance', label: translate('appearanceSettingsTab'), icon: 'UI_DARK_MODE', component: <AppearanceTab /> }
-  ];
+  ], [translate]);
+
+  // --- Early return is now placed AFTER all hook calls. ---
+  if (!context) return null;
+
+  const { actions } = context.appStore.getState();
 
   return (
     <div id="mainSettingsModal" className="modal visible" role="dialog" aria-modal="true">
@@ -39,7 +44,7 @@ export function SettingsModal() {
                 className="btn btn-icon header-close-btn"
                 aria-label={translate("close")}
                 title={translate("close")}
-                onClick={() => actions.toggleSettingsModal(false)}
+                onClick={() => actions.closeCurrentOverlay()}
             >
                 <span ref={el => el && setIcon(el, 'UI_CLOSE')} className="mdi" aria-hidden="true"></span>
             </button>
@@ -52,7 +57,7 @@ export function SettingsModal() {
                 id="appVersionDisplaySettings"
                 className="text-xs text-text-secondary cursor-pointer hover:text-primary"
                 title={translate("viewDocsTooltip")}
-                onClick={() => actions.toggleDocsModal(true, 'ABOUT')}
+                onClick={() => actions.openOverlay('docs', 'ABOUT')}
             >
               v{__APP_VERSION__}
             </div>

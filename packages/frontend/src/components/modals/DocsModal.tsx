@@ -1,5 +1,5 @@
 /* FILE: packages/frontend/src/components/modals/DocsModal.tsx */
-import React, { useContext, useState, useEffect, useRef } from 'react';
+import { useContext, useState, useEffect, useRef } from 'react';
 import { AppContext } from '#frontend/contexts/AppContext.js';
 import { useAppStore } from '#frontend/hooks/useAppStore.js';
 import { DocsContentLoader } from '#frontend/ui/docs/docs-content-loader.js';
@@ -77,7 +77,7 @@ export const DocsModal = () => {
                 <div id="docs-modal-header" className="modal-header">
                     <span ref={el => el && setIcon(el, 'UI_DOCS')} className="material-icons header-icon"></span>
                     <span id="docs-modal-title" className="header-title">{translate('documentationTitle')}</span>
-                    <button id="docs-modal-close-button" onClick={() => actions.toggleDocsModal(false)} className="btn btn-icon header-close-btn" title={translate('close')}>
+                    <button id="docs-modal-close-button" onClick={() => actions.closeCurrentOverlay()} className="btn btn-icon header-close-btn" title={translate('close')}>
                         <span ref={el => el && setIcon(el, 'UI_CLOSE')}></span>
                     </button>
                 </div>
@@ -87,7 +87,7 @@ export const DocsModal = () => {
                         <button 
                           key={b.key} 
                           id={`docs-nav-button-${b.key}`} 
-                          onClick={() => actions.toggleDocsModal(true, b.key)} 
+                          onClick={() => actions.openOverlay('docs', b.key)} 
                           className={clsx('btn btn-secondary !p-2 desktop:!px-4', docKey === b.key && 'active')}
                           title={translate(b.labelKey)}
                         >

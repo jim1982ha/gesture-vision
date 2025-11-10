@@ -41,6 +41,16 @@ export class PluginUIService {
 
   destroy() {
     this.#unsubscribeStore();
+    this.#loadedFrontendModules.forEach((module, pluginId) => {
+      if (module.destroy) {
+        try {
+          module.destroy();
+        } catch (error) {
+          console.error(`[PluginUIService] Error destroying module for plugin '${pluginId}':`, error);
+        }
+      }
+    });
+    this.#loadedFrontendModules.clear();
   }
 
   async #handleManifestUpdate(manifests?: PluginManifest[]): Promise<void> {
@@ -60,21 +70,30 @@ export class PluginUIService {
         const oldM = oldManifests.get(id);
         const newM = newManifests.get(id);
         if (oldM && !newM) {
-            this.#deregisterPlugin(id, true);
+            await this.#deregisterPlugin(id, true);
             this.#appStore.getState().actions.clearPluginExtData(id);
         } else if (!oldM && newM?.status === 'enabled') {
             await this.loadPluginFrontendModule(newM.id);
         } else if (oldM && newM) {
-            if (oldM.status === 'enabled' && newM.status === 'disabled') this.#deregisterPlugin(id, false);
+            if (oldM.status === 'enabled' && newM.status === 'disabled') await this.#deregisterPlugin(id, false);
             else if (oldM.status === 'disabled' && newM.status === 'enabled') {
-                this.#deregisterPlugin(id, false);
+                await this.#deregisterPlugin(id, false);
                 await this.loadPluginFrontendModule(newM.id);
             }
         }
     }
   }
 
-  #deregisterPlugin(pluginId: string, wasUninstalled: boolean): void {
+  async #deregisterPlugin(pluginId: string, wasUninstalled: boolean): Promise<void> {
+    const loadedModule = this.#loadedFrontendModules.get(pluginId);
+    if (loadedModule && typeof loadedModule.destroy === 'function') {
+      try {
+        await loadedModule.destroy();
+      } catch (error) {
+        console.error(`[PluginUIService] Error on destroying module for '${pluginId}':`, error);
+      }
+    }
+
     this.#loadedFrontendModules.delete(pluginId);
     this.#actionDisplayRenderers.delete(pluginId);
     this.#moduleLoadPromises.delete(pluginId);
@@ -93,7 +112,7 @@ export class PluginUIService {
       cameraService: this.#cameraServiceRef || undefined,
       gesture: this.#gestureProcessorRef || undefined,
       webSocketService: webSocketService || undefined,
-      requestCloseSettingsModal: () => this.#appStore.getState().actions.toggleSettingsModal(false),
+      requestCloseSettingsModal: () => this.#appStore.getState().actions.closeCurrentOverlay(),
       data: {},
       services: { translationService: this.#translationService, pubsub, },
       shared: { constants, services: { actionDisplayUtils }, utils },
@@ -143,10 +162,14 @@ export class PluginUIService {
             this.injectStylesheet(pluginId, manifest);
             if (typeof module.getActionDisplayDetails === 'function') {
                 this.#actionDisplayRenderers.set(pluginId, module.getActionDisplayDetails);
-                // After a renderer is successfully registered, notify all cards.
                 pubsub.publish(UI_EVENTS.PLUGIN_RENDERERS_UPDATED, { pluginId });
             }
-            if (typeof module.init === 'function') await module.init(this.getPluginUIContext(pluginId));
+            if (typeof module.init === 'function') {
+              const cleanup = await module.init(this.getPluginUIContext(pluginId));
+              if (typeof cleanup === 'function') {
+                  module.destroy = cleanup;
+              }
+            }
             
             this.#loadedFrontendModules.set(pluginId, module);
             return module;

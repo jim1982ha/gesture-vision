@@ -1,5 +1,5 @@
-/* FILE: extensions/plugins/gesture-vision-plugin-dashboard/frontend/components/settings/cards/PluginCard.tsx */
-import React, { useState, useContext, type ComponentType } from 'react';
+/* FILE: packages/frontend/src/components/settings/cards/PluginCard.tsx */
+import { useState, useContext, type ComponentType } from 'react';
 import { AppContext } from '#frontend/contexts/AppContext.js';
 import { type PluginManifest } from '#shared/index.js';
 import { setIcon, clsx } from '#frontend/ui/helpers/ui-helpers.js';
@@ -35,7 +35,7 @@ export const PluginCard = ({ manifest }: { manifest: PluginManifest }) => {
     };
     
     const handleUninstall = () => {
-        actions.showConfirmationModal({
+        actions.openOverlay('confirmation', {
             titleKey: 'uninstall',
             messageKey: 'confirmDeleteMessage',
             messageSubstitutions: { item: translate(manifest.nameKey) },

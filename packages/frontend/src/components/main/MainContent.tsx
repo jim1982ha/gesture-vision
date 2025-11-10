@@ -42,7 +42,7 @@ export function MainContent() {
               <span ref={el => el && setIcon(el, 'UI_LIST_CHECK')} className="config-title-icon material-icons"></span>
               <span>{translate('configuredActionsTitle')}</span>
             </h2>
-            <button id="addNewActionButton" className="btn btn-primary" onClick={() => actions.toggleGestureSettingsSidebar(true, null)}>
+            <button id="addNewActionButton" className="btn btn-primary" onClick={() => actions.openOverlay('gestureForm', null)}>
               <span ref={el => el && setIcon(el, 'UI_ADD')} className="material-icons"></span>
               <span id="addNewActionButtonLabel">{translate('addNewAction')}</span>
             </button>

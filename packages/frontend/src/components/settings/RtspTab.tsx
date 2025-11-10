@@ -1,5 +1,5 @@
 /* FILE: packages/frontend/src/components/settings/RtspTab.tsx */
-import React, { useState, useContext } from 'react';
+import { useState, useContext } from 'react';
 import { AppContext } from '#frontend/contexts/AppContext.js';
 import { useAppStore } from '#frontend/hooks/useAppStore.js';
 import { setIcon } from '#frontend/ui/helpers/ui-helpers.js';
@@ -38,7 +38,7 @@ export function RtspTab() {
 
     const handleDelete = (index: number) => {
         const sourceToDelete = rtspSources[index];
-        actions.showConfirmationModal({
+        actions.openOverlay('confirmation', {
             messageKey: "confirmDeleteMessage",
             messageSubstitutions: { item: sourceToDelete.name },
             confirmTextKey: 'delete',

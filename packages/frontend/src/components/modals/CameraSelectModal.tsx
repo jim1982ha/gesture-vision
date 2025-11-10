@@ -22,7 +22,7 @@ const CameraListItem = ({ id, label }: { id: string, label: string }) => {
     const handleClick = () => {
         cameraService?.getCameraManager().getCameraSourceManager().setSelectedCameraSource(id);
         cameraService?.startStream({ cameraId: id });
-        actions.toggleCameraSelectModal(false);
+        actions.closeCurrentOverlay();
     };
 
     return (
@@ -67,7 +67,7 @@ export const CameraSelectModal = () => {
                 <div id="camera-select-modal-header" className="modal-header">
                     <span ref={el => el && setIcon(el, 'UI_WEBCAM')} className="material-icons header-icon"></span>
                     <span id="camera-select-modal-title" className="header-title">{translate('selectCameraSource')}</span>
-                    <button id="camera-select-modal-close-button" onClick={() => actions.toggleCameraSelectModal(false)} className="btn btn-icon header-close-btn" title={translate('close')}>
+                    <button id="camera-select-modal-close-button" onClick={() => actions.closeCurrentOverlay()} className="btn btn-icon header-close-btn" title={translate('close')}>
                         <span ref={el => el && setIcon(el, 'UI_CLOSE')}></span>
                     </button>
                 </div>

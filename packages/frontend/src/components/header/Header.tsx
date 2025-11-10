@@ -3,9 +3,10 @@ import { useContext, useEffect, useRef } from 'react';
 import { AppContext } from '#frontend/contexts/AppContext.js';
 import { useAppStore } from '#frontend/hooks/useAppStore.js';
 import { setIcon } from '#frontend/ui/helpers/ui-helpers.js';
-import { LanguageSelector } from './LanguageSelector.js';
 import { HeaderToggles } from './HeaderToggles.js';
+import { NavControls } from './NavControls.js';
 import { PluginSlot } from '#frontend/components/plugins/PluginSlot.js';
+import { Dropdown } from '#frontend/components/shared/Dropdown.js';
 
 export function Header() {
     const context = useContext(AppContext);
@@ -49,7 +50,13 @@ export function Header() {
     
     if (!context) return null;
 
-    const openAboutModal = () => actions.toggleDocsModal(true, 'ABOUT');
+    const openAboutModal = () => actions.openOverlay('docs', 'ABOUT');
+    
+    const kebabMenuTrigger = (
+        <button id="header-kebab-menu-trigger" className="btn btn-icon" title={translate('moreOptions')}>
+            <span ref={el => el && setIcon(el, 'more_vert')}></span>
+        </button>
+    );
 
     return (
         <header id="app-header" className="relative z-header flex h-14 flex-shrink-0 items-center justify-between border-b px-3">
@@ -67,14 +74,14 @@ export function Header() {
                 </div>
             </div>
 
-            <div id="header-nav-controls" className="nav-controls relative flex h-full min-w-0 flex-grow-0 items-center justify-end gap-1 flex-shrink-0">
-                <LanguageSelector />
-                <button id="header-history-button" onClick={() => actions.toggleHistorySidebar()} className="btn btn-icon" title={translate('history')}>
-                    <span ref={el => el && setIcon(el, 'UI_HISTORY')}></span>
-                </button>
-                <button id="header-settings-button" onClick={() => actions.toggleSettingsModal()} className="btn btn-icon" title={translate('settings')}>
-                    <span ref={el => el && setIcon(el, 'UI_SETTINGS')}></span>
-                </button>
+            {/* Desktop navigation controls */}
+            <NavControls layout="desktop" />
+            
+            {/* Mobile "kebab" menu */}
+            <div id="header-mobile-kebab-menu" className="desktop:hidden">
+                <Dropdown id="header-kebab-menu" trigger={kebabMenuTrigger}>
+                    <NavControls layout="mobile" />
+                </Dropdown>
             </div>
         </header>
     );
