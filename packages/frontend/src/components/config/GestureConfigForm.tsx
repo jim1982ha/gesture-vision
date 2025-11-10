@@ -60,14 +60,37 @@ export const GestureConfigForm = ({ editingConfig, onSave, onCancel }: GestureCo
 
     const availableActionPlugins = useMemo(() => pluginManifests.filter(m => m.capabilities.providesActions && m.status === 'enabled'), [pluginManifests]);
     
+    const normalizeForCompare = (name: string): string => name.toUpperCase().replace(/[\s-]/g, '_');
+
     const availableGestures = useMemo(() => {
-        const usedNames = new Set(gestureConfigs.map(c => 'gesture' in c ? c.gesture : c.pose));
-        const editingName = editingConfig ? ('gesture' in editingConfig ? editingConfig.gesture : editingConfig.pose) : null;
+        const usedNames = new Set(gestureConfigs.map(c => normalizeForCompare('gesture' in c ? c.gesture : c.pose)));
+        const editingName = editingConfig ? normalizeForCompare('gesture' in editingConfig ? editingConfig.gesture : editingConfig.pose) : null;
+        
         const options: { name: string; type: string }[] = [];
       
-        if (enableBuiltInHandGestures) (BUILT_IN_HAND_GESTURES as readonly string[]).forEach(g => { if (g !== 'NONE' && (!usedNames.has(g) || g === editingName)) options.push({ name: g, type: 'BUILT_IN_HAND' }); });
-        if (enableCustomHandGestures) customGestureMetadataList.filter(m => m.type !== 'pose').forEach(m => { if (!usedNames.has(m.name) || m.name === editingName) options.push({ name: m.name, type: 'CUSTOM_HAND' }); });
-        if (enablePoseProcessing) customGestureMetadataList.filter(m => m.type === 'pose').forEach(m => { if (!usedNames.has(m.name) || m.name === editingName) options.push({ name: m.name, type: 'CUSTOM_POSE' }); });
+        if (enableBuiltInHandGestures) {
+            (BUILT_IN_HAND_GESTURES as readonly string[]).forEach(g => {
+                if (g !== 'NONE' && (!usedNames.has(g) || g === editingName)) {
+                    options.push({ name: g, type: 'BUILT_IN_HAND' });
+                }
+            });
+        }
+        if (enableCustomHandGestures) {
+            customGestureMetadataList.filter(m => m.type !== 'pose').forEach(m => {
+                const normalizedCustomName = normalizeForCompare(m.name);
+                if (!usedNames.has(normalizedCustomName) || normalizedCustomName === editingName) {
+                    options.push({ name: m.name, type: 'CUSTOM_HAND' });
+                }
+            });
+        }
+        if (enablePoseProcessing) {
+            customGestureMetadataList.filter(m => m.type === 'pose').forEach(m => {
+                const normalizedCustomName = normalizeForCompare(m.name);
+                if (!usedNames.has(normalizedCustomName) || normalizedCustomName === editingName) {
+                    options.push({ name: m.name, type: 'CUSTOM_POSE' });
+                }
+            });
+        }
       
         return options.sort((a, b) => a.name.localeCompare(b.name));
     }, [gestureConfigs, customGestureMetadataList, enableBuiltInHandGestures, enableCustomHandGestures, enablePoseProcessing, editingConfig]);
@@ -97,32 +120,40 @@ export const GestureConfigForm = ({ editingConfig, onSave, onCancel }: GestureCo
     return (
         <form id="gestureConfigForm" onSubmit={e => e.preventDefault()}>
             <div className="form-group">
-                <label htmlFor="gesture" className="form-label">{translate('gestures')}</label>
-                <select id="gesture" value={gestureName || 'NONE'} onChange={handleGestureSelect} className="form-control" disabled={!!editingConfig}>
-                    <option value="NONE" disabled>{translate('selectGesture')}</option>
+                <label htmlFor="gesture-config-form-gesture-select" className="form-label">{translate('gestures')}</label>
+                <select id="gesture-config-form-gesture-select" value={gestureName || 'NONE'} onChange={handleGestureSelect} className="form-control">
+                    <option id="gesture-config-form-gesture-select-default-option" value="NONE" disabled>
+                        {availableGestures.length === 0 && !editingConfig ? translate('allGesturesConfiguredPlaceholder') : translate('selectGesture')}
+                    </option>
                     {availableGestures.map(opt => {
                         const { iconDetails, formattedName } = getGestureDisplayInfo(opt.name, customGestureMetadataList);
-                        return <option key={opt.name} value={opt.name} data-type={opt.type}>{iconDetails.defaultEmoji} {translate(formattedName, {defaultValue: formattedName})}</option>;
+                        return <option key={opt.name} id={`gesture-select-option-${opt.name}`} value={opt.name} data-type={opt.type}>{iconDetails.defaultEmoji} {translate(formattedName, {defaultValue: formattedName})}</option>;
                     })}
                 </select>
             </div>
             <div className="form-row">
-                <div className="form-group"><label htmlFor="confidence" className="form-label">{translate('confidenceLabel')}</label><input type="number" id="confidence" className="form-control" min="0" max="100" step="1" value={formData.confidence} onChange={e => setFormData(p => ({...p, confidence: parseFloat(e.target.value)}))} /></div>
-                <div className="form-group"><label htmlFor="duration" className="form-label">{translate('durationLabel')}</label><input type="number" id="duration" className="form-control" min="0.1" max="10" step="0.1" value={formData.duration} onChange={e => setFormData(p => ({...p, duration: parseFloat(e.target.value)}))} /></div>
+                <div className="form-group">
+                    <label htmlFor="gesture-config-form-confidence-input" className="form-label">{translate('confidenceLabel')}</label>
+                    <input type="number" id="gesture-config-form-confidence-input" className="form-control" min="0" max="100" step="1" value={formData.confidence} onChange={e => setFormData(p => ({...p, confidence: parseFloat(e.target.value)}))} />
+                </div>
+                <div className="form-group">
+                    <label htmlFor="gesture-config-form-duration-input" className="form-label">{translate('durationLabel')}</label>
+                    <input type="number" id="gesture-config-form-duration-input" className="form-control" min="0.1" max="10" step="0.1" value={formData.duration} onChange={e => setFormData(p => ({...p, duration: parseFloat(e.target.value)}))} />
+                </div>
             </div>
             <div className="form-group">
-                <label htmlFor="actionConfig.pluginId" className="form-label">{translate('actionTypeLabel')}</label>
-                <select id="actionConfig.pluginId" value={formData.actionConfig?.pluginId || 'none'} onChange={e => setFormData(p => ({...p, actionConfig: { pluginId: e.target.value, settings: { commandType: 'generic' } }}))} className="form-control">
-                    <option value={DEFAULT_ACTION_PLUGIN_ID_NONE}>{translate('actionTypeNone')}</option>
-                    {availableActionPlugins.map((p: PluginManifest) => <option key={p.id} value={p.id}>{translate(p.nameKey, {defaultValue: p.id})}</option>)}
+                <label htmlFor="gesture-config-form-action-select" className="form-label">{translate('actionTypeLabel')}</label>
+                <select id="gesture-config-form-action-select" value={formData.actionConfig?.pluginId || 'none'} onChange={e => setFormData(p => ({...p, actionConfig: { pluginId: e.target.value, settings: { commandType: 'generic' } }}))} className="form-control">
+                    <option id="gesture-config-form-action-select-none" value={DEFAULT_ACTION_PLUGIN_ID_NONE}>{translate('actionTypeNone')}</option>
+                    {availableActionPlugins.map((p: PluginManifest) => <option key={p.id} id={`action-select-option-${p.id}`} value={p.id}>{translate(p.nameKey, {defaultValue: p.id})}</option>)}
                 </select>
             </div>
             {formData.actionConfig?.pluginId && formData.actionConfig.pluginId !== 'none' && (
                 <PluginActionFields pluginId={formData.actionConfig.pluginId} settings={formData.actionConfig.settings as Record<string, unknown>} onUpdate={newSettings => setFormData(p => ({...p, actionConfig: { ...p.actionConfig!, settings: newSettings }}))} />
             )}
             <div id="gesture-config-form-actions" className="form-actions-container">
-                <button type="button" onClick={onCancel} className="btn btn-secondary"><span ref={el => el && setIcon(el, 'UI_CANCEL')}></span><span>{translate('cancel')}</span></button>
-                <button type="button" onClick={handleSave} className="btn btn-primary"><span ref={el => el && setIcon(el, editingConfig ? 'UI_SAVE' : 'UI_ADD')}></span><span>{translate(editingConfig ? 'update' : 'add')}</span></button>
+                <button id="gesture-config-form-cancel-button" type="button" onClick={onCancel} className="btn btn-secondary"><span ref={el => el && setIcon(el, 'UI_CANCEL')}></span><span>{translate('cancel')}</span></button>
+                <button id="gesture-config-form-save-button" type="button" onClick={handleSave} className="btn btn-primary"><span ref={el => el && setIcon(el, editingConfig ? 'UI_SAVE' : 'UI_ADD')}></span><span>{translate(editingConfig ? 'update' : 'add')}</span></button>
             </div>
         </form>
     );
