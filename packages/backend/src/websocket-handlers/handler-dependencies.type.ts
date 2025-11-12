@@ -3,6 +3,7 @@ import type { ActionDispatcherService } from '../services/action-dispatcher.serv
 import type { ConfigService } from '../services/config.service.js';
 import type { PluginManagerService } from '../services/plugin-manager.service.js';
 import type { MtxMonitorService } from '../services/mtx-monitor.service.js';
+import type { PerformanceMonitorService } from '../services/performance-monitor.service.js';
 
 /**
  * Centralized interface for the services available to WebSocket message handlers.
@@ -12,4 +13,5 @@ export interface HandlerDependencies {
     pluginManagerService: PluginManagerService | null;
     mtxMonitorService: MtxMonitorService | null;
     actionDispatcher: ActionDispatcherService | null;
+    performanceMonitorService: PerformanceMonitorService | null;
 }

@@ -3,43 +3,36 @@ import { useContext } from 'react';
 import { AppContext } from '#frontend/contexts/AppContext.js';
 import { useAppStore } from '#frontend/hooks/useAppStore.js';
 import { setIcon } from '#frontend/ui/helpers/ui-helpers.js';
-import { getGestureDisplayInfo, type GestureConfig, type PoseConfig } from '#shared/index.js';
+import type { EnrichedGestureConfig } from '#shared/index.js';
 import { ActionDetailsDisplay } from '#frontend/components/shared/ActionDetailsDisplay.js';
 import { CardRoot, CardHeader, CardIcon, CardTitle, CardActions, CardFooter } from './Card.js';
 
-export const ConfigCard = ({ config }: { config: GestureConfig | PoseConfig }) => {
+export const ConfigCard = ({ config }: { config: EnrichedGestureConfig }) => {
     const context = useContext(AppContext);
     const { translate } = context!.services.translationService;
-    const { actions } = context!.appStore.getState();
-    const { customGestureMetadataList, pluginManifests } = useAppStore(state => ({
-        customGestureMetadataList: state.customGestureMetadataList,
+    const { actions, pluginManifests } = useAppStore(state => ({
+        actions: state.actions,
         pluginManifests: state.pluginManifests,
     }));
     
     if (!context) return null;
 
-    const gestureName = 'gesture' in config ? config.gesture : config.pose;
-    const { formattedName, iconDetails } = getGestureDisplayInfo(gestureName, customGestureMetadataList);
-
+    const { name: gestureName, formattedName, iconDetails } = config.display;
     const pluginId = config.actionConfig?.pluginId;
     const manifest = pluginId ? pluginManifests.find(m => m.id === pluginId) : null;
-    const cardFooterText = manifest
-        ? translate(manifest.nameKey, { defaultValue: manifest.id })
-        : translate('actionTypeNone');
+    const cardFooterText = manifest ? translate(manifest.nameKey, { defaultValue: manifest.id }) : translate('actionTypeNone');
 
-    const handleDelete = () => {
-        actions.openOverlay('confirmation', {
-            messageKey: "confirmDeleteMessage",
-            messageSubstitutions: { item: gestureName },
-            confirmTextKey: 'delete',
-            isDangerAction: true,
-            onConfirm: () => {
-                const currentConfigs = context.appStore.getState().gestureConfigs;
-                const updatedConfigs = currentConfigs.filter(c => ('gesture' in c ? c.gesture : c.pose) !== gestureName);
-                actions.requestBackendPatch({ gestureConfigs: updatedConfigs });
-            },
-        });
-    };
+    const handleDelete = () => actions.openOverlay('confirmation', {
+        messageKey: "confirmDeleteMessage",
+        messageSubstitutions: { item: gestureName },
+        confirmTextKey: 'delete',
+        isDangerAction: true,
+        onConfirm: () => {
+            const currentConfigs = context.appStore.getState().gestureConfigs;
+            const updatedConfigs = currentConfigs.filter(c => c.display.name !== gestureName);
+            actions.requestBackendPatch({ gestureConfigs: updatedConfigs });
+        },
+    });
     
     const handleEdit = () => actions.openOverlay('gestureForm', config);
 

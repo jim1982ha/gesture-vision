@@ -99,7 +99,6 @@ export class MtxMonitorService {
         if (!sourceConfig?.url) throw new Error(`Configuration for RTSP source '${pathName}' not found or URL is missing.`);
         
         try {
-            // FIX: Always use addOrUpdatePathConfig to ensure the path is created/updated before connection.
             // This is robust for both on-demand and always-on streams.
             await this.addOrUpdatePathConfig(pathName, sourceConfig);
             this.streamStatusBroadcaster?.({ pathName, status: 'unknown', message: 'Path config ensured, awaiting client connection.' });

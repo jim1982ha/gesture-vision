@@ -1,5 +1,4 @@
-# FILE: docker-compose.dev.yaml
-# docker-compose.dev.yaml - Development Environment (MODIFIED for packages/)
+# FILE: docker-compose.dev.yaml - Development Environment
 
 services:
   gesturevision-dev:
@@ -12,10 +11,7 @@ services:
       args:
         - TARGETARCH=amd64
     container_name: gesturevision-dev
-
-    # MODIFICATION: Use host networking for simplified WebRTC & service access in dev
     network_mode: "host"
-    # REMOVED: 'ports' and 'networks' are not used with network_mode: "host"
 
     volumes:
       # Mount the entire packages directory for live editing of backend, frontend, shared
@@ -27,6 +23,8 @@ services:
       - ./package-lock.json:/app/package-lock.json:ro
       # Mount config.dev.json to the expected /app/config.json path in the container
       - ./config/config.dev.json:/app/config.json:rw
+      # The conditional logic in performance-monitor.service.ts handles the file name.
+      - ./logs:/app/logs:rw
       # Preserve node_modules at the root of the container if installed there by Dockerfile
       # This avoids overwriting container's node_modules if host has a different version/OS
       - /app/node_modules
@@ -37,7 +35,6 @@ services:
     environment:
       # Node environment
       - NODE_ENV=development
-      # --- MODIFICATION: The container now uses host ports directly ---
       # Vite's internal listening port (as defined in its npm script)
       - DEV_VITE_PORT=${DEV_VITE_PORT:-8001}
       # Backend API's internal listening port

@@ -1,42 +1,58 @@
 /* FILE: packages/frontend/src/gestures/processor.ts */
-import type { AppStore } from '#frontend/core/state/app-store.js';
-import type { FrameAnalysisFrameData, SnapshotData, RenderOutputData } from '#frontend/types/index.js';
-import { GESTURE_EVENTS, UI_EVENTS, pubsub, type RoiConfig, type CustomGestureMetadata } from '#shared/index.js';
-import { MIN_FRAME_INTERVAL_MS, MAX_FRAME_INTERVAL_MS, TARGET_PROCESSING_TIME_FACTOR } from '#frontend/constants/index.js';
-import { GestureStateLogic } from './state-logic.js';
+import { GESTURE_EVENTS, UI_EVENTS, pubsub, WEBSOCKET_EVENTS, type RoiConfig, type CustomGestureMetadata, type PerformanceMetricsPayload, WEBCAM_EVENTS } from '#shared/index.js';
+import { MAX_FRAME_INTERVAL_MS, TARGET_PROCESSING_TIME_FACTOR } from '#frontend/constants/index.js';
 import { GestureWorkerManager, type InitializePayload } from '#frontend/services/gesture-worker-manager.js';
+import { webSocketService } from '#frontend/services/websocket-service.js';
+import type { AppStore } from '#frontend/core/state/app-store.js';
+import type { FrameAnalysisFrameData, RenderOutputData, SnapshotData } from '#frontend/types/index.js';
 import type { CanvasRenderer } from '#frontend/camera/canvas-renderer.js';
-import type { TranslationService } from '#frontend/services/translation.service.js';
+import type { GestureService } from '#frontend/services/gesture.service.js';
 
 interface ProcessorState {
-  processingEnabled: boolean;
   lastFrameSentTime: number;
   currentDynamicIntervalMs: number;
   targetFrameIntervalMs: number;
+  lastWorkerReportedTime: number;
+  framesSkipped: number;
 }
+
+const getMemoryMetrics = (): { memoryUsedMB?: number; heapUsedRatio?: number } => {
+    const memoryInfo = (performance as unknown as { memory?: { usedJSHeapSize: number; totalJSHeapSize: number } }).memory;
+    if (memoryInfo) {
+      const memoryUsedMB = Math.round(memoryInfo.usedJSHeapSize / (1024 * 1024));
+      const heapUsedRatio = memoryInfo.totalJSHeapSize > 0 ? parseFloat((memoryInfo.usedJSHeapSize / memoryInfo.totalJSHeapSize).toFixed(2)) : undefined;
+      return { memoryUsedMB, heapUsedRatio };
+    }
+    return {};
+};
 
 export class GestureProcessor {
   #appStore: AppStore;
   #workerManager: GestureWorkerManager;
-  #stateLogic: GestureStateLogic;
+  #gestureService: GestureService;
+  #canvasRenderer: CanvasRenderer;
   #state: ProcessorState;
   #reconfigureDebounceTimer: number | null = null;
-  #canvasRenderer: CanvasRenderer;
+  #perfSendTimer: number | null = null;
   #processingOverride: Partial<InitializePayload> | undefined;
   #frameCounter = 0;
   #subscriptions: (() => void)[] = [];
+  #isProcessingEnabled = false;
+  #activeStreamRoi: RoiConfig | null = null;
 
-  constructor(appStore: AppStore, translationService: TranslationService, canvasRenderer: CanvasRenderer) {
+  constructor(appStore: AppStore, gestureService: GestureService, canvasRenderer: CanvasRenderer) {
     this.#appStore = appStore;
+    this.#gestureService = gestureService;
     this.#canvasRenderer = canvasRenderer;
-    this.#stateLogic = new GestureStateLogic(this.#appStore, translationService);
     this.#workerManager = new GestureWorkerManager(this.#appStore);
     
-    const state = this.#appStore.getState();
-    const targetInterval = 1000 / (state.targetFpsPreference || 15);
+    const targetInterval = 1000 / (this.#appStore.getState().targetFpsPreference || 15);
     this.#state = {
-      processingEnabled: false, lastFrameSentTime: 0,
-      currentDynamicIntervalMs: targetInterval, targetFrameIntervalMs: targetInterval,
+      lastFrameSentTime: 0,
+      currentDynamicIntervalMs: targetInterval,
+      targetFrameIntervalMs: targetInterval,
+      lastWorkerReportedTime: 0,
+      framesSkipped: 0,
     };
 
     this.#workerManager.initialize().catch(e => console.error("Worker initialization failed", e));
@@ -46,17 +62,18 @@ export class GestureProcessor {
   #subscribeToEvents(): void {
     const storeSub = this.#appStore.subscribe((state, prevState) => {
       if (!state.isInitialConfigLoaded) return;
-      const configChanged = state.targetFpsPreference !== prevState.targetFpsPreference || state.numHandsPreference !== prevState.numHandsPreference || state.enableCustomHandGestures !== prevState.enableCustomHandGestures || state.enablePoseProcessing !== prevState.enablePoseProcessing || state.enableBuiltInHandGestures !== prevState.enableBuiltInHandGestures || state.handDetectionConfidence !== prevState.handDetectionConfidence || state.handPresenceConfidence !== prevState.handPresenceConfidence || state.handTrackingConfidence !== prevState.handTrackingConfidence || state.poseDetectionConfidence !== prevState.poseDetectionConfidence || state.posePresenceConfidence !== prevState.posePresenceConfidence || state.poseTrackingConfidence !== prevState.poseTrackingConfidence;
+      const configChanged = ['targetFpsPreference', 'numHandsPreference', 'enableCustomHandGestures', 'enablePoseProcessing', 'enableBuiltInHandGestures', 'handDetectionConfidence', 'handPresenceConfidence', 'handTrackingConfidence', 'poseDetectionConfidence', 'posePresenceConfidence', 'poseTrackingConfidence']
+        .some(key => state[key as keyof typeof state] !== prevState[key as keyof typeof prevState]);
+      
       if (state.targetFpsPreference !== prevState.targetFpsPreference) this.#state.targetFrameIntervalMs = 1000 / (state.targetFpsPreference || 15);
       if (state.customGestureMetadataList !== prevState.customGestureMetadataList) this.#workerManager.loadCustomGestures(state.customGestureMetadataList as CustomGestureMetadata[]);
       if (configChanged) this.reconfigureWorker();
     });
     this.#subscriptions.push(storeSub);
 
-    this.#subscriptions.push(pubsub.subscribe(GESTURE_EVENTS.RENDER_OUTPUT, (data?: unknown) => this.#handleRenderOutput(data as RenderOutputData)));
+    this.#subscriptions.push(pubsub.subscribe(GESTURE_EVENTS.RENDER_OUTPUT, (data?: unknown) => this.#handleWorkerOutput(data as RenderOutputData)));
     this.#subscriptions.push(pubsub.subscribe(GESTURE_EVENTS.REQUEST_PROCESSING_OVERRIDE, (override?: unknown) => this.#setProcessingOverride(override as Partial<InitializePayload>)));
     this.#subscriptions.push(pubsub.subscribe(GESTURE_EVENTS.CLEAR_PROCESSING_OVERRIDE, this.#clearProcessingOverride));
-    // --- MODIFICATION: Trigger reconfiguration when initial state is loaded ---
     this.#subscriptions.push(pubsub.subscribe(UI_EVENTS.INITIAL_STATE_LOADED, () => this.reconfigureWorker()));
   }
   
@@ -70,35 +87,34 @@ export class GestureProcessor {
     this.reconfigureWorker();
   };
 
-  #handleRenderOutput(data?: RenderOutputData): void {
+  #handleWorkerOutput(data?: RenderOutputData): void {
+    const { handGestureResults, poseLandmarkerResults, customActionableGestures, processingTime } = data || {};
     const state = this.#appStore.getState();
-    const handProcessingIsEnabled = this.#processingOverride?.enableHandProcessing ?? (state.enableBuiltInHandGestures || state.enableCustomHandGestures);
-    const poseProcessingIsEnabled = this.#processingOverride?.enablePoseProcessing ?? state.enablePoseProcessing;
+
+    const handEnabled = this.#processingOverride?.enableHandProcessing ?? (state.enableBuiltInHandGestures || state.enableCustomHandGestures);
+    const poseEnabled = this.#processingOverride?.enablePoseProcessing ?? state.enablePoseProcessing;
     
     this.#canvasRenderer.updateLandmarkData({
-      handLandmarks: handProcessingIsEnabled ? data?.handGestureResults?.landmarks : [],
-      poseLandmarks: poseProcessingIsEnabled ? data?.poseLandmarkerResults?.landmarks : [],
-      roiConfig: this.#stateLogic.getActiveStreamRoi(),
+      handLandmarks: handEnabled ? handGestureResults?.landmarks : [],
+      poseLandmarks: poseEnabled ? poseLandmarkerResults?.landmarks : [],
+      roiConfig: this.#activeStreamRoi,
     });
     this.#canvasRenderer.drawOutput();
     
-    if (this.#state.processingEnabled) {
-        const desiredInterval = Math.max(MIN_FRAME_INTERVAL_MS, (data?.processingTime || 0) * TARGET_PROCESSING_TIME_FACTOR);
-        this.#state.currentDynamicIntervalMs = Math.max(this.#state.targetFrameIntervalMs, Math.min(MAX_FRAME_INTERVAL_MS, desiredInterval));
-        
-        const handGestures = data?.handGestureResults?.gestures?.[0] || [];
-        const customGestures = data?.customActionableGestures || [];
-        
-        const allActionableRecognitions = [...handGestures, ...customGestures]
-          .filter((g): g is { categoryName: string; score: number } => !!(g.categoryName && typeof g.score === 'number'))
-          .map(g => ({ name: g.categoryName, confidence: g.score }));
-        
-        const poseLandmarks = data?.poseLandmarkerResults?.worldLandmarks?.[0];
-        if (poseLandmarks) {
-            allActionableRecognitions.push(...this.#stateLogic.checkForStaticPoses(poseLandmarks));
-        }
-        
-        this.#stateLogic.checkConditions(allActionableRecognitions);
+    if (this.#isProcessingEnabled) {
+      if (typeof processingTime === 'number') {
+        this.#state.lastWorkerReportedTime = processingTime;
+        const dynamicInterval = processingTime * TARGET_PROCESSING_TIME_FACTOR * 1.2;
+        this.#state.currentDynamicIntervalMs = Math.max(this.#state.targetFrameIntervalMs, Math.min(MAX_FRAME_INTERVAL_MS, dynamicInterval));
+      }
+      
+      const allDetections = [
+        ...(handGestureResults?.gestures?.[0] || []),
+        ...(customActionableGestures || [])
+      ].filter((g): g is { categoryName: string; score: number } => !!(g.categoryName && typeof g.score === 'number'))
+      .map(g => ({ name: g.categoryName, confidence: g.score }));
+      
+      this.#gestureService.processDetections(allDetections, poseLandmarkerResults?.worldLandmarks?.[0]);
     }
   }
 
@@ -107,18 +123,20 @@ export class GestureProcessor {
     this.#reconfigureDebounceTimer = window.setTimeout(() => this.#workerManager.reconfigure(this.#processingOverride), 50);
   }
 
-  public async processFrame(frameData: FrameAnalysisFrameData & { imageSourceElement: HTMLVideoElement | HTMLCanvasElement }, force = false): Promise<void> {
-    if (!this.isModelLoaded(this.#processingOverride)) return;
-    const { videoElement, imageSourceElement, roiConfig, timestamp } = frameData;
-    const nowMs = timestamp || performance.now();
-    const state = this.#appStore.getState();
-    const isAnyFeatureEnabled = state.enableBuiltInHandGestures || state.enableCustomHandGestures || state.enablePoseProcessing;
-    if (!force && (!this.#state.processingEnabled || videoElement.videoWidth === 0 || videoElement.readyState < 2 || (!isAnyFeatureEnabled && !this.#processingOverride) || nowMs - this.#state.lastFrameSentTime < this.#state.currentDynamicIntervalMs)) return;
+  public async processFrame(frameData: FrameAnalysisFrameData & { imageSourceElement: HTMLVideoElement | HTMLCanvasElement }): Promise<void> {
+    const nowMs = frameData.timestamp || performance.now();
+    if (!this.#isProcessingEnabled || frameData.videoElement.videoWidth === 0 || nowMs - this.#state.lastFrameSentTime < this.#state.currentDynamicIntervalMs) {
+      this.#state.framesSkipped++;
+      return;
+    }
+
     this.#state.lastFrameSentTime = nowMs;
     try {
+      const { imageSourceElement, roiConfig } = frameData;
       const sourceWidth = (imageSourceElement instanceof HTMLVideoElement) ? imageSourceElement.videoWidth : imageSourceElement.width;
       const sourceHeight = (imageSourceElement instanceof HTMLVideoElement) ? imageSourceElement.videoHeight : imageSourceElement.height;
       if (sourceWidth === 0 || sourceHeight === 0) return;
+      
       let imageBitmap: ImageBitmap;
       if (roiConfig && imageSourceElement instanceof HTMLVideoElement) {
         const sx = Math.floor(sourceWidth * (roiConfig.x / 100));
@@ -127,37 +145,64 @@ export class GestureProcessor {
         const sHeight = Math.floor(sourceHeight * (roiConfig.height / 100));
         imageBitmap = (sWidth > 0 && sHeight > 0) ? await self.createImageBitmap(imageSourceElement, sx, sy, sWidth, sHeight) : await self.createImageBitmap(imageSourceElement);
       } else { imageBitmap = await self.createImageBitmap(imageSourceElement); }
+      
       this.#frameCounter++;
       this.#workerManager.processFrame({ imageBitmap, timestamp: this.#frameCounter, roiConfig, requestSnapshot: !!this.#workerManager.getSnapshotPromise() }, [imageBitmap]);
+      this.#state.framesSkipped = 0;
     } catch (e) {
-      if (!(e as Error).message.includes('is already closed')) pubsub.publish(UI_EVENTS.SHOW_ERROR, { messageKey: 'errorFrameProcessing', substitutions: { message: (e as Error).message }});
+      if (!(e as Error).message.includes('is already closed')) {
+        pubsub.publish(UI_EVENTS.SHOW_ERROR, { messageKey: 'errorFrameProcessing', substitutions: { message: (e as Error).message } });
+      }
     }
   }
+
+  #sendPerformanceMetrics = (source: 'webcam' | 'rtsp' | 'studio') => {
+    if (!webSocketService.isConnected()) return;
+    const streamActive = this.#appStore.getState().isWebcamRunning;
+    if (!streamActive && source !== 'studio') return;
+    const latencyEstimateMs = (this.#state.currentDynamicIntervalMs * this.#state.framesSkipped) + this.#state.lastWorkerReportedTime;
+    const { memoryUsedMB, heapUsedRatio } = getMemoryMetrics();
+    
+    const payload: PerformanceMetricsPayload = {
+      isStreaming: streamActive, source,
+      actualFPS: parseFloat((1000 / this.#state.currentDynamicIntervalMs).toFixed(1)),
+      targetFPS: this.#appStore.getState().targetFpsPreference,
+      processingTimeMs: this.#state.lastWorkerReportedTime,
+      latencyEstimateMs, memoryUsedMB, heapUsedRatio,
+    };
+    webSocketService.sendMessage({ type: WEBSOCKET_EVENTS.SEND_PERFORMANCE_METRICS, payload });
+  }
+
+  #stopPerfMonitoring = (): void => {
+    if (this.#perfSendTimer) clearInterval(this.#perfSendTimer);
+    this.#perfSendTimer = null;
+  }
   
-  public async waitUntilModelsReady(): Promise<void> { await this.#workerManager.waitUntilModelsReady(); }
-  public getLandmarkSnapshot = (): Promise<SnapshotData> => this.#workerManager.getSnapshot();
-  public enableProcessing = (enable = true) => {
-    this.#state.processingEnabled = enable;
-    if (!enable) {
-      this.#state.currentDynamicIntervalMs = this.#state.targetFrameIntervalMs;
-      this.#stateLogic.resetHoldTimers();
-      this.#stateLogic.resetCooldown();
-      this.#stateLogic.resetUIDisplay();
+  public enableProcessing = (enable = true, isStudio = false): void => {
+    this.#isProcessingEnabled = enable;
+    this.#stopPerfMonitoring();
+    if (enable) {
+        const source = isStudio ? 'studio' : (this.#activeStreamRoi ? 'rtsp' : 'webcam');
+        this.#sendPerformanceMetrics(source);
+        this.#perfSendTimer = window.setInterval(() => this.#sendPerformanceMetrics(source), 5000);
+        pubsub.publish(WEBCAM_EVENTS.STREAM_START, { studio: isStudio });
+    } else {
+        pubsub.publish(WEBCAM_EVENTS.STREAM_STOP);
+        this.#state.currentDynamicIntervalMs = this.#state.targetFrameIntervalMs;
     }
   };
-  public isModelLoaded = (override?: Partial<InitializePayload>): boolean => {
-    const { handModelLoaded, poseModelLoaded, enableBuiltInHandGestures, enableCustomHandGestures, enablePoseProcessing } = this.#appStore.getState();
-    const handRequired = override?.enableHandProcessing ?? (enableBuiltInHandGestures || enableCustomHandGestures);
-    const poseRequired = override?.enablePoseProcessing ?? enablePoseProcessing;
-    return (handRequired ? handModelLoaded : true) && (poseRequired ? poseModelLoaded : true);
-  };
-  public setActiveStreamRoi = (roi: RoiConfig | null) => this.#stateLogic.setActiveStreamRoi(roi);
-  public getStateLogic = () => this.#stateLogic;
-  public destroy = () => {
+
+  public waitUntilModelsReady = (): Promise<void> => this.#workerManager.waitUntilModelsReady();
+  public getSnapshot = (): Promise<SnapshotData> => this.#workerManager.getSnapshot();
+  public setActiveStreamRoi = (roi: RoiConfig | null): void => { this.#activeStreamRoi = roi; };
+  public getActiveStreamRoi = (): RoiConfig | null => this.#activeStreamRoi;
+  
+  public destroy = (): void => {
     this.enableProcessing(false);
     this.#workerManager.terminate();
-    this.#stateLogic.destroy();
+    this.#gestureService.destroy();
     if (this.#reconfigureDebounceTimer) clearTimeout(this.#reconfigureDebounceTimer);
+    this.#stopPerfMonitoring();
     this.#subscriptions.forEach(unsub => unsub());
     this.#subscriptions = [];
   };

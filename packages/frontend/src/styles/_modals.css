@@ -18,10 +18,17 @@
     transform: scale(1);
     opacity: 1;
   }
-  #mainSettingsModal .modal-content {
-    @apply lg:max-w-4xl lg:h-[80vh] grid;
-    grid-template-rows: auto 1fr auto;
+  
+  /* "Normal" large modal for Settings and Gesture Studio */
+  .modal-content-lg {
+    @apply !max-w-4xl h-[90vh];
   }
+  
+  /* Extra-large modal for Docs and Dashboard */
+  .modal-content-xl {
+    @apply !max-w-6xl h-[90vh];
+  }
+
   .modal-header {
     @apply flex-shrink-0 flex items-center gap-3 p-4 border-b;
     border-color: hsl(var(--color-border));
@@ -38,7 +45,7 @@
     @apply ml-auto;
   }
   .modal-scrollable-content {
-    @apply flex-1 p-4 overflow-y-auto;
+    @apply flex-1 p-4 overflow-y-auto min-h-0;
   }
   .modal-actions {
     @apply flex-shrink-0 flex items-center justify-between gap-2 p-4 border-t z-10;
@@ -80,7 +87,7 @@
     @apply hidden;
   }
   .settings-tab-content.active {
-    @apply block;
+    @apply flex flex-col h-full;
   }
   
   #plugin-dev-info-container {
@@ -102,7 +109,6 @@
   }
   
   /* --- Dark Mode fix for Tailwind Prose --- */
-  /* This overrides the CSS variables used by @tailwindcss/typography's `prose-invert` class */
   .prose.dark\:prose-invert {
     --tw-prose-body: hsl(var(--color-text-secondary));
     --tw-prose-headings: hsl(var(--color-text-primary));
@@ -115,12 +121,9 @@
     --tw-prose-quotes: hsl(var(--color-text-primary));
     --tw-prose-quote-borders: hsl(var(--color-border));
     --tw-prose-captions: hsl(var(--color-text-secondary));
-    
-    /* FIX: Ensure both inline code and code blocks are readable */
     --tw-prose-code: hsl(var(--color-warning));
     --tw-prose-pre-code: hsl(var(--color-text-secondary));
     --tw-prose-pre-bg: hsl(var(--color-background));
-    
     --tw-prose-th-borders: hsl(var(--color-border-light));
     --tw-prose-td-borders: hsl(var(--color-border));
   }

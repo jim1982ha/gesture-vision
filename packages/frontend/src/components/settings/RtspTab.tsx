@@ -10,12 +10,14 @@ import { RtspForm } from './forms/RtspForm.js';
 
 export function RtspTab() {
     const context = useContext(AppContext);
-    const { rtspSources } = useAppStore(state => ({ rtspSources: state.rtspSources }));
+    const { rtspSources, actions } = useAppStore(state => ({
+        rtspSources: state.rtspSources,
+        actions: state.actions,
+    }));
     const [editingIndex, setEditingIndex] = useState<number | null>(null);
     const [isAdding, setIsAdding] = useState(false);
     
     if (!context) return null;
-    const { actions } = context.appStore.getState();
     const { translate } = context.services.translationService;
 
     const handleSave = (sourceData: RtspSourceConfig) => {

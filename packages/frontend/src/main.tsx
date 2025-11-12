@@ -49,10 +49,7 @@ async function initializeApplication() {
 
   registerSW({ immediate: true });
   
-  const metaEnv = import.meta.env;
-  if (metaEnv?.MODE === "development") {
-    console.info("[Init] App initialized successfully (React Stack).");
-  } else {
+  if (import.meta.env.MODE === 'development') {
     console.info("[Init] App initialized successfully (React Stack).");
   }
 }

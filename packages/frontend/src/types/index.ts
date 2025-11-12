@@ -1,7 +1,6 @@
 /* FILE: packages/frontend/src/types/index.ts */
-// Contains types that are exclusively used by the frontend application.
 import type React from 'react';
-import type { GestureCategoryIconType, ActionSettingFieldDescriptor, ActionDisplayDetail, PluginManifest, FullConfiguration } from '#shared/index.js';
+import type { GestureCategoryIconType, ActionSettingFieldDescriptor, ActionDisplayDetail, PluginManifest, FullConfiguration, GestureDisplayInfo } from '#shared/index.js';
 import type { Landmark, GestureRecognizerResult, PoseLandmarkerResult } from '@mediapipe/tasks-vision';
 
 import type { AppStore } from '#frontend/core/state/app-store.js';
@@ -71,6 +70,7 @@ export interface HistoryEntry {
   success?: boolean;
   reason?: string | null;
   details?: unknown;
+  display: GestureDisplayInfo;
 }
 
 export interface SnapshotData {
@@ -133,12 +133,14 @@ export interface FrontendPluginModule {
     | ActionSettingFieldDescriptor[]
     | ((context: PluginUIContext) => ActionSettingFieldDescriptor[]);
   init?(context: PluginUIContext): Promise<void | (() => void)>;
-  destroy?(): void | Promise<void>;
+  destroy?(): Promise<void> | void;
   GlobalSettingsComponent?: React.ComponentType<{ manifest: PluginManifest; onSaveSuccess?: () => void; onCancel?: () => void; }>;
   UIComponent?: React.ComponentType;
   HeaderComponent?: React.ComponentType;
+  OverlayComponent?: React.ComponentType<{ context: PluginUIContext, onClose: () => void }>;
   getActionDisplayDetails?: ActionDisplayDetailsRendererFn;
   pluginSlot?: string;
+  overlayId?: string;
 }
 
 export interface PluginUIContext {

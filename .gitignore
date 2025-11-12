@@ -1,3 +1,4 @@
+# --- .gitignore --- (complete version) ---
 # Node.js
 node_modules/
 npm-debug.log*
@@ -121,3 +122,4 @@ packages/*/coverage/
 
 # Specific files from old structure that are no longer at root
 console.log
+logs/performance*.log

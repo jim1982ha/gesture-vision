@@ -18,9 +18,9 @@ export const Toolbar = () => {
     const { actions } = context.appStore.getState();
     const { translate } = translationService;
     
-    const isMirrored = cameraService.getCameraManager().isMirrored();
-    const canFlipCamera = cameraService.getCameraManager().canFlipCamera();
-    const isRtsp = cameraService.getCameraManager().isStreamingRtsp();
+    const isMirrored = cameraService.isMirrored();
+    const canFlipCamera = cameraService.canFlipCamera();
+    const isRtsp = cameraService.isStreamingRtsp();
     const isMobile = window.matchMedia('(any-pointer: coarse)').matches;
     
     return (
@@ -32,7 +32,7 @@ export const Toolbar = () => {
                             <span id="toolbar-mirror-icon" ref={el => el && setIcon(el, 'UI_VIDEO_MIRROR')}></span>
                         </button>
                         {canFlipCamera && isMobile && !isRtsp && (
-                            <button id="toolbar-flip-camera-button" onClick={() => cameraService.getCameraManager().flipCamera()} className="btn btn-icon" title={translate('flipCamera')}>
+                            <button id="toolbar-flip-camera-button" onClick={() => cameraService.flipCamera()} className="btn btn-icon" title={translate('flipCamera')}>
                                 <span id="toolbar-flip-camera-icon" ref={el => el && setIcon(el, 'UI_FLIP_CAMERA')}></span>
                             </button>
                         )}

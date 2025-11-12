@@ -2,13 +2,13 @@
 import type { StateCreator } from 'zustand';
 import { produce } from 'immer';
 import { webSocketService } from '#frontend/services/websocket-service.js';
-import { pubsub, UI_EVENTS, type FullConfiguration, type ConfigPatchAckPayload } from '#shared/index.js';
+import { pubsub, UI_EVENTS, type FullConfiguration, type ConfigPatchAckPayload, type EnrichedGestureConfig } from '#shared/index.js';
 
 export interface ConfigSlice {
   // State from FullConfiguration
   globalCooldown: number;
   rtspSources: FullConfiguration['rtspSources'];
-  gestureConfigs: FullConfiguration['gestureConfigs'];
+  gestureConfigs: EnrichedGestureConfig[]; // MODIFIED: Use enriched type
   targetFpsPreference: FullConfiguration['targetFpsPreference'];
   telemetryEnabled: boolean;
   enableCustomHandGestures: boolean;
@@ -26,6 +26,7 @@ export interface ConfigSlice {
 
   actions: {
     setFullConfig: (config: FullConfiguration) => void;
+    setGestureConfigs: (configs: EnrichedGestureConfig[]) => void;
     requestBackendPatch: (patchData: Partial<FullConfiguration>) => Promise<void>;
   };
 }
@@ -54,6 +55,8 @@ export const createConfigSlice: StateCreator<ConfigSlice, [], [], ConfigSlice> =
       Object.assign(draft, config);
     })),
 
+    setGestureConfigs: (configs) => set({ gestureConfigs: configs }),
+
     requestBackendPatch: async (patchData) => {
       if (!webSocketService.isConnected()) {
         pubsub.publish(UI_EVENTS.SHOW_ERROR, { messageKey: 'wsDisconnected', type: 'error' });
@@ -61,10 +64,6 @@ export const createConfigSlice: StateCreator<ConfigSlice, [], [], ConfigSlice> =
       }
       try {
         const result = await webSocketService.request<ConfigPatchAckPayload>('PATCH_CONFIG', patchData, 10000);
-        if (result?.success) {
-          // The backend now broadcasts the full config on successful patch,
-          // so no need to request it again here.
-        }
         if (result?.validationErrors) {
           pubsub.publish(UI_EVENTS.CONFIG_VALIDATION_ERROR, result.validationErrors);
         }

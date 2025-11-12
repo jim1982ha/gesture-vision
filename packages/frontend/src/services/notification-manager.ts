@@ -45,7 +45,6 @@ export class NotificationManager {
     this.#isInitialized = true;
   }
   
-  // --- MEMORY LEAK FIX: Cleanup Logic ---
   destroy(): void {
     this.#subscriptions.forEach(unsub => unsub());
     this.#subscriptions = [];

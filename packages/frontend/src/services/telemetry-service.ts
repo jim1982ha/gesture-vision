@@ -71,7 +71,6 @@ class TelemetryService {
     );
   }
 
-  // --- MEMORY LEAK FIX: Cleanup Logic ---
   destroy() {
     this.#unsubscribeStore();
     this.#subscriptions.forEach(unsub => unsub());

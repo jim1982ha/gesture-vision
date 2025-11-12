@@ -3,7 +3,7 @@ import { sendMessageToClient, sendErrorMessageToClient } from '#backend/utils/in
 import type { HandlerDependencies } from './handler-dependencies.type.js';
 import type WebSocket from 'ws';
 
-import { WEBSOCKET_EVENTS, type WebSocketMessage, type ActionResult, type GestureConfig, type PoseConfig, type ActionDetails } from '#shared/index.js';
+import { WEBSOCKET_EVENTS, type WebSocketMessage, type ActionResult, type GestureConfig, type PoseConfig, type ActionDetails, type PerformanceMetricsPayload } from '#shared/index.js';
 
 export async function dispatchActionHandler(ws: WebSocket, message: WebSocketMessage<unknown>, { actionDispatcher }: HandlerDependencies): Promise<void> {
   const { gestureConfig, details } = (message as WebSocketMessage<{ gestureConfig: GestureConfig | PoseConfig; details: ActionDetails; }>).payload;
@@ -55,4 +55,11 @@ export async function finalizePluginUninstallHandler(ws: WebSocket, message: Web
     return;
   }
   await pluginManagerService!.finalizePluginUninstall(pluginId);
+}
+export async function sendPerformanceMetricsHandler(_ws: WebSocket, message: WebSocketMessage<unknown>, { performanceMonitorService }: HandlerDependencies): Promise<void> {
+    const payload = message.payload as PerformanceMetricsPayload;
+    if (performanceMonitorService) {
+        // Validation is handled on the payload shape in the shared layer, logging as is.
+        await performanceMonitorService.logPerformanceMetrics(payload);
+    }
 }

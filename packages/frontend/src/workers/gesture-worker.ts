@@ -152,6 +152,7 @@ function executeCustomHandGestures(handResults: HandLandmarkerResult): { categor
 function detect(payload: ProcessFramePayload) {
   const { imageBitmap, timestamp, requestSnapshot } = payload;
   if (!imageBitmap || !config || !workerReady) {
+    imageBitmap.close();
     return;
   }
   
@@ -160,33 +161,39 @@ function detect(payload: ProcessFramePayload) {
   let poseLandmarkerResults: PoseLandmarkerResult | undefined;
   let customActionableGestures: { categoryName: string; score: number }[] = [];
 
-  if (handLandmarker && config.enableHandProcessing) {
-    handGestureResults = handLandmarker.recognizeForVideo(imageBitmap, timestamp);
-    customActionableGestures = executeCustomHandGestures(handGestureResults);
-  }
+  try {
+    if (handLandmarker && config.enableHandProcessing) {
+      handGestureResults = handLandmarker.recognizeForVideo(imageBitmap, timestamp);
+      customActionableGestures = executeCustomHandGestures(handGestureResults);
+    }
+  
+    if (poseLandmarker && config.enablePoseProcessing) {
+      poseLandmarkerResults = poseLandmarker.detectForVideo(imageBitmap, timestamp);
+    }
+  
+    const processingTime = performance.now() - startTime;
+    let snapshot: { imageData: ImageData | null; landmarks2d: Landmark[] | null; landmarks3d: Landmark[] | null; } | null = null;
+    if (requestSnapshot) {
+      const offscreen = new OffscreenCanvas(imageBitmap.width, imageBitmap.height);
+      const ctx = offscreen.getContext('2d');
+      ctx?.drawImage(imageBitmap, 0, 0);
+      snapshot = {
+        imageData: ctx?.getImageData(0, 0, offscreen.width, offscreen.height) ?? null,
+        landmarks2d: handGestureResults?.landmarks?.[0] || poseLandmarkerResults?.landmarks?.[0] || null,
+        landmarks3d: handGestureResults?.worldLandmarks?.[0] || poseLandmarkerResults?.worldLandmarks?.[0] || null,
+      };
+    }
+  
+    self.postMessage({
+      type: 'results',
+      results: { handGestureResults, poseLandmarkerResults, customActionableGestures, snapshot },
+      processingTime,
+    });
 
-  if (poseLandmarker && config.enablePoseProcessing) {
-    poseLandmarkerResults = poseLandmarker.detectForVideo(imageBitmap, timestamp);
+  } finally {
+    // Always close the ImageBitmap to release its memory immediately.
+    imageBitmap.close();
   }
-
-  const processingTime = performance.now() - startTime;
-  let snapshot: { imageData: ImageData | null; landmarks2d: Landmark[] | null; landmarks3d: Landmark[] | null; } | null = null;
-  if (requestSnapshot) {
-    const offscreen = new OffscreenCanvas(imageBitmap.width, imageBitmap.height);
-    const ctx = offscreen.getContext('2d');
-    ctx?.drawImage(imageBitmap, 0, 0);
-    snapshot = {
-      imageData: ctx?.getImageData(0, 0, offscreen.width, offscreen.height) ?? null,
-      landmarks2d: handGestureResults?.landmarks?.[0] || poseLandmarkerResults?.landmarks?.[0] || null,
-      landmarks3d: handGestureResults?.worldLandmarks?.[0] || poseLandmarkerResults?.worldLandmarks?.[0] || null,
-    };
-  }
-
-  self.postMessage({
-    type: 'results',
-    results: { handGestureResults, poseLandmarkerResults, customActionableGestures, snapshot },
-    processingTime,
-  });
 }
 
 // --- Message Handling ---
@@ -209,13 +216,12 @@ self.onmessage = async (event: MessageEvent) => {
         return;
       }
 
-      // Run both lifecycle checks in parallel
       await Promise.all([
         manageModelLifecycle('hand', handLandmarker, config.enableHandProcessing, initializeHandLandmarker, handModelNeedsRecreation).then(res => { handLandmarker = res; }),
         manageModelLifecycle('pose', poseLandmarker, config.enablePoseProcessing, initializePoseLandmarker, poseModelNeedsRecreation).then(res => { poseLandmarker = res; })
       ]);
       
-      workerReady = true; // All models are configured, worker is ready
+      workerReady = true;
       self.postMessage({ type: 'worker_ready' });
       break;
     }

@@ -2,7 +2,7 @@
 import type { AppStore } from '#frontend/core/state/app-store.js';
 import type { HistoryEntry } from '#frontend/types/index.js';
 import { webSocketService } from '#frontend/services/websocket-service.js';
-import { getGestureDisplayInfo, type ActionConfig, type CustomGestureMetadata, type GestureConfig, type PoseConfig } from '#shared/index.js';
+import { getGestureDisplayInfo, type ActionConfig, type CustomGestureMetadata, type GestureConfig, type PoseConfig, type GestureCategoryIconType } from '#shared/index.js';
 
 export class GestureActionHandler {
     #appStore: AppStore;
@@ -26,7 +26,7 @@ export class GestureActionHandler {
             webSocketService.sendDispatchAction(config, actionDetails);
         }
 
-        const historyEntryPayload: Partial<HistoryEntry> = { gesture: gestureName, actionType: pluginId, gestureCategory: gestureCategory, details: config.actionConfig };
+        const historyEntryPayload: Partial<HistoryEntry> = { gesture: gestureName, actionType: pluginId, gestureCategory: gestureCategory as GestureCategoryIconType, details: config.actionConfig };
         this.#appStore.getState().actions.addHistoryEntry(historyEntryPayload);
     }
 }

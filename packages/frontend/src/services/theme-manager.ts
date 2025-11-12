@@ -72,7 +72,6 @@ export default class ThemeManager {
 
     // Subscribe to the app initialized event to run a final color check.
     this.#appInitSubscription = pubsub.subscribe(UI_EVENTS.APP_INITIALIZED, () => {
-      console.log("[ThemeManager] App initialized. Running final theme color update.");
       this.#updateDeviceThemeColors();
     });
 
@@ -131,7 +130,6 @@ export default class ThemeManager {
       mql.addListener(this.#systemThemeChangeHandler);
   }
   
-  // --- MEMORY LEAK FIX: Cleanup Logic ---
   // Unsubscribes from the store, pubsub, and system media query listeners.
   destroy(): void {
     this.#unsubscribeStore();
@@ -157,7 +155,6 @@ export default class ThemeManager {
   #updateDeviceThemeColors(): void {
     try {
       const surfaceHslString = getComputedStyle(document.documentElement).getPropertyValue('--color-surface').trim();
-      console.log(`[ThemeManager TRACE] Active theme: ${document.documentElement.dataset.theme}. Reading '--color-surface':`, surfaceHslString);
       
       let hexColor = '#ffffff'; // Default fallback
 
@@ -165,11 +162,9 @@ export default class ThemeManager {
         const hslValues = surfaceHslString.match(/(\d+(\.\d+)?)/g);
         if (hslValues && hslValues.length >= 3) {
             const [h, s, l] = hslValues.map(parseFloat);
-            console.log(`[ThemeManager TRACE] Parsed HSL values: h=${h}, s=${s}, l=${l}`);
             hexColor = hslToHex(h, s, l);
-            console.log(`[ThemeManager TRACE] Converted to HEX: ${hexColor}. Applying to <meta name="theme-color">.`);
         } else {
-           console.warn(`[ThemeManager TRACE] Could not parse HSL values from '${surfaceHslString}'. Falling back to default.`);
+           console.warn(`[ThemeManager] Could not parse HSL values from '${surfaceHslString}'. Falling back to default.`);
         }
       }
       

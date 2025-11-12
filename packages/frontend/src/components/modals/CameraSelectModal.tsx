@@ -4,24 +4,27 @@ import { AppContext } from '#frontend/contexts/AppContext.js';
 import { useAppStore } from '#frontend/hooks/useAppStore.js';
 import { pubsub, CAMERA_SOURCE_EVENTS, normalizeNameForMtx, type GestureCategoryIconType } from '#shared/index.js';
 import { setIcon } from '#frontend/ui/helpers/ui-helpers.js';
+import { Modal } from '#frontend/components/shared/Modal.js';
 
 const CameraListItem = ({ id, label }: { id: string, label: string }) => {
     const context = useContext(AppContext);
-    const { streamStatus } = useAppStore(state => ({ streamStatus: state.streamStatus }));
+    const { streamStatus, actions } = useAppStore(state => ({
+        streamStatus: state.streamStatus,
+        actions: state.actions,
+    }));
     
-    if (!context) return null;
+    if (!context || !context.services.cameraService) return null;
 
     const { translate } = context.services.translationService;
     const { cameraService } = context.services;
-    const { actions } = context.appStore.getState();
 
     const isRtsp = id.startsWith("rtsp:");
     const status = isRtsp ? streamStatus.get(normalizeNameForMtx(id.substring(5))) || "unknown" : undefined;
     const iconKey: GestureCategoryIconType = isRtsp ? "UI_RTSP_STREAM" : "UI_WEBCAM";
 
     const handleClick = () => {
-        cameraService?.getCameraManager().getCameraSourceManager().setSelectedCameraSource(id);
-        cameraService?.startStream({ cameraId: id });
+        cameraService.setSelectedCameraSource(id);
+        cameraService.startStream({ cameraId: id });
         actions.closeCurrentOverlay();
     };
 
@@ -42,13 +45,17 @@ const CameraListItem = ({ id, label }: { id: string, label: string }) => {
 
 export const CameraSelectModal = () => {
     const context = useContext(AppContext);
+    const { actions, activeModalId } = useAppStore(state => ({
+        actions: state.actions,
+        activeModalId: state.activeOverlays.at(-1)?.id,
+    }));
     const [deviceMap, setDeviceMap] = useState<Map<string, string>>(new Map());
 
     useEffect(() => {
         const updateMap = (map: unknown) => setDeviceMap(new Map(map as Map<string, string>));
         const unsubscribe = pubsub.subscribe(CAMERA_SOURCE_EVENTS.MAP_UPDATED, updateMap);
         
-        context?.services.cameraService?.getCameraManager().getCameraSourceManager().refreshDeviceList();
+        context?.services.cameraService?.refreshDeviceList();
 
         return () => unsubscribe();
     }, [context?.services.cameraService]);
@@ -57,21 +64,19 @@ export const CameraSelectModal = () => {
 
     const { translationService } = context.services;
     const { translate } = translationService;
-    const { actions } = context.appStore.getState();
     
     const sortedDevices = [...deviceMap.entries()].sort((a, b) => a[1].localeCompare(b[1]));
 
     return (
-        <div id="cameraSelectModal" className="modal visible" role="dialog" aria-modal="true">
-            <div id="camera-select-modal-content" className="modal-content">
-                <div id="camera-select-modal-header" className="modal-header">
-                    <span ref={el => el && setIcon(el, 'UI_WEBCAM')} className="material-icons header-icon"></span>
-                    <span id="camera-select-modal-title" className="header-title">{translate('selectCameraSource')}</span>
-                    <button id="camera-select-modal-close-button" onClick={() => actions.closeCurrentOverlay()} className="btn btn-icon header-close-btn" title={translate('close')}>
-                        <span ref={el => el && setIcon(el, 'UI_CLOSE')}></span>
-                    </button>
-                </div>
-                <ul id="camera-select-modal-list" className="modal-scrollable-content p-4 flex flex-col gap-2">
+        <Modal
+            id="cameraSelectModal"
+            title={translate('selectCameraSource')}
+            iconKey="UI_WEBCAM"
+            onClose={() => actions.closeCurrentOverlay()}
+            show={activeModalId === 'cameraSelect'}
+        >
+            <div className="modal-scrollable-content p-4">
+                <ul id="camera-select-modal-list" className="flex flex-col gap-2">
                     {sortedDevices.length > 0 ? (
                         sortedDevices.map(([id, label]) => <CameraListItem key={id} id={id} label={label} />)
                     ) : (
@@ -79,6 +84,6 @@ export const CameraSelectModal = () => {
                     )}
                 </ul>
             </div>
-        </div>
+        </Modal>
     );
 };

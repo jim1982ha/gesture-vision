@@ -5,3 +5,4 @@ export * from './api.schemas.js';
 export * from './config.schemas.js';
 export * from './plugin.schemas.js';
 export * from './ws.schemas.js';
+export * from './ui.schemas.js';

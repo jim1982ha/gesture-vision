@@ -59,7 +59,7 @@ export function Header() {
     );
 
     return (
-        <header id="app-header" className="relative z-header flex h-14 flex-shrink-0 items-center justify-between border-b px-3">
+        <header id="app-header" className="relative z-header flex h-14 flex-shrink-0 items-center justify-between px-3">
             <div id="header-brand-container" className="flex flex-shrink-0 items-center gap-2">
                 <div id="header-status-indicator" ref={wsStatusRef} className="status-indicator flex items-center cursor-pointer" onClick={openAboutModal}></div>
                 <div id="header-title-container" className="hidden items-center overflow-hidden desktop:flex cursor-pointer" onClick={openAboutModal}>

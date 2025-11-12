@@ -4,11 +4,11 @@ import { AppContext } from '#frontend/contexts/AppContext.js';
 import { useAppStore } from '#frontend/hooks/useAppStore.js';
 import { DEFAULT_GESTURE_CONFIDENCE, DEFAULT_GESTURE_DURATION_S, DEFAULT_ACTION_PLUGIN_ID_NONE } from '#frontend/constants/index.js';
 import { setIcon } from '#frontend/ui/helpers/ui-helpers.js';
-import { BUILT_IN_HAND_GESTURES, getGestureDisplayInfo, type GestureConfig, type PoseConfig, type PluginManifest, type ActionSettingFieldDescriptor } from '#shared/index.js';
+import { type GestureConfig, type PoseConfig, type PluginManifest, type ActionSettingFieldDescriptor, type EnrichedGestureConfig } from '#shared/index.js';
 import { FormField } from './FormField.js';
 
 interface GestureConfigFormProps {
-  editingConfig: GestureConfig | PoseConfig | null;
+  editingConfig: EnrichedGestureConfig | null;
   onSave: (config: GestureConfig | PoseConfig) => void;
   onCancel: () => void;
 }
@@ -52,57 +52,33 @@ export const GestureConfigForm = ({ editingConfig, onSave, onCancel }: GestureCo
         enablePoseProcessing: state.enablePoseProcessing,
     }));
   
-    const [formData, setFormData] = useState<Partial<GestureConfig & PoseConfig>>({
-      confidence: DEFAULT_GESTURE_CONFIDENCE,
-      duration: DEFAULT_GESTURE_DURATION_S,
-      actionConfig: null,
-    });
+    const [formData, setFormData] = useState<Partial<EnrichedGestureConfig>>({});
 
     const availableActionPlugins = useMemo(() => pluginManifests.filter(m => m.capabilities.providesActions && m.status === 'enabled'), [pluginManifests]);
     
-    const normalizeForCompare = (name: string): string => name.toUpperCase().replace(/[\s-]/g, '_');
-
     const availableGestures = useMemo(() => {
-        const usedNames = new Set(gestureConfigs.map(c => normalizeForCompare('gesture' in c ? c.gesture : c.pose)));
-        const editingName = editingConfig ? normalizeForCompare('gesture' in editingConfig ? editingConfig.gesture : editingConfig.pose) : null;
+        const usedNames = new Set(gestureConfigs.map(c => c.display.name));
+        const editingName = editingConfig?.display.name;
         
-        const options: { name: string; type: string }[] = [];
-      
-        if (enableBuiltInHandGestures) {
-            (BUILT_IN_HAND_GESTURES as readonly string[]).forEach(g => {
-                if (g !== 'NONE' && (!usedNames.has(g) || g === editingName)) {
-                    options.push({ name: g, type: 'BUILT_IN_HAND' });
-                }
-            });
-        }
-        if (enableCustomHandGestures) {
-            customGestureMetadataList.filter(m => m.type !== 'pose').forEach(m => {
-                const normalizedCustomName = normalizeForCompare(m.name);
-                if (!usedNames.has(normalizedCustomName) || normalizedCustomName === editingName) {
-                    options.push({ name: m.name, type: 'CUSTOM_HAND' });
-                }
-            });
-        }
-        if (enablePoseProcessing) {
-            customGestureMetadataList.filter(m => m.type === 'pose').forEach(m => {
-                const normalizedCustomName = normalizeForCompare(m.name);
-                if (!usedNames.has(normalizedCustomName) || normalizedCustomName === editingName) {
-                    options.push({ name: m.name, type: 'CUSTOM_POSE' });
-                }
-            });
-        }
-      
-        return options.sort((a, b) => a.name.localeCompare(b.name));
+        return customGestureMetadataList
+            .filter(g => {
+                if (g.display.category === 'BUILT_IN_HAND' && !enableBuiltInHandGestures) return false;
+                if (g.display.category === 'CUSTOM_HAND' && !enableCustomHandGestures) return false;
+                if (g.display.category === 'CUSTOM_POSE' && !enablePoseProcessing) return false;
+                return !usedNames.has(g.name) || g.name === editingName;
+            })
+            .sort((a, b) => a.name.localeCompare(b.name));
     }, [gestureConfigs, customGestureMetadataList, enableBuiltInHandGestures, enableCustomHandGestures, enablePoseProcessing, editingConfig]);
 
     useEffect(() => {
-        const gestureName = editingConfig ? ('gesture' in editingConfig ? editingConfig.gesture : editingConfig.pose) : undefined;
         setFormData({
-            ...editingConfig,
-            ...(editingConfig && 'pose' in editingConfig ? { pose: gestureName, gesture: undefined } : { gesture: gestureName, pose: undefined }),
             confidence: editingConfig?.confidence ?? DEFAULT_GESTURE_CONFIDENCE,
             duration: editingConfig?.duration ?? DEFAULT_GESTURE_DURATION_S,
             actionConfig: editingConfig?.actionConfig ?? null,
+            ...(editingConfig?.display.category === 'CUSTOM_POSE'
+                ? { pose: editingConfig.display.name }
+                : { gesture: editingConfig?.display.name }),
+            display: editingConfig?.display,
         });
     }, [editingConfig]);
   
@@ -110,12 +86,23 @@ export const GestureConfigForm = ({ editingConfig, onSave, onCancel }: GestureCo
 
     const handleGestureSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const gestureName = e.target.value;
-        const type = e.target.options[e.target.selectedIndex].dataset.type;
-        setFormData(prev => ({ ...prev, ...(type === 'CUSTOM_POSE' ? { pose: gestureName, gesture: undefined } : { gesture: gestureName, pose: undefined }) }));
+        const selectedGesture = availableGestures.find(g => g.name === gestureName);
+        if (!selectedGesture) return;
+
+        setFormData(prev => ({ 
+            ...prev,
+            ...(selectedGesture.display.category === 'CUSTOM_POSE' ? { pose: gestureName, gesture: undefined } : { gesture: gestureName, pose: undefined }),
+            display: selectedGesture.display
+        }));
     };
   
-    const handleSave = () => { if (formData.gesture || formData.pose) onSave(formData as GestureConfig | PoseConfig); };
-    const gestureName = formData.gesture || formData.pose;
+    const handleSave = () => {
+        const { display: _display, ...configToSave } = formData;
+        if (('gesture' in configToSave && configToSave.gesture) || ('pose' in configToSave && configToSave.pose)) {
+            onSave(configToSave as GestureConfig | PoseConfig);
+        }
+    };
+    const gestureName = formData.display?.name;
   
     return (
         <form id="gestureConfigForm" onSubmit={e => e.preventDefault()}>
@@ -125,10 +112,11 @@ export const GestureConfigForm = ({ editingConfig, onSave, onCancel }: GestureCo
                     <option id="gesture-config-form-gesture-select-default-option" value="NONE" disabled>
                         {availableGestures.length === 0 && !editingConfig ? translate('allGesturesConfiguredPlaceholder') : translate('selectGesture')}
                     </option>
-                    {availableGestures.map(opt => {
-                        const { iconDetails, formattedName } = getGestureDisplayInfo(opt.name, customGestureMetadataList);
-                        return <option key={opt.name} id={`gesture-select-option-${opt.name}`} value={opt.name} data-type={opt.type}>{iconDetails.defaultEmoji} {translate(formattedName, {defaultValue: formattedName})}</option>;
-                    })}
+                    {availableGestures.map(g => (
+                        <option key={g.name} id={`gesture-select-option-${g.name}`} value={g.name}>
+                            {g.display.iconDetails.defaultEmoji} {g.display.formattedName}
+                        </option>
+                    ))}
                 </select>
             </div>
             <div className="form-row">

@@ -1,7 +1,7 @@
 /* FILE: packages/backend/src/websocket-router.ts */
 import type WebSocket from 'ws';
 import { WEBSOCKET_EVENTS, type WebSocketMessage } from "#shared/index.js";
-import { dispatchActionHandler, rtspConnectRequestHandler, rtspDisconnectRequestHandler, finalizePluginUninstallHandler } from "./websocket-handlers/core-handlers.js";
+import { dispatchActionHandler, rtspConnectRequestHandler, rtspDisconnectRequestHandler, finalizePluginUninstallHandler, sendPerformanceMetricsHandler } from "./websocket-handlers/core-handlers.js";
 import { getPluginGlobalConfigHandler, patchConfigHandler, patchPluginGlobalConfigHandler } from "./websocket-handlers/config-message-handler.js";
 import { deleteCustomGestureHandler, getCustomGesturesMetadataHandler, updateCustomGestureHandler, uploadCustomGestureHandler } from "./websocket-handlers/custom-gesture-message-handler.js";
 import type { HandlerDependencies } from './websocket-handlers/handler-dependencies.type.js';
@@ -60,6 +60,7 @@ export class WebSocketRouter {
             [WEBSOCKET_EVENTS.RTSP_CONNECT_REQUEST]: withDependencies(['mtxMonitorService', 'configService'], rtspConnectRequestHandler),
             [WEBSOCKET_EVENTS.RTSP_DISCONNECT_REQUEST]: withDependencies(['mtxMonitorService'], rtspDisconnectRequestHandler),
             [WEBSOCKET_EVENTS.FINALIZE_UNINSTALL]: withDependencies(['pluginManagerService'], finalizePluginUninstallHandler),
+            [WEBSOCKET_EVENTS.SEND_PERFORMANCE_METRICS]: withDependencies(['performanceMonitorService'], sendPerformanceMetricsHandler),
         };
         for (const [type, handler] of Object.entries(handlers)) {
             this.#handlers.set(type, handler);

@@ -17,12 +17,10 @@ export const PluginManifestSchema = z.object({
     capabilities: z.object({
       hasGlobalSettings: z.boolean().optional(),
       providesActions: z.boolean().optional(),
-      providesTab: z.boolean().optional(),
       providesUIContribution: z.boolean().optional(),
       canTestConnection: z.boolean().optional(),
     }),
     globalConfigFileName: z.string().optional(),
-    defaultGlobalConfigPath: z.string().optional(),
     backendEntry: z.string().optional(),
     frontendEntry: z.string().optional(),
     hasFrontendStyle: z.boolean().optional(),
@@ -47,10 +45,7 @@ export const ActionSettingFieldDescriptorSchema = z.object({
     helpTextKey: z.string().optional(),
     required: z.boolean().optional(),
     rows: z.number().optional(),
-    // Use z.any() to prevent Zod from inferring a restrictive function signature (e.g., (...args: never[]) => unknown)
-    // TypeScript will provide the strong typing on the implementation side.
     optionsSource: z.any().optional(),
-    searchable: z.boolean().optional(),
     dependsOn: z.union([
       z.array(z.string()),
       z.object({
@@ -58,7 +53,6 @@ export const ActionSettingFieldDescriptorSchema = z.object({
         value: z.any(),
       }),
     ]).optional(),
-    autocomplete: z.enum(['on', 'off', 'name', 'email', 'username', 'new-password', 'current-password', 'url']).optional(),
 });
 export type ActionSettingFieldDescriptor = z.infer<typeof ActionSettingFieldDescriptorSchema>;
 

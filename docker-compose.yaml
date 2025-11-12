@@ -1,5 +1,4 @@
-# FILE: docker-compose.yaml
-# docker-compose.yaml - For Production Deployment (REFACTORED for simplified environment)
+# FILE: docker-compose.yaml - For Production Deployment
 
 services:
   gesturevision-prod:
@@ -28,6 +27,7 @@ services:
     volumes:
       - ./config/config.prod.json:/app/config.json:rw
       - ./extensions:/app/extensions:rw
+      - ./logs:/app/logs:rw
     env_file:
       - ./config/.env.prod
     environment:

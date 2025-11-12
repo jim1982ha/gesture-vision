@@ -3,8 +3,7 @@ import type { StateCreator } from 'zustand';
 import { produce } from 'immer';
 import { MAX_HISTORY_ITEMS } from '#frontend/constants/index.js';
 import type { HistoryEntry } from '#frontend/types/index.js';
-import type { ActionResultPayload } from '#shared/index.js';
-import { pubsub, UI_EVENTS } from '#shared/index.js';
+import { pubsub, UI_EVENTS, type ActionResultPayload, type EnrichedCustomGestureMetadata, type GestureCategoryIconType } from '#shared/index.js';
 
 export interface HistorySlice {
   historyEntries: HistoryEntry[];
@@ -15,20 +14,26 @@ export interface HistorySlice {
   };
 }
 
-export const createHistorySlice: StateCreator<HistorySlice, [], [], HistorySlice> = (set, get) => ({
+export const createHistorySlice: StateCreator<HistorySlice & { customGestureMetadataList: EnrichedCustomGestureMetadata[] }, [], [], HistorySlice> = (set, get) => ({
   historyEntries: [],
   actions: {
     addHistoryEntry: (entry) => {
       if (!entry?.gesture) return;
+
+      const customMetadataList = get().customGestureMetadataList;
+      const displayInfo = customMetadataList.find(m => m.name === entry.gesture)?.display;
+      if (!displayInfo) return;
+
       const newEntry: HistoryEntry = {
         id: entry.id || `${Date.now()}-${Math.random().toString(16).substring(2)}`,
         timestamp: entry.timestamp instanceof Date ? entry.timestamp : new Date(entry.timestamp || Date.now()),
         gesture: entry.gesture,
         actionType: entry.actionType || 'none',
-        gestureCategory: entry.gestureCategory || 'UNKNOWN',
+        gestureCategory: displayInfo.category as GestureCategoryIconType,
         success: entry.success,
         reason: entry.reason || (entry.actionType !== 'none' ? 'AWAITING_RESULT' : null),
         details: entry.details,
+        display: displayInfo,
       };
       set(produce((draft: HistorySlice) => {
         draft.historyEntries.unshift(newEntry);
@@ -40,18 +45,15 @@ export const createHistorySlice: StateCreator<HistorySlice, [], [], HistorySlice
 
     handleBackendActionResult: (result) => {
       if (!result?.gestureName || result.pluginId === 'none') return;
-      let entryUpdated = false;
-      const currentHistory = get().historyEntries;
-
-      const newHistory = currentHistory.map(entry => {
-        if (!entryUpdated && entry.gesture === result.gestureName && entry.actionType === result.pluginId && entry.reason === 'AWAITING_RESULT') {
-          entryUpdated = true;
+      
+      const newHistory = get().historyEntries.map(entry => {
+        if (entry.gesture === result.gestureName && entry.actionType === result.pluginId && entry.reason === 'AWAITING_RESULT') {
           return { ...entry, success: result.success, reason: result.message || (result.success ? 'OK' : 'FAILED') };
         }
         return entry;
       });
 
-      if (entryUpdated) {
+      if (newHistory.length > 0 && newHistory[0] !== get().historyEntries[0]) {
         set({ historyEntries: newHistory });
       }
       

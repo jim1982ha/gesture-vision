@@ -1,6 +1,6 @@
 /* FILE: packages/frontend/src/components/shared/Tabs.tsx */
-import { useState, type ReactNode } from 'react';
-import { setIcon } from '#frontend/ui/helpers/ui-helpers.js';
+import { type ReactNode } from 'react';
+import { setIcon, clsx } from '#frontend/ui/helpers/ui-helpers.js';
 import type { GestureCategoryIconType } from '#shared/index.js';
 
 export interface Tab {
@@ -8,19 +8,17 @@ export interface Tab {
   label: string;
   icon: GestureCategoryIconType | string;
   component: ReactNode;
+  disabled?: boolean;
 }
 
 interface TabsProps {
   tabs: Tab[];
   onTabChange: (tabKey: string) => void;
-  defaultTab?: string;
+  activeTab: string;
 }
 
-export function Tabs({ tabs, onTabChange, defaultTab }: TabsProps) {
-  const [activeTab, setActiveTab] = useState(defaultTab || (tabs.length > 0 ? tabs[0].key : ''));
-
+export function Tabs({ tabs, onTabChange, activeTab }: TabsProps) {
   const handleTabChange = (key: string) => {
-    setActiveTab(key);
     onTabChange(key);
   };
 
@@ -35,7 +33,7 @@ export function Tabs({ tabs, onTabChange, defaultTab }: TabsProps) {
           onChange={(e) => handleTabChange(e.target.value)}
         >
           {tabs.map(tab => (
-            <option key={tab.key} value={tab.key}>{tab.label}</option>
+            <option key={tab.key} value={tab.key} disabled={tab.disabled}>{tab.label}</option>
           ))}
         </select>
       </div>
@@ -49,8 +47,9 @@ export function Tabs({ tabs, onTabChange, defaultTab }: TabsProps) {
           <button
             id={`settings-tab-nav-button-${tab.key}`}
             key={tab.key}
-            className={`btn settings-tab-nav-button ${activeTab === tab.key ? 'active' : ''}`}
+            className={clsx('btn settings-tab-nav-button', activeTab === tab.key && 'active')}
             onClick={() => handleTabChange(tab.key)}
+            disabled={tab.disabled}
           >
             <span ref={el => el && setIcon(el, tab.icon)} className="material-icons"></span>
             <span>{tab.label}</span>
@@ -58,13 +57,19 @@ export function Tabs({ tabs, onTabChange, defaultTab }: TabsProps) {
         ))}
       </nav>
 
-      {/* Tab Content Area */}
+      {/* Tab Content Area - Renders ALL tab components but only shows the active one */}
       <div id="settingsTabContentContainer" className="modal-scrollable-content flex-1 min-h-0 flex flex-col">
-        {tabs.map(tab => (
-          <div key={tab.key} className={`settings-tab-content ${activeTab === tab.key ? 'active' : ''}`} data-tab-content={tab.key}>
-            {tab.component}
-          </div>
-        ))}
+          {tabs.map(tab => (
+            <div
+              key={tab.key}
+              id={`settings-tab-content-${tab.key}`}
+              className={clsx('settings-tab-content', activeTab === tab.key && 'active')}
+              role="tabpanel"
+              aria-labelledby={`settings-tab-nav-button-${tab.key}`}
+            >
+              {tab.component}
+            </div>
+          ))}
       </div>
     </div>
   );

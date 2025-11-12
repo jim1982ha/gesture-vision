@@ -9,7 +9,7 @@
 
   #app-header {
     background-color: hsl(var(--color-surface));
-    border-color: hsl(var(--color-border));
+    border-bottom: 1px solid hsl(var(--color-border));
     box-shadow: var(--shadow-depth-sm);
   }
   
@@ -74,6 +74,17 @@
   .video-container video.mirrored {
     transform: scaleX(-1);
   }
+  
+  /* Hide overlays when video element is moved out */
+  .video-container.video-reparented > *:not(#webcam):not(#output_canvas) {
+    @apply hidden;
+  }
+
+  /* Style for video/canvas elements when they are moved to a plugin placeholder */
+  .reparented-video-feed {
+    @apply absolute top-0 left-0 w-full h-full object-cover;
+  }
+
 
   /* --- Mobile Kebab Menu --- */
   #header-kebab-menu-panel {

@@ -15,4 +15,7 @@
       display: inline;
     }
   }
+  .mirrored {
+    transform: scaleX(-1);
+  }
 }

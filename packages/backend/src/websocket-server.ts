@@ -10,6 +10,7 @@ import type { ConfigService } from './services/config.service.js';
 import { PluginManagerService } from './services/plugin-manager.service.js';
 import type { MtxMonitorService } from './services/mtx-monitor.service.js';
 import type { ActionDispatcherService } from './services/action-dispatcher.service.js';
+import type { PerformanceMonitorService } from './services/performance-monitor.service.js';
 
 interface AppWebSocket extends WebSocket { isAlive?: boolean; }
 
@@ -62,8 +63,8 @@ const eventBroadcastMap: Record<string, (data: unknown) => void> = {
   }
 };
 
-export function initializeWebSocketServer(server: http.Server, configService: ConfigService, pluginManagerService: PluginManagerService, mtxMonitorService: MtxMonitorService | null, actionDispatcher: ActionDispatcherService | null): WebSocketServer {
-  const dependencies: HandlerDependencies = { configService, pluginManagerService, mtxMonitorService, actionDispatcher };
+export function initializeWebSocketServer(server: http.Server, configService: ConfigService, pluginManagerService: PluginManagerService, mtxMonitorService: MtxMonitorService | null, actionDispatcher: ActionDispatcherService | null, performanceMonitorService: PerformanceMonitorService | null): WebSocketServer {
+  const dependencies: HandlerDependencies = { configService, pluginManagerService, mtxMonitorService, actionDispatcher, performanceMonitorService };
   router = new WebSocketRouter(dependencies);
   wss = new WebSocketServer({ server });
 

@@ -1,7 +1,7 @@
 /* FILE: packages/shared/utils/ui-helpers.ts */
 // Pure, non-DOM display logic for gestures. Safe for frontend and backend.
 
-import { GESTURE_CATEGORY_ICONS, BUILT_IN_HAND_GESTURES, type GestureCategoryIconType, type CustomGestureMetadata } from '#shared/index.js';
+import { GESTURE_CATEGORY_ICONS, BUILT_IN_HAND_GESTURES, type GestureCategoryIconType, type CustomGestureMetadata, type GestureDisplayInfo } from '#shared/index.js';
 
 /**
  * Derives comprehensive display information for a gesture from its name.
@@ -10,7 +10,7 @@ import { GESTURE_CATEGORY_ICONS, BUILT_IN_HAND_GESTURES, type GestureCategoryIco
  * @param customMetaList - A list of metadata for all loaded custom gestures.
  * @returns An object containing the original name, formatted name, category, and icon details.
  */
-export function getGestureDisplayInfo(gestureName: string, customMetaList: CustomGestureMetadata[]): { name: string; formattedName: string; category: GestureCategoryIconType; iconDetails: { iconName: string; iconType: string; defaultEmoji?: string; }; } {
+export function getGestureDisplayInfo(gestureName: string, customMetaList: CustomGestureMetadata[]): GestureDisplayInfo {
   if (!gestureName || typeof gestureName !== 'string') {
     const unknownIconDetails = GESTURE_CATEGORY_ICONS.UNKNOWN;
     return { name: 'Unknown', formattedName: 'Unknown', category: 'UNKNOWN', iconDetails: unknownIconDetails };

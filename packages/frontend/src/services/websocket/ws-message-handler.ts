@@ -1,9 +1,10 @@
 /* FILE: packages/frontend/src/services/websocket/ws-message-handler.ts */
-import { UI_EVENTS, WEBSOCKET_EVENTS } from "#shared/index.js";
+import { UI_EVENTS, WEBSOCKET_EVENTS, type FullConfiguration, type InitialStatePayload, type CustomGestureMetadata } from "#shared/index.js";
 import { handlePongLogic } from "./ws-lifecycle.js";
 import { appStore, type AppStoreActionsWithHydration } from '#frontend/core/state/app-store.js';
+import { enrichGestureConfigs, enrichCustomGestureMetadata } from '#frontend/core/state/utils/enrichment.utils.js';
 
-import type { WebSocketMessage, ErrorPayload, ActionResultPayload, StreamStatusPayload, InitialStatePayload, CustomGestureMetadata, FullConfiguration, PluginManifest, ConfigPatchAckPayload, UploadCustomGestureAckPayload, UpdateCustomGestureAckPayload, DeleteCustomGestureAckPayload, PluginTestConnectionResultPayload } from "#shared/index.js";
+import type { WebSocketMessage, ErrorPayload, ActionResultPayload, StreamStatusPayload, PluginManifest, ConfigPatchAckPayload, UploadCustomGestureAckPayload, UpdateCustomGestureAckPayload, DeleteCustomGestureAckPayload, PluginTestConnectionResultPayload } from "#shared/index.js";
 import type { WebSocketService } from "../websocket-service.js";
 import { pubsub } from "#shared/core/pubsub.js";
 
@@ -41,9 +42,7 @@ export function handleWsMessageLogic(this: WebSocketService, rawData: string | A
     if (PENDING_REQUEST_RESPONSE_TYPES.includes(message.type)) {
         request.resolve(message.payload as PendingRequestPayload);
     } else {
-        const errorMsg = `Unexpected response type ${message.type} for request ID ${message.messageId}`;
-        console.warn(`[WS MsgHandler] ${errorMsg}. Rejecting promise.`);
-        request.reject(new Error(errorMsg));
+        request.reject(new Error(`Unexpected response type ${message.type} for request ID ${message.messageId}`));
     }
     return;
   }
@@ -53,12 +52,24 @@ export function handleWsMessageLogic(this: WebSocketService, rawData: string | A
   switch (message.type) {
     case WEBSOCKET_EVENTS.INITIAL_STATE:
       (actions as AppStoreActionsWithHydration).setInitialState(message.payload as InitialStatePayload);
-      // --- MODIFICATION: Signal that the initial state has been loaded ---
       pubsub.publish(UI_EVENTS.INITIAL_STATE_LOADED);
       break;
-    case WEBSOCKET_EVENTS.FULL_CONFIG_UPDATE: actions.setFullConfig((message.payload as { config: FullConfiguration }).config); break;
+    case WEBSOCKET_EVENTS.FULL_CONFIG_UPDATE: {
+        const config = (message.payload as { config: FullConfiguration }).config;
+        actions.setFullConfig(config);
+        const enrichedConfigs = enrichGestureConfigs(config.gestureConfigs, appStore.getState().customGestureMetadataList);
+        actions.setGestureConfigs(enrichedConfigs);
+        break;
+    }
     case WEBSOCKET_EVENTS.PLUGINS_MANIFESTS_UPDATED: actions.setPluginManifests((message.payload as { manifests: PluginManifest[] }).manifests); break;
-    case WEBSOCKET_EVENTS.BACKEND_CUSTOM_GESTURES_METADATA_LIST: actions.setCustomGestureMetadata((message.payload as { definitions: CustomGestureMetadata[] }).definitions); break;
+    case WEBSOCKET_EVENTS.BACKEND_CUSTOM_GESTURES_METADATA_LIST: {
+        const metadata = (message.payload as { definitions: CustomGestureMetadata[] }).definitions;
+        const enrichedMetadata = enrichCustomGestureMetadata(metadata);
+        actions.setCustomGestureMetadata(enrichedMetadata);
+        const currentConfigs = appStore.getState().gestureConfigs;
+        actions.setGestureConfigs(enrichGestureConfigs(currentConfigs, enrichedMetadata));
+        break;
+    }
     case WEBSOCKET_EVENTS.BACKEND_UPLOAD_CUSTOM_GESTURE_ACK: this._publishEvent(message.type, message.payload as UploadCustomGestureAckPayload); break;
     case WEBSOCKET_EVENTS.BACKEND_DELETE_CUSTOM_GESTURE_ACK: this._publishEvent(message.type, message.payload as DeleteCustomGestureAckPayload); break;
     case WEBSOCKET_EVENTS.PLUGIN_CONFIG_UPDATED: {

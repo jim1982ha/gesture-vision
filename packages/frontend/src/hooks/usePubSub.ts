@@ -11,15 +11,11 @@ import { pubsub } from '#shared/index.js';
  */
 export function usePubSub<T>(eventName: string): T | undefined {
   const [data, setData] = useState<T | undefined>(undefined);
-  // FIX: Add a dummy state that we can update to guarantee a re-render.
   const [, setTick] = useState(0);
 
   useEffect(() => {
     const handleEvent = (eventData: unknown) => {
       setData(eventData as T);
-      // FIX: Also increment the tick state. If eventData is undefined and the
-      // previous state was also undefined, React would skip the re-render.
-      // This ensures the component always updates.
       setTick(t => t + 1);
     };
     const unsubscribe = pubsub.subscribe(eventName, handleEvent);

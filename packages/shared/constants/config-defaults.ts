@@ -1,4 +1,3 @@
-/* FILE: packages/shared/constants/config-defaults.ts */
 // Single source of truth for all application configuration defaults.
 
 export const DEFAULT_GLOBAL_COOLDOWN = 2.0;

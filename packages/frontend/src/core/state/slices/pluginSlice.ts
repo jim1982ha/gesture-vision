@@ -1,20 +1,20 @@
 /* FILE: packages/frontend/src/core/state/slices/pluginSlice.ts */
 import type { StateCreator } from 'zustand';
 import { produce } from 'immer';
-import { pubsub, PLUGIN_CONFIG_UPDATED_EVENT_PREFIX, type PluginManifest, type CustomGestureMetadata } from '#shared/index.js';
+import { pubsub, PLUGIN_CONFIG_UPDATED_EVENT_PREFIX, type PluginManifest, type EnrichedCustomGestureMetadata } from '#shared/index.js';
 
 export interface PluginSlice {
   pluginManifests: PluginManifest[];
   pluginGlobalConfigs: Map<string, unknown>;
   pluginExtDataCache: Map<string, unknown>;
-  customGestureMetadataList: CustomGestureMetadata[];
+  customGestureMetadataList: EnrichedCustomGestureMetadata[];
 
   actions: {
     setPluginManifests: (manifests: PluginManifest[]) => void;
     setPluginGlobalConfig: (pluginId: string, config: unknown) => void;
     setPluginExtData: (pluginId: string, data: unknown) => void;
     clearPluginExtData: (pluginId: string) => void;
-    setCustomGestureMetadata: (metadata: CustomGestureMetadata[]) => void;
+    setCustomGestureMetadata: (metadata: EnrichedCustomGestureMetadata[]) => void;
   };
 }
 

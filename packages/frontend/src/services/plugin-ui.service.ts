@@ -9,7 +9,7 @@ import type { TranslationService } from '#frontend/services/translation.service.
 import type { GestureProcessor } from '#frontend/gestures/processor.js';
 import * as constants from '#shared/index.js';
 import * as actionDisplayUtils from '#frontend/ui/helpers/ui-helpers.js';
-import * as utils from '#shared/utils/index.js';
+import * as sharedUtils from '#shared/utils/index.js';
 
 const pluginModules = import.meta.glob('../../../../extensions/plugins/*/frontend/index.{js,ts,tsx}');
 
@@ -41,13 +41,11 @@ export class PluginUIService {
 
   destroy() {
     this.#unsubscribeStore();
-    this.#loadedFrontendModules.forEach((module, pluginId) => {
-      if (module.destroy) {
-        try {
-          module.destroy();
-        } catch (error) {
-          console.error(`[PluginUIService] Error destroying module for plugin '${pluginId}':`, error);
-        }
+    this.#loadedFrontendModules.forEach(async (module, pluginId) => {
+      try {
+        await module.destroy?.();
+      } catch (error) {
+        console.error(`[PluginUIService] Error destroying module for plugin '${pluginId}':`, error);
       }
     });
     this.#loadedFrontendModules.clear();
@@ -97,8 +95,7 @@ export class PluginUIService {
     this.#loadedFrontendModules.delete(pluginId);
     this.#actionDisplayRenderers.delete(pluginId);
     this.#moduleLoadPromises.delete(pluginId);
-    const stylesheetId = `plugin-stylesheet-${pluginId}`;
-    document.getElementById(stylesheetId)?.remove();
+    document.getElementById(`plugin-stylesheet-${pluginId}`)?.remove();
     if (wasUninstalled) webSocketService.sendMessage({ type: WEBSOCKET_EVENTS.FINALIZE_UNINSTALL, payload: { pluginId } });
   }
   
@@ -115,7 +112,7 @@ export class PluginUIService {
       requestCloseSettingsModal: () => this.#appStore.getState().actions.closeCurrentOverlay(),
       data: {},
       services: { translationService: this.#translationService, pubsub, },
-      shared: { constants, services: { actionDisplayUtils }, utils },
+      shared: { constants, services: { actionDisplayUtils }, utils: sharedUtils },
     };
   }
 
@@ -123,80 +120,57 @@ export class PluginUIService {
     if (!manifest.hasFrontendStyle) return;
     const stylesheetId = `plugin-stylesheet-${pluginId}`;
     if (document.getElementById(stylesheetId)) return;
-    const cssPath = `/plugins/${pluginId}/frontend/style.css?v=${manifest.version || Date.now()}`;
-    const link = document.createElement('link');
-    link.id = stylesheetId;
-    link.rel = 'stylesheet';
-    link.type = 'text/css';
-    link.href = cssPath;
-    link.onerror = () => { link.remove(); };
+    const link = Object.assign(document.createElement('link'), {
+        id: stylesheetId, rel: 'stylesheet', type: 'text/css',
+        href: `/plugins/${pluginId}/frontend/style.css?v=${manifest.version || Date.now()}`,
+        onerror: () => link.remove()
+    });
     document.head.appendChild(link);
   }
 
-  public async loadPluginFrontendModule(pluginId: string): Promise<FrontendPluginModule | undefined> {
-    if (this.#loadedFrontendModules.has(pluginId)) return this.#loadedFrontendModules.get(pluginId);
+  public loadPluginFrontendModule(pluginId: string): Promise<FrontendPluginModule | undefined> {
+    if (this.#loadedFrontendModules.has(pluginId)) return Promise.resolve(this.#loadedFrontendModules.get(pluginId));
     if (this.#moduleLoadPromises.has(pluginId)) return this.#moduleLoadPromises.get(pluginId)!;
     
     const manifest = this.getPluginManifest(pluginId);
-    if (!manifest?.frontendEntry) return undefined;
+    if (!manifest?.frontendEntry) return Promise.resolve(undefined);
 
-    const possibleModulePaths = [
-        `../../../../extensions/plugins/${pluginId}/frontend/index.tsx`,
-        `../../../../extensions/plugins/${pluginId}/frontend/index.ts`,
-        `../../../../extensions/plugins/${pluginId}/frontend/index.js`,
-    ];
-    const modulePath = possibleModulePaths.find(p => pluginModules[p]);
-    const moduleLoader = modulePath ? pluginModules[modulePath] : null;
-    
-    if (!moduleLoader) {
-      console.error(`[PluginUIService] No module loader found for plugin: ${pluginId}. Looked for index.{js,ts,tsx}.`);
-      return undefined;
+    const modulePath = Object.keys(pluginModules).find(p => p.includes(`/${pluginId}/frontend/index.`));
+    if (!modulePath) {
+      console.error(`[PluginUIService] No module loader found for plugin: ${pluginId}.`);
+      return Promise.resolve(undefined);
     }
 
     const loadPromise = (async () => {
-        try {
-            const loaded = await moduleLoader() as { default: FrontendPluginModule };
-            const module = loaded.default;
-            if (!module) throw new Error(`Plugin '${pluginId}' did not have a default export.`);
-            
-            this.injectStylesheet(pluginId, manifest);
-            if (typeof module.getActionDisplayDetails === 'function') {
-                this.#actionDisplayRenderers.set(pluginId, module.getActionDisplayDetails);
-                pubsub.publish(UI_EVENTS.PLUGIN_RENDERERS_UPDATED, { pluginId });
-            }
-            if (typeof module.init === 'function') {
-              const cleanup = await module.init(this.getPluginUIContext(pluginId));
-              if (typeof cleanup === 'function') {
-                  module.destroy = cleanup;
-              }
-            }
-            
-            this.#loadedFrontendModules.set(pluginId, module);
-            return module;
-        } catch (e) {
-            console.error(`Failed to load and execute module for plugin '${pluginId}' from path '${modulePath}'.`, e);
-            throw e;
+        const loaded = await pluginModules[modulePath]() as { default: FrontendPluginModule };
+        const module = loaded.default;
+        if (!module) throw new Error(`Plugin '${pluginId}' did not have a default export.`);
+        
+        this.injectStylesheet(pluginId, manifest);
+        if (typeof module.getActionDisplayDetails === 'function') {
+            this.#actionDisplayRenderers.set(pluginId, module.getActionDisplayDetails);
+            pubsub.publish(UI_EVENTS.PLUGIN_RENDERERS_UPDATED, { pluginId });
         }
-    })();
+        
+        const cleanup = await module.init?.(this.getPluginUIContext(pluginId));
+        if (typeof cleanup === 'function') {
+            module.destroy = cleanup;
+        }
+        
+        this.#loadedFrontendModules.set(pluginId, module);
+        return module;
+    })().catch(e => {
+        console.error(`Failed to load module for plugin '${pluginId}'.`, e);
+        throw e;
+    });
     
     this.#moduleLoadPromises.set(pluginId, loadPromise);
-    try {
-        return await loadPromise;
-    } finally {
-        this.#moduleLoadPromises.delete(pluginId);
-    }
+    loadPromise.finally(() => this.#moduleLoadPromises.delete(pluginId));
+    return loadPromise;
   }
 
   public getPluginManifest = (pluginId: string): PluginManifest | undefined => this.#pluginManifests.get(pluginId);
-  public getAvailableActionPlugins = (): PluginManifest[] => Array.from(this.#pluginManifests.values()).filter(m => m.capabilities.providesActions && m.status === 'enabled');
   public getActionDisplayDetailsRenderer = (pluginId: string): ActionDisplayDetailsRendererFn | undefined => this.#actionDisplayRenderers.get(pluginId);
-
-  public async getPluginGlobalConfig(pluginId: string): Promise<unknown | null> {
-    const cachedConfig = this.#appStore.getState().pluginGlobalConfigs.get(pluginId);
-    if (cachedConfig !== undefined) return cachedConfig;
-    webSocketService.request('GET_PLUGIN_GLOBAL_CONFIG', { pluginId });
-    return undefined;
-  }
 
   public async savePluginGlobalConfig(pluginId: string, config: unknown): Promise<{ success: boolean; message?: string; config?: unknown; validationErrors?: unknown; }> {
     if (!this.#pluginManifests.has(pluginId)) return { success: false, message: `Plugin '${pluginId}' not registered.` };

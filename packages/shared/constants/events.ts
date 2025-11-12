@@ -1,6 +1,5 @@
 /* FILE: packages/shared/constants/events.ts */
 // Centralized constants for all application event types.
-
 export const PLUGIN_CONFIG_UPDATED_EVENT_PREFIX = "pluginConfigUpdated:";
 
 export const UI_EVENTS = {
@@ -94,6 +93,7 @@ export const WEBSOCKET_EVENTS = {
   RTSP_CONNECT_REQUEST: "rtsp:connectRequest",
   RTSP_DISCONNECT_REQUEST: "rtsp:disconnectRequest",
   FINALIZE_UNINSTALL: "plugin:finalizeUninstall",
+  SEND_PERFORMANCE_METRICS: "SEND_PERFORMANCE_METRICS",
 
   // Server to Client
   CONFIG_SAVE_RESULT: "config:saveResult",

@@ -1,9 +1,9 @@
-/* FILE: packages/frontend/src/core/state/slices/uiSlice.ts */
+/* FILE: frontend/src/core/state/slices/uiSlice.ts */
 import type { StateCreator } from 'zustand';
 import { produce } from 'immer';
 import { PreferenceService, type PreferenceKey, type PreferenceValue } from '#frontend/services/preference.service.js';
 import type { ThemePreference, ConfirmationModalConfig } from '#frontend/types/index.js';
-import type { GestureConfig, PoseConfig } from '#shared/index.js';
+import type { EnrichedGestureConfig } from '#shared/index.js';
 
 const preferenceService = new PreferenceService();
 
@@ -11,7 +11,6 @@ interface OverlayState {
   id: string;
 }
 
-// Internal helper function to reset all modal data states.
 const clearAllModalData = (draft: UiSlice) => {
     draft.docsModalKey = null;
     draft.confirmationModalConfig = null;
@@ -19,7 +18,6 @@ const clearAllModalData = (draft: UiSlice) => {
 };
 
 export interface UiSlice {
-  // User preferences
   numHandsPreference: number;
   processingResolutionWidthPreference: number;
   languagePreference: string;
@@ -27,19 +25,17 @@ export interface UiSlice {
   showHandLandmarks: boolean;
   showPoseLandmarks: boolean;
   
-  // UI State
   isDashboardActive: boolean;
   isHistorySidebarOpen: boolean;
   isVideoExpanded: boolean;
   isVideoVisible: boolean;
+  isMobile: boolean;
   activeOverlays: OverlayState[];
 
-  // Data for overlays, now decoupled from visibility
   confirmationModalConfig: ConfirmationModalConfig | null;
   docsModalKey: string | null;
-  gestureFormConfig: GestureConfig | PoseConfig | null;
+  gestureFormConfig: EnrichedGestureConfig | null;
 
-  // Actions
   actions: {
     setLocalPreference: <K extends PreferenceKey>(key: K, value: PreferenceValue<K>) => void;
     toggleDashboard: (isActive?: boolean) => void;
@@ -48,11 +44,11 @@ export interface UiSlice {
     closeCurrentOverlay: () => void;
     toggleVideoExpanded: () => void;
     toggleVideoVisibility: (isVisible?: boolean) => void;
+    setDocsModalKey: (key: string | null) => void;
   };
 }
 
 export const createUiSlice: StateCreator<UiSlice, [], [], UiSlice> = (set) => ({
-  // User preferences
   numHandsPreference: preferenceService.get('numHandsPreference'),
   processingResolutionWidthPreference: preferenceService.get('processingResolutionWidthPreference'),
   languagePreference: preferenceService.get('languagePreference'),
@@ -60,17 +56,16 @@ export const createUiSlice: StateCreator<UiSlice, [], [], UiSlice> = (set) => ({
   showHandLandmarks: preferenceService.get('showHandLandmarks'),
   showPoseLandmarks: preferenceService.get('showPoseLandmarks'),
 
-  // UI State
   isDashboardActive: false,
   isHistorySidebarOpen: false,
   isVideoExpanded: false,
   isVideoVisible: true,
+  isMobile: window.matchMedia('(max-width: 1023px)').matches,
   activeOverlays: [],
   confirmationModalConfig: null,
   docsModalKey: null,
   gestureFormConfig: null,
   
-  // Actions
   actions: {
     setLocalPreference: (key, value) => {
       preferenceService.set(key, value);
@@ -81,29 +76,27 @@ export const createUiSlice: StateCreator<UiSlice, [], [], UiSlice> = (set) => ({
     
     openOverlay: (id, payload) => set(produce((draft: UiSlice) => {
         if (draft.activeOverlays.some(o => o.id === id)) return;
-
-        // Atomically clear old data, set new data, then show the overlay.
         clearAllModalData(draft);
 
         if (id === 'docs' && typeof payload === 'string') draft.docsModalKey = payload;
         if (id === 'confirmation') draft.confirmationModalConfig = payload as ConfirmationModalConfig;
-        if (id === 'gestureForm') draft.gestureFormConfig = payload as GestureConfig | PoseConfig | null;
+        if (id === 'gestureForm') draft.gestureFormConfig = payload as EnrichedGestureConfig | null;
 
         draft.activeOverlays.push({ id });
     })),
     
     closeCurrentOverlay: () => set(produce((draft: UiSlice) => {
         draft.activeOverlays.pop();
-        // Always clear all modal data when the top-most modal is closed.
         clearAllModalData(draft);
     })),
 
     toggleVideoExpanded: () => set(produce((draft: UiSlice) => {
-        const expanding = !draft.isVideoExpanded;
-        draft.isVideoExpanded = expanding;
-        if (expanding) draft.isVideoVisible = true;
+        draft.isVideoExpanded = !draft.isVideoExpanded;
+        if (draft.isVideoExpanded) draft.isVideoVisible = true;
     })),
     
     toggleVideoVisibility: (isVisible) => set(state => ({ isVideoVisible: isVisible ?? !state.isVideoVisible })),
+
+    setDocsModalKey: (key) => set({ docsModalKey: key }),
   }
 });

@@ -1,19 +1,18 @@
 {
   "name": "gesture-vision-app",
   "private": true,
-  "version": "3.7.0",
+  "version": "3.7.2",
   "type": "module",
   "scripts": {
     "copy:wasm": "mkdir -p packages/frontend/public/wasm && cp -r node_modules/@mediapipe/tasks-vision/wasm/* packages/frontend/public/wasm/",
     "copy:models": "mkdir -p packages/frontend/public/models && cp node_modules/@mediapipe/tasks-vision/web/vision/dist/files/*.task packages/frontend/public/models/",
     "build:backend": "tsc -b tsconfig.json",
     "dev:frontend": "cd packages/frontend && vite --host 0.0.0.0",
-    "dev:backend": "nodemon --watch packages/backend --watch packages/shared --ext ts,json --ignore 'packages/*/dist/' --exec \"tsx --experimental-specifier-resolution=node --tsconfig tsconfig.json packages/backend/src/server.ts\"",
+    "dev:backend": "nodemon -L --watch packages/backend --watch packages/shared --watch extensions/plugins --ext ts,json --ignore 'packages/*/dist/' --exec \"tsx --experimental-specifier-resolution=node --tsconfig tsconfig.json packages/backend/src/server.ts\"",
     "dev:mediamtx": "mediamtx",
     "predev": "echo 'Prerequisites built into Docker image. Starting servers...'",
     "dev": "npm-run-all --parallel dev:mediamtx dev:frontend dev:backend",
     "build:app": "npm run copy:wasm && npm run build:backend && cd packages/frontend && vite build",
-    "build:apk": "npm run copy:wasm && npm run build:backend && cd packages/frontend && vite build --mode apk",
     "build:umd": "cd packages/frontend && vite build --config vite.config.umd.js",
     "build": "npm run build:umd && npm run build:app",
     "start:prod": "tsx --tsconfig tsconfig.json packages/backend/src/server.ts",
@@ -21,9 +20,7 @@
     "lint:js": "eslint . --ext .js,.mjs,.cjs,.ts,.tsx",
     "lint:html": "htmlhint packages/frontend/src/partials/**/*.html packages/frontend/index.html",
     "type-check": "tsc --noEmit",
-    "lint-and-check": "npm-run-all --parallel lint:js lint:html type-check",
-    "cap:sync:android": "cd packages/frontend && npx capacitor sync android",
-    "cap:open:android": "cd packages/frontend && npx capacitor open android"
+    "lint-and-check": "npm-run-all --parallel lint:js lint:html type-check"
   },
   "imports": {
     "#backend/*": "./packages/backend/src/*",
@@ -53,7 +50,6 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.29.0",
-    "@fullhuman/postcss-purgecss": "^7.0.2",
     "@tailwindcss/forms": "^0.5.7",
     "@tailwindcss/typography": "^0.5.13",
     "@types/cors": "^2.8.19",
@@ -76,11 +72,5 @@
     "typescript-eslint": "^8.34.0",
     "vite": "^7.0.4",
     "vite-plugin-pwa": "^1.0.0"
-  },
-  "optionalDependencies": {
-    "@capacitor/android": "^7.3.0",
-    "@capacitor/assets": "^3.0.5",
-    "@capacitor/cli": "^7.3.0",
-    "@capacitor/core": "^7.3.0"
   }
 }

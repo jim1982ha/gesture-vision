@@ -64,7 +64,7 @@ export default defineConfig(({ mode }) => {
       port: parseInt(env.DEV_VITE_PORT || "8001"),
       fs: { allow: [projectRoot] },
       watch: {
-        ignored: ['**/extensions/plugins/**'],
+        usePolling: true,
       },
       proxy: {
         "/api": { target: `http://localhost:${backendInternalPort}`, changeOrigin: true, secure: false },

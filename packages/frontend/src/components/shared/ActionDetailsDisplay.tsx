@@ -21,7 +21,6 @@ export const ActionDetailsDisplay = ({ actionConfig }: ActionDetailsDisplayProps
     if (actionConfig?.pluginId && actionConfig.pluginId !== 'none') {
       const renderer = pluginUIService.getActionDisplayDetailsRenderer(actionConfig.pluginId);
       if (renderer) {
-        // Correctly pass only the 'settings' object to the renderer
         const details = renderer(actionConfig.settings, pluginUIService.getPluginUIContext(actionConfig.pluginId));
         const newHtml = details.map((d: ActionDisplayDetail) => `<div class="card-detail-line"><span class="${d.iconType === 'mdi' ? `mdi ${d.icon}` : 'material-icons'} card-detail-icon">${d.iconType !== 'mdi' ? d.icon ?? '' : ''}</span><span class="card-detail-value">${d.value}</span></div>`).join('');
         setDetailsHtml(newHtml);

@@ -5,6 +5,42 @@
         display: block;
         margin-left: auto;
         margin-right: auto;
+        font-family: sans-serif;
+    }
+    .svg-text {
+        fill: hsl(var(--color-text-primary));
+    }
+    .arch-text {
+        font-size: 9px;
+        fill: hsl(var(--color-text-primary));
+    }
+    .arch-label {
+        font-size: 7px;
+        fill: hsl(var(--color-text-secondary));
+    }
+    .arch-user {
+        fill: hsl(var(--color-surface));
+        stroke: hsl(var(--color-text-secondary));
+        stroke-width: 1.5;
+    }
+    .arch-component {
+        stroke-width: 1.5;
+    }
+    .arch-integration {
+        fill: hsl(var(--color-background));
+        stroke: hsl(var(--color-secondary));
+        stroke-width: 1.5;
+    }
+    .arch-arrow {
+        stroke: hsl(var(--color-text-secondary));
+        stroke-width: 1.5;
+        fill: none;
+    }
+    .diagram-caption {
+        font-size: 0.8rem;
+        text-align: center;
+        color: hsl(var(--color-text-secondary));
+        margin-top: 0.5rem;
     }
 </style>
 

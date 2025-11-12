@@ -1,4 +1,4 @@
-// FILE: packages/frontend/src/components/settings/CustomGesturesTab.tsx
+/* FILE: packages/frontend/src/components/settings/CustomGesturesTab.tsx */
 import { useState, useEffect, useRef, useContext } from 'react';
 import { AppContext } from '#frontend/contexts/AppContext.js';
 import { useAppStore } from '#frontend/hooks/useAppStore.js';
@@ -40,6 +40,7 @@ const GestureImportManager = () => {
             return;
         }
         setStagedFile(file);
+        event.target.value = ''; // Reset file input to allow re-uploading the same file
     };
 
     return (

@@ -17,6 +17,7 @@ import createConfigRouter from './api/routes/config.router.js';
 import createPluginsRouter from './api/routes/plugins.router.js';
 import createCoreRouter from './api/routes/core.router.js';
 import { ActionDispatcherService } from './services/action-dispatcher.service.js';
+import { PerformanceMonitorService } from './services/performance-monitor.service.js';
 
 const PORT = parseInt(process.env.PORT || '9001', 10);
 if (isNaN(PORT)) {
@@ -38,6 +39,7 @@ async function startServer() {
   const pluginManager = new PluginManagerService(configRepository);
   const mtxMonitor = new MtxMonitorService();
   const actionDispatcher = new ActionDispatcherService(pluginManager);
+  const performanceMonitor = new PerformanceMonitorService();
 
   const gracefulShutdown = () => {
     console.log(`[Server Shutdown] Graceful shutdown initiated...`);
@@ -45,6 +47,7 @@ async function startServer() {
     configService?.cleanup();
     pluginManager?.destroy();
     mtxMonitor?.stop();
+    performanceMonitor?.destroy();
     cleanupWebSocketServer();
     server?.close(() => { console.log(`[Server] HTTP server closed.`); process.exit(0); });
     setTimeout(() => { console.error('[Server] Graceful shutdown timed out. Forcing exit.'); process.exit(1); }, 5000).unref();
@@ -82,7 +85,7 @@ async function startServer() {
       gracefulShutdown();
     });
 
-    initializeWebSocketServer(server, configService, pluginManager, mtxMonitor, actionDispatcher);
+    initializeWebSocketServer(server, configService, pluginManager, mtxMonitor, actionDispatcher, performanceMonitor);
     
     app.use('/api', createCoreRouter(configService));
     app.use('/api/config', createConfigRouter(configService));

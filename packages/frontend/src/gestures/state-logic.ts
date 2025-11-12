@@ -1,7 +1,7 @@
 /* FILE: packages/frontend/src/gestures/state-logic.ts */
 // Orchestrates gesture detection logic by coordinating timers, configuration, actions, and UI updates.
 import type { AppStore } from '#frontend/core/state/app-store.js';
-import { GESTURE_EVENTS, pubsub, type GestureConfig, type PoseConfig, type RoiConfig } from '#shared/index.js';
+import { GESTURE_EVENTS, pubsub, type EnrichedGestureConfig, type RoiConfig, type EnrichedPoseConfig } from '#shared/index.js';
 import type { TranslationService } from '#frontend/services/translation.service.js';
 import { GestureTimerManager } from './logic/gesture-timer-manager.js';
 import { GestureConfigManager } from './logic/gesture-config-manager.js';
@@ -17,7 +17,7 @@ interface ActionableRecognition {
 // This interface pairs a raw detection with its canonical configuration object.
 interface MatchedDetection {
   detection: ActionableRecognition;
-  config: GestureConfig | PoseConfig;
+  config: EnrichedGestureConfig;
 }
 
 interface Vector3D { x: number; y: number; z: number; }
@@ -36,7 +36,7 @@ export class GestureStateLogic {
   #publishedConfidencePulse = new Set<string>();
   #isActionDispatchSuppressed = false;
   #activeStreamRoi: RoiConfig | null = null;
-  #poseConfigs: PoseConfig[] = [];
+  #poseConfigs: EnrichedPoseConfig[] = [];
 
   #boundHandleSuppressActions: () => void;
   #boundHandleResumeActions: () => void;
@@ -53,7 +53,7 @@ export class GestureStateLogic {
     this.#subscribeToEvents();
 
     this.#appStore.subscribe(state => {
-      this.#poseConfigs = state.gestureConfigs.filter((c): c is PoseConfig => 'pose' in c);
+      this.#poseConfigs = state.gestureConfigs.filter((c): c is EnrichedPoseConfig => 'pose' in c);
     });
   }
 
@@ -75,6 +75,11 @@ export class GestureStateLogic {
     return mag > 1e-6 ? { x: v.x / mag, y: v.y / mag, z: v.z / mag } : { x: 0, y: 0, z: 0 };
   }
   #dot = (v1: Vector3D, v2: Vector3D): number => v1.x * v2.x + v1.y * v2.y + v1.z * v2.z;
+
+  public isRtspStream = (): boolean => {
+    const currentCameraId = this.#appStore.getState().actions.getCameraService?.()?.getCurrentDeviceId();
+    return !!currentCameraId?.startsWith('rtsp:');
+  }
 
   public checkForStaticPoses(worldLandmarks: Landmark[]): ActionableRecognition[] {
     if (!this.#appStore.getState().enablePoseProcessing || this.#poseConfigs.length === 0 || !worldLandmarks || worldLandmarks.length < 33) {

@@ -1,7 +1,8 @@
 /* FILE: packages/shared/validation/ws.schemas.ts */
 import { z } from 'zod';
-import { FullConfigurationSchema } from './config.schemas.js';
+import { FullConfigurationSchema, GestureConfigSchema, PoseConfigSchema } from './config.schemas.js';
 import { PluginManifestSchema } from './plugin.schemas.js';
+import { GestureDisplayInfoSchema } from './ui.schemas.js';
 
 export const WebSocketMessageSchema = z.object({
     type: z.string(),
@@ -14,6 +15,18 @@ export type WebSocketMessage<T = unknown> = {
     messageId?: number;
 };
 
+export const PerformanceMetricsPayloadSchema = z.object({
+    isStreaming: z.boolean(),
+    source: z.enum(['webcam', 'rtsp', 'studio']),
+    actualFPS: z.number().optional(),
+    targetFPS: z.number().optional(),
+    processingTimeMs: z.number().optional(),
+    latencyEstimateMs: z.number().optional(),
+    memoryUsedMB: z.number().optional(),
+    heapUsedRatio: z.number().optional(),
+});
+export type PerformanceMetricsPayload = z.infer<typeof PerformanceMetricsPayloadSchema>;
+
 export const CustomGestureMetadataSchema = z.object({
     id: z.string(),
     name: z.string(),
@@ -23,6 +36,23 @@ export const CustomGestureMetadataSchema = z.object({
     type: z.enum(['hand', 'pose']).optional(),
 });
 export type CustomGestureMetadata = z.infer<typeof CustomGestureMetadataSchema>;
+
+export const EnrichedCustomGestureMetadataSchema = CustomGestureMetadataSchema.extend({
+    display: GestureDisplayInfoSchema,
+});
+export type EnrichedCustomGestureMetadata = z.infer<typeof EnrichedCustomGestureMetadataSchema>;
+
+export const EnrichedGestureConfigSchema = z.union([
+    GestureConfigSchema.extend({ display: GestureDisplayInfoSchema }),
+    PoseConfigSchema.extend({ display: GestureDisplayInfoSchema }),
+]);
+export type EnrichedGestureConfig = z.infer<typeof EnrichedGestureConfigSchema>;
+
+export const EnrichedPoseConfigSchema = PoseConfigSchema.extend({
+    display: GestureDisplayInfoSchema,
+});
+export type EnrichedPoseConfig = z.infer<typeof EnrichedPoseConfigSchema>;
+
 
 export const InitialStatePayloadSchema = z.object({
     globalConfig: FullConfigurationSchema,

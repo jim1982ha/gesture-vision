@@ -1,6 +1,7 @@
-/* FILE: packages/frontend/src/core/state/slices/statusSlice.ts */
+// --- packages/frontend/src/core/state/slices/statusSlice.ts --- (complete version) ---
 import type { StateCreator } from 'zustand';
 import { produce } from 'immer';
+import type { CameraService } from '#frontend/services/camera.service.js';
 
 export interface StatusSlice {
   isInitialConfigLoaded: boolean;
@@ -11,6 +12,7 @@ export interface StatusSlice {
   poseModelLoaded: boolean;
   isActionDispatchSuppressed: boolean;
   streamStatus: Map<string, string>;
+  _cameraServiceInstance: CameraService | null;
 
   actions: {
     setInitialLoadStatus: (isLoaded: boolean) => void;
@@ -20,10 +22,12 @@ export interface StatusSlice {
     setModelLoadingStatus: (status: { hand?: boolean; pose?: boolean }) => void;
     setIsActionDispatchSuppressed: (isSuppressed: boolean) => void;
     setStreamStatus: (pathName: string, status: string) => void;
+    setCameraService: (service: CameraService) => void;
+    getCameraService: () => CameraService | null;
   };
 }
 
-export const createStatusSlice: StateCreator<StatusSlice, [], [], StatusSlice> = (set) => ({
+export const createStatusSlice: StateCreator<StatusSlice, [], [], StatusSlice> = (set, get) => ({
   isInitialConfigLoaded: false,
   isWsConnected: false,
   isWebcamRunning: false,
@@ -32,6 +36,7 @@ export const createStatusSlice: StateCreator<StatusSlice, [], [], StatusSlice> =
   poseModelLoaded: false,
   isActionDispatchSuppressed: false,
   streamStatus: new Map<string, string>(),
+  _cameraServiceInstance: null, // Initialize internal state
 
   actions: {
     setInitialLoadStatus: (isLoaded) => set({ isInitialConfigLoaded: isLoaded }),
@@ -49,5 +54,8 @@ export const createStatusSlice: StateCreator<StatusSlice, [], [], StatusSlice> =
     setStreamStatus: (pathName, status) => set(produce((draft: StatusSlice) => {
       draft.streamStatus.set(pathName, status);
     })),
+    
+    setCameraService: (service) => set({ _cameraServiceInstance: service }),
+    getCameraService: () => get()._cameraServiceInstance,
   }
 });

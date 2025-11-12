@@ -4,14 +4,18 @@ import { AppContext } from '#frontend/contexts/AppContext.js';
 import { useAppStore } from '#frontend/hooks/useAppStore.js';
 import { DocsContentLoader } from '#frontend/ui/docs/docs-content-loader.js';
 import { setIcon, clsx } from '#frontend/ui/helpers/ui-helpers.js';
+import { Modal } from '#frontend/components/shared/Modal.js';
 
 const contentLoader = new DocsContentLoader();
 
 export const DocsModal = () => {
     const context = useContext(AppContext);
     const { translate, getCurrentLanguage } = context!.services.translationService;
-    const { actions } = context!.appStore.getState();
-    const docKey = useAppStore(state => state.docsModalKey);
+    const { actions, docKey, activeModalId } = useAppStore(state => ({
+        actions: state.actions,
+        docKey: state.docsModalKey,
+        activeModalId: state.activeOverlays.at(-1)?.id,
+    }));
 
     const [htmlContent, setHtmlContent] = useState('');
     const [toc, setToc] = useState<{ id: string, text: string, level: number }[]>([]);
@@ -42,7 +46,8 @@ export const DocsModal = () => {
     }, [docKey, getCurrentLanguage, translate]);
 
     useEffect(() => {
-        if (contentRef.current) {
+        if (contentRef.current && htmlContent) {
+            // 1. Generate Table of Contents
             const headings = Array.from(contentRef.current.querySelectorAll<HTMLHeadingElement>('h1, h2, h3'));
             const newToc = headings.map((h, i) => {
                 const id = h.id || `doc-heading-${i}`;
@@ -50,8 +55,17 @@ export const DocsModal = () => {
                 return { id: h.id, text: h.textContent || '', level: parseInt(h.tagName[1], 10) };
             });
             setToc(newToc);
+
+            // 2. Inject SVG Diagrams
+            const diagrams = contentLoader.getDiagrams(getCurrentLanguage());
+            for (const placeholderId in diagrams) {
+                const placeholder = contentRef.current.querySelector(`#${placeholderId}`);
+                if (placeholder) {
+                    placeholder.innerHTML = diagrams[placeholderId];
+                }
+            }
         }
-    }, [htmlContent]);
+    }, [htmlContent, getCurrentLanguage]);
     
     if (!context) return null;
 
@@ -72,51 +86,47 @@ export const DocsModal = () => {
     ];
 
     return (
-        <div id="docsModal" className="modal visible">
-            <div id="docs-modal-content" className="modal-content !max-w-6xl">
-                <div id="docs-modal-header" className="modal-header">
-                    <span ref={el => el && setIcon(el, 'UI_DOCS')} className="material-icons header-icon"></span>
-                    <span id="docs-modal-title" className="header-title">{translate('documentationTitle')}</span>
-                    <button id="docs-modal-close-button" onClick={() => actions.closeCurrentOverlay()} className="btn btn-icon header-close-btn" title={translate('close')}>
-                        <span ref={el => el && setIcon(el, 'UI_CLOSE')}></span>
+        <Modal
+            id="docsModal"
+            title={translate('documentationTitle')}
+            iconKey="UI_DOCS"
+            onClose={() => actions.closeCurrentOverlay()}
+            show={activeModalId === 'docs'}
+            size="xl"
+        >
+            <nav id="docs-modal-nav-buttons" className="flex-shrink-0 flex flex-nowrap justify-start gap-2 p-2 border-b border-border">
+                {docButtons.map(b => (
+                    <button 
+                      key={b.key} 
+                      id={`docs-nav-button-${b.key}`} 
+                      onClick={() => actions.setDocsModalKey(b.key)} 
+                      className={clsx('btn btn-secondary !p-2 desktop:!px-4', docKey === b.key && 'active')}
+                      title={translate(b.labelKey)}
+                    >
+                        <span ref={el => el && setIcon(el, b.icon)}></span>
+                        <span className="hidden desktop:inline">{translate(b.labelKey)}</span>
                     </button>
-                </div>
+                ))}
+            </nav>
 
-                <nav id="docs-modal-nav-buttons" className="flex-shrink-0 flex flex-nowrap justify-start gap-2 p-2 border-b border-border">
-                    {docButtons.map(b => (
-                        <button 
-                          key={b.key} 
-                          id={`docs-nav-button-${b.key}`} 
-                          onClick={() => actions.openOverlay('docs', b.key)} 
-                          className={clsx('btn btn-secondary !p-2 desktop:!px-4', docKey === b.key && 'active')}
-                          title={translate(b.labelKey)}
-                        >
-                            <span ref={el => el && setIcon(el, b.icon)}></span>
-                            <span className="hidden desktop:inline">{translate(b.labelKey)}</span>
-                        </button>
-                    ))}
-                </nav>
-
-                <div id="docs-modal-scroll-container" ref={scrollRef} className="modal-scrollable-content !p-0">
-                    <div className="flex flex-col p-0 desktop:flex-row desktop:p-6 desktop:gap-6 h-full">
-                        <aside id="docs-modal-sidebar" className="hidden desktop:block sticky top-0 z-dropdown bg-surface desktop:border-r desktop:border-border desktop:pr-4 desktop:w-72 desktop:flex-shrink-0 desktop:self-start">
-                            <ul id="docs-modal-toc" className="mt-4 space-y-2 overflow-y-auto">
-                                {toc.map(item => (
-                                    <li key={item.id}>
-                                        <a href={`#${item.id}`} id={`toc-link-${item.id}`} onClick={e => handleTocClick(e, item.id)} className={`toc-h${item.level}`}>
-                                            {item.text}
-                                        </a>
-                                    </li>
-                                ))}
-                            </ul>
-                        </aside>
-                        <main id="docs-modal-main-content" ref={contentRef} className="flex-1 min-w-0 px-4 desktop:px-0">
-                            <article className="prose dark:prose-invert max-w-none"
-                                dangerouslySetInnerHTML={{ __html: htmlContent }} />
-                        </main>
-                    </div>
-                </div>
+            <div id="docs-modal-layout-container" className="flex-1 min-h-0 flex flex-col p-0 desktop:flex-row desktop:gap-6 desktop:p-6">
+                <aside id="docs-modal-sidebar" className="hidden desktop:block sticky top-0 z-dropdown bg-surface desktop:border-r desktop:border-border desktop:pr-4 desktop:w-72 desktop:flex-shrink-0 self-start max-h-full">
+                    <ul id="docs-modal-toc" className="mt-4 space-y-2 overflow-y-auto">
+                        {toc.map(item => (
+                            <li key={item.id}>
+                                <a href={`#${item.id}`} id={`toc-link-${item.id}`} onClick={e => handleTocClick(e, item.id)} className={`toc-h${item.level}`}>
+                                    {item.text}
+                                </a>
+                            </li>
+                        ))}
+                    </ul>
+                </aside>
+                <main id="docs-modal-main-content" ref={scrollRef} className="flex-1 min-w-0 overflow-y-auto px-4 desktop:px-0">
+                    <article className="prose dark:prose-invert max-w-none"
+                        ref={contentRef}
+                        dangerouslySetInnerHTML={{ __html: htmlContent }} />
+                </main>
             </div>
-        </div>
+        </Modal>
     );
 };
