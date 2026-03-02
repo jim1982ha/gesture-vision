@@ -1,5 +1,4 @@
 # FILE: docker-compose.dev.yaml - Development Environment
-
 services:
   gesturevision-dev:
     image: ${DEV_IMAGE_NAME?Variable DEV_IMAGE_NAME is not set}
@@ -11,8 +10,24 @@ services:
       args:
         - TARGETARCH=amd64
     container_name: gesturevision-dev
-    network_mode: "host"
-
+    # FIX: Use the same external network strategy as Production.
+    # This ensures the Dev container has the same routing/VLAN access (e.g. to Home Assistant)
+    # as the Prod container.
+    ports:
+      # Vite Dev Server
+      - "${DEV_VITE_PORT:-8001}:${DEV_VITE_PORT:-8001}"
+      # Backend API
+      - "${DEV_BACKEND_API_PORT_INTERNAL:-9001}:${DEV_BACKEND_API_PORT_INTERNAL:-9001}"
+      # MediaMTX WebRTC (TCP)
+      - "${MTX_DEV_WEBRTC_PORT:-8889}:${MTX_DEV_WEBRTC_PORT:-8889}"
+      # MediaMTX RTSP (TCP)
+      - "${MTX_DEV_RTSP_PORT:-8554}:${MTX_DEV_RTSP_PORT:-8554}"
+      # MediaMTX WebRTC ICE (UDP)
+      - "${MTX_DEV_ICE_UDP_PORT:-8189}:${MTX_DEV_ICE_UDP_PORT:-8189}/udp"
+      # MediaMTX API
+      - "${MTX_APIADDRESS_INTERNAL:-9997}:${MTX_APIADDRESS_INTERNAL:-9997}"
+    networks:
+      npm_proxy_network: {}
     volumes:
       # Mount the entire packages directory for live editing of backend, frontend, shared
       - ./packages:/app/packages:rw
@@ -28,10 +43,8 @@ services:
       # Preserve node_modules at the root of the container if installed there by Dockerfile
       # This avoids overwriting container's node_modules if host has a different version/OS
       - /app/node_modules
-
     env_file:
       - ./config/.env.dev # Loads dev ports, Vite URLs, etc.
-
     environment:
       # Node environment
       - NODE_ENV=development
@@ -44,7 +57,6 @@ services:
       - MTX_RTSPADDRESS=:${MTX_DEV_RTSP_PORT:-8554}
       - MTX_WEBRTCUDPMUXADDRESS=:${MTX_DEV_ICE_UDP_PORT:-8189}
       - MTX_APIADDRESS=:${MTX_APIADDRESS_INTERNAL:-9997}
-
       # MediaMTX runtime settings (passed to container environment)
       - MTX_LOGLEVEL=${MTX_LOGLEVEL:-debug}
       - MTX_API=${MTX_API:-yes}
@@ -52,5 +64,10 @@ services:
       - MTX_WEBRTC_ADDITIONAL_HOSTS=${MTX_ICE_HOST}
       # Vite dev server specific
       - VITE_DEV_HA_DEFAULT_URL=${VITE_DEV_HA_DEFAULT_URL:-}
-
     restart: unless-stopped
+
+networks:
+  npm_proxy_network:
+    # Use the variable from .env.dev, fallback to the known network name from your logs if missing
+    name: ${NPM_NETWORK_NAME:-docker_jw_net_admin}
+    external: true

@@ -71,6 +71,7 @@ coverage/
 
 # User-specific files from original .gitignore if not source code
 *codebase*.md
+*repomix*.md
 output.txt
 
 # SQLite database files

@@ -190,7 +190,7 @@
   "Service": "服务",
   "settings": "设置",
   "showConfigList": "显示列表",
-  "showLandmarksHelp": "启用可在视频上叠加显示 AI 模型的关键点。",
+  "showLandmarksHelp": "启用可在视频上叠加显示 AI模型的关键点。",
   "showLandmarksLabel": "显示标志点",
   "showTuningPanelTooltip": "显示 AI 调优面板",
   "showVideo": "显示视频",
@@ -261,5 +261,6 @@
   "filterPlaceholder": "筛选...",
   "errorLoadingDoc": "加载文档时出错。",
   "studioLaunchError": "无法打开手势工作室。原因: {{reason}}",
-  "rtspRoiInvalid": "ROI 值无效。偏移量和尺寸之和（X+宽度 或 Y+高度）不能超过100。"
+  "rtspRoiInvalid": "ROI 值无效。偏移量和尺寸之和（X+宽度 或 Y+高度）不能超过100。",
+  "httpsRequired": "访问摄像头需要安全连接 (HTTPS) 或 localhost。"
 }

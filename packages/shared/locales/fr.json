@@ -261,5 +261,6 @@
     "filterPlaceholder": "Filtrer...",
     "errorLoadingDoc": "Erreur lors du chargement du document.",
     "studioLaunchError": "Impossible d'ouvrir le Studio de Gestes. Raison : {{reason}}",
-    "rtspRoiInvalid": "Valeurs ROI invalides. La somme de la marge et de la dimension (X+Largeur ou Y+Hauteur) ne peut pas dépasser 100."
+    "rtspRoiInvalid": "Valeurs ROI invalides. La somme de la marge et de la dimension (X+Largeur ou Y+Hauteur) ne peut pas dépasser 100.",
+    "httpsRequired": "L'accès à la caméra nécessite une connexion sécurisée (HTTPS) ou localhost."
 }

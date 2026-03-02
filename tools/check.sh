@@ -1,0 +1,1 @@
+clear; echo "\$npm run lint-and-check"; npm run lint-and-check

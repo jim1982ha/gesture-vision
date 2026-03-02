@@ -103,6 +103,7 @@ additional_context/
 gesturevision_prod.tar
 gesturevision_dev.tar
 codebase*.md
+*repomix*.md
 output.txt
 tools/update_code.sh
 tools/update_plugins.sh

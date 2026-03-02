@@ -1,4 +1,4 @@
-/* FILE: packages/frontend/src/components/config/ConfigList.tsx */
+// --- packages/frontend/src/components/config/ConfigList.tsx --- (complete version) ---
 import { useContext } from 'react';
 import { AppContext } from '#frontend/contexts/AppContext.js';
 import { useAppStore } from '#frontend/hooks/useAppStore.js';
@@ -15,10 +15,11 @@ export function ConfigList() {
     enableCustomHandGestures: state.enableCustomHandGestures,
     enablePoseProcessing: state.enablePoseProcessing,
   }));
-  
+
   if (!context) return null;
+
   const { translate } = context.services.translationService;
-  
+
   const getCardStatus = (config: EnrichedGestureConfig) => {
     const actionPluginId = config.actionConfig?.pluginId;
     if (actionPluginId && actionPluginId !== 'none') {
@@ -36,7 +37,6 @@ export function ConfigList() {
   };
 
   const sortedConfigs = [...configs].sort((a, b) => a.display.name.localeCompare(b.display.name));
-
   const activeConfigs = sortedConfigs.filter(c => getCardStatus(c).isActive);
   const inactiveConfigs = sortedConfigs.filter(c => !getCardStatus(c).isActive);
 
@@ -49,9 +49,11 @@ export function ConfigList() {
       {activeConfigs.map(config => (
         <ConfigCard key={config.display.name} config={config} />
       ))}
+
       {inactiveConfigs.length > 0 && (
         <h3 id="inactive-configs-title" className="inactive-list-title col-span-full">{translate('inactiveConfigsTitle')}</h3>
       )}
+
       {inactiveConfigs.map(config => (
         <ConfigCard key={config.display.name} config={config} />
       ))}

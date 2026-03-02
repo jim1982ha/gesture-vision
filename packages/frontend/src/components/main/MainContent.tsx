@@ -10,11 +10,13 @@ import { pubsub, UI_EVENTS } from '#shared/index.js';
 
 export function MainContent() {
   const context = useContext(AppContext);
-  const { isVideoVisible, isVideoExpanded, actions } = useAppStore(state => ({
+  const { isVideoVisible, isVideoExpanded, isWebcamRunning, actions } = useAppStore(state => ({
     isVideoVisible: state.isVideoVisible,
     isVideoExpanded: state.isVideoExpanded,
+    isWebcamRunning: state.isWebcamRunning,
     actions: state.actions
   }));
+
   const originalVideoContainerRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
@@ -50,9 +52,8 @@ export function MainContent() {
     const unsubscribe = pubsub.subscribe(UI_EVENTS.REQUEST_VIDEO_REPARENT, handleReparentRequest);
     return () => unsubscribe();
   }, [context]);
-  
+
   if (!context) return null;
-  
   const { translate } = context.services.translationService;
 
   return (
@@ -65,11 +66,14 @@ export function MainContent() {
             <span ref={el => el && setIcon(el, isVideoVisible ? 'UI_VISIBILITY_OFF' : 'UI_VISIBILITY_ON')} className="material-icons"></span>
           </button>
         </h2>
-
+        
         <div id="video-container" className={clsx(
           "video-container group/video relative bg-black rounded-lg shadow-md overflow-hidden flex-shrink-0",
           !isVideoVisible && "hidden",
           isVideoExpanded ? "flex-grow aspect-auto" : "aspect-video mb-4",
+          // FIX: Declaratively control video-active class based on state. 
+          // This prevents the class from being wiped out by React re-renders (e.g. zoom toggle).
+          isWebcamRunning && "video-active"
         )}>
           <video id="webcam" className="absolute top-0 left-0 w-full h-full object-cover" autoPlay playsInline muted crossOrigin="anonymous"></video>
           <canvas id="output_canvas" className="absolute top-0 left-0 w-full h-full"></canvas>
@@ -88,14 +92,12 @@ export function MainContent() {
                   <span id="addNewActionButtonLabel">{translate('addNewAction')}</span>
                 </button>
               </div>
-    
               <div id="configListContainer" className="flex-1 overflow-y-auto desktop:overflow-y-visible">
                 <ConfigList />
               </div>
             </div>
         )}
       </main>
-      
       <Sidebars />
     </div>
   );

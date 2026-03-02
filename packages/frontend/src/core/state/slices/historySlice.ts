@@ -1,9 +1,9 @@
-/* FILE: packages/frontend/src/core/state/slices/historySlice.ts */
+// --- packages/frontend/src/core/state/slices/historySlice.ts --- (complete version) ---
 import type { StateCreator } from 'zustand';
 import { produce } from 'immer';
 import { MAX_HISTORY_ITEMS } from '#frontend/constants/index.js';
 import type { HistoryEntry } from '#frontend/types/index.js';
-import { pubsub, UI_EVENTS, type ActionResultPayload, type EnrichedCustomGestureMetadata, type GestureCategoryIconType } from '#shared/index.js';
+import { pubsub, UI_EVENTS, type ActionResultPayload, type EnrichedCustomGestureMetadata, type GestureCategoryIconType, getGestureDisplayInfo } from '#shared/index.js';
 
 export interface HistorySlice {
   historyEntries: HistoryEntry[];
@@ -21,7 +21,11 @@ export const createHistorySlice: StateCreator<HistorySlice & { customGestureMeta
       if (!entry?.gesture) return;
 
       const customMetadataList = get().customGestureMetadataList;
-      const displayInfo = customMetadataList.find(m => m.name === entry.gesture)?.display;
+      
+      // FIX: Use shared utility to resolve display info for BOTH built-in and custom gestures.
+      // Previously, this only looked in customMetadataList, causing built-ins to be ignored.
+      const displayInfo = getGestureDisplayInfo(entry.gesture, customMetadataList);
+      
       if (!displayInfo) return;
 
       const newEntry: HistoryEntry = {
@@ -35,6 +39,7 @@ export const createHistorySlice: StateCreator<HistorySlice & { customGestureMeta
         details: entry.details,
         display: displayInfo,
       };
+
       set(produce((draft: HistorySlice) => {
         draft.historyEntries.unshift(newEntry);
         if (draft.historyEntries.length > MAX_HISTORY_ITEMS) {
@@ -42,10 +47,10 @@ export const createHistorySlice: StateCreator<HistorySlice & { customGestureMeta
         }
       }));
     },
-
     handleBackendActionResult: (result) => {
       if (!result?.gestureName || result.pluginId === 'none') return;
       
+      // Update the status of the most recent matching pending entry
       const newHistory = get().historyEntries.map(entry => {
         if (entry.gesture === result.gestureName && entry.actionType === result.pluginId && entry.reason === 'AWAITING_RESULT') {
           return { ...entry, success: result.success, reason: result.message || (result.success ? 'OK' : 'FAILED') };
@@ -53,13 +58,13 @@ export const createHistorySlice: StateCreator<HistorySlice & { customGestureMeta
         return entry;
       });
 
+      // Only trigger a state update if something actually changed to avoid unnecessary renders
       if (newHistory.length > 0 && newHistory[0] !== get().historyEntries[0]) {
         set({ historyEntries: newHistory });
       }
       
       pubsub.publish(UI_EVENTS.ACTION_RESULT_RECEIVED, result);
     },
-
     clearHistory: () => set({ historyEntries: [] }),
   }
 });

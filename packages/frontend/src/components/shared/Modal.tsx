@@ -18,7 +18,14 @@ export const Modal = ({ id, title, iconKey, onClose, children, footer, size, sho
     return null;
   }
 
-  const modalContentClass = size ? `modal-content-${size}` : '';
+  // Explicit mapping of size to Tailwind classes to ensure they are captured during the build
+  const sizeClasses = {
+    lg: 'w-full !max-w-4xl h-[90vh]',
+    xl: 'w-full !max-w-6xl h-[95vh]',
+  };
+  
+  // Default size if none specified
+  const modalContentClass = size ? sizeClasses[size] : 'w-full max-w-lg max-h-[90vh]';
 
   return (
     <div id={id} className="modal visible" role="dialog" aria-modal="true">
@@ -30,10 +37,8 @@ export const Modal = ({ id, title, iconKey, onClose, children, footer, size, sho
             <span ref={(el) => el && setIcon(el, 'UI_CLOSE')}></span>
           </button>
         </div>
-        
-        {/* The hardcoded scrollable div has been removed. Children are rendered directly. */}
+        {/* Children are rendered directly in the flex column structure. */}
         {children}
-
         {footer && (
           <div id={`${id}-footer`} className="modal-actions">
             {footer}

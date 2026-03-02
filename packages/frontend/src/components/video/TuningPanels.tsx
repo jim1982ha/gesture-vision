@@ -3,7 +3,7 @@ import { useState, useEffect, useContext } from 'react';
 import { AppContext } from '#frontend/contexts/AppContext.js';
 import { useAppStore } from '#frontend/hooks/useAppStore.js';
 import { appStore } from '#frontend/core/state/app-store.js';
-import { pubsub, UI_EVENTS, type FullConfiguration } from '#shared/index.js';
+import { pubsub, UI_EVENTS, WEBCAM_EVENTS, type FullConfiguration } from '#shared/index.js';
 import { setIcon } from '#frontend/ui/helpers/ui-helpers.js';
 import type { SliderConfig, SliderProps } from '#frontend/types/index.js';
 
@@ -32,16 +32,14 @@ const TuningPanel = ({ id, isVisible, children, onReset }: TuningPanelProps) => 
   if (!isVisible) return null;
   return (
     <div id={id} className="video-overlay-panel">
-      <div className="tuning-sliders-container">
-        <div className="flex-1 flex flex-col gap-1">
+      <div className="flex flex-row items-center gap-3">
+        <div className="flex-1 flex flex-col gap-1 min-w-0">
           {children}
         </div>
         {onReset && (
-          <div className="flex justify-end">
-            <button id={`${id}-reset-button`} onClick={onReset} className="btn btn-icon" title="Reset Adjustments">
-              <span ref={el => el && setIcon(el, "UI_RESET")}></span>
-            </button>
-          </div>
+          <button id={`${id}-reset-button`} onClick={onReset} className="btn btn-icon flex-shrink-0" title="Reset Adjustments">
+            <span ref={el => el && setIcon(el, "UI_RESET")}></span>
+          </button>
         )}
       </div>
     </div>
@@ -52,7 +50,6 @@ export function TuningPanels() {
     const context = useContext(AppContext);
     const [displayVisible, setDisplayVisible] = useState(false);
     const [aiVisible, setAiVisible] = useState(false);
-    
     const settings = useAppStore(state => state);
     const { requestBackendPatch, setFullConfig } = appStore.getState().actions;
 
@@ -65,24 +62,33 @@ export function TuningPanels() {
           if (!v) setAiVisible(false);
           return !v;
         });
-        const subAi = pubsub.subscribe(UI_EVENTS.VIDEO_TOOLBAR_AI_CLICKED, toggleAi);
-        const subDisplay = pubsub.subscribe(UI_EVENTS.VIDEO_TOOLBAR_DISPLAY_CLICKED, toggleDisplay);
-        const subExitFs = pubsub.subscribe(UI_EVENTS.VIDEO_EXIT_FULLSCREEN, () => {
+        const closeAll = () => {
           setDisplayVisible(false);
           setAiVisible(false);
-        });
-        return () => { subAi(); subDisplay(); subExitFs(); };
+        };
+
+        const subAi = pubsub.subscribe(UI_EVENTS.VIDEO_TOOLBAR_AI_CLICKED, toggleAi);
+        const subDisplay = pubsub.subscribe(UI_EVENTS.VIDEO_TOOLBAR_DISPLAY_CLICKED, toggleDisplay);
+        const subExitFs = pubsub.subscribe(UI_EVENTS.VIDEO_EXIT_FULLSCREEN, closeAll);
+        
+        // FIX: Ensure panels are closed when stream stops to prevent them from getting stuck visible
+        const subStreamStop = pubsub.subscribe(WEBCAM_EVENTS.STREAM_STOP, closeAll);
+
+        return () => { subAi(); subDisplay(); subExitFs(); subStreamStop(); };
     }, []);
-      
+
     if (!context) return null;
+
     const { translate } = context.services.translationService;
 
     const handleLiveUpdate = (key: keyof FullConfiguration, value: number) => {
         setFullConfig({ ...appStore.getState(), [key]: value });
     };
+
     const handlePersistUpdate = (key: keyof FullConfiguration, value: number) => {
         requestBackendPatch({ [key]: value });
     };
+
     const handleDisplayReset = () => {
         requestBackendPatch({ lowLightBrightness: 100, lowLightContrast: 100 });
     };
@@ -92,6 +98,7 @@ export function TuningPanels() {
         { labelKey: 'presenceLabel', configKey: 'handPresenceConfidence', min: 0.1, max: 0.9, step: 0.05 },
         { labelKey: 'trackLabel', configKey: 'handTrackingConfidence', min: 0.1, max: 0.9, step: 0.05 },
     ];
+
     const poseSliders: SliderConfig[] = [
         { labelKey: 'detectLabel', configKey: 'poseDetectionConfidence', min: 0.1, max: 0.9, step: 0.05 },
         { labelKey: 'presenceLabel', configKey: 'posePresenceConfidence', min: 0.1, max: 0.9, step: 0.05 },
@@ -99,19 +106,22 @@ export function TuningPanels() {
     ];
 
     return (
-        <div id="tuning-panels-container" className="absolute top-14 right-2 z-20 flex flex-col items-end gap-2">
+        <div id="tuning-panels-container" className="absolute top-14 right-2 z-50 flex flex-col items-end gap-2 pointer-events-auto transition-opacity duration-300">
             <TuningPanel id="display-tuning-panel" isVisible={displayVisible} onReset={handleDisplayReset}>
                 <Slider label={translate('brightnessLabel')} configKey="lowLightBrightness" min={0} max={200} step={1} value={settings.lowLightBrightness ?? 100} onInput={handleLiveUpdate} onChange={handlePersistUpdate} />
                 <Slider label={translate('contrastLabel')} configKey="lowLightContrast" min={0} max={200} step={1} value={settings.lowLightContrast ?? 100} onInput={handleLiveUpdate} onChange={handlePersistUpdate} />
             </TuningPanel>
+
             <TuningPanel id="ai-tuning-panel" isVisible={aiVisible}>
                 {(settings.enableBuiltInHandGestures || settings.enableCustomHandGestures) && (
                     <div id="handTuningSliders">
+                        <h4 className="text-xs font-semibold mb-1 opacity-70">{translate('handTuningGroupName')}</h4>
                         {handSliders.map(s => <Slider key={s.configKey} label={translate(s.labelKey)} {...s} value={settings[s.configKey] as number} onInput={() => {}} onChange={handlePersistUpdate} />)}
                     </div>
                 )}
                 {settings.enablePoseProcessing && (
-                    <div id="poseTuningSliders">
+                    <div id="poseTuningSliders" className="mt-2">
+                        <h4 className="text-xs font-semibold mb-1 opacity-70">{translate('poseTuningGroupName')}</h4>
                         {poseSliders.map(s => <Slider key={s.configKey} label={translate(s.labelKey)} {...s} value={settings[s.configKey] as number} onInput={() => {}} onChange={handlePersistUpdate} />)}
                     </div>
                 )}

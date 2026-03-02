@@ -1,7 +1,6 @@
 #!/bin/bash
 # FILE: tools/update_dev.sh
 # updating development docker container with more options
-
 # Navigate to the project root (parent directory of this script)
 cd "$(dirname "$0")/.." || exit 1
 
@@ -33,6 +32,23 @@ confirm_action() {
     read -r -p "$prompt_message [${default_choice}]: " choice
     choice=${choice:-$default_choice}
     [[ "$choice" =~ ^[Yy]$ ]]
+}
+
+sync_lockfile() {
+    echo "--------------------------------------------------"
+    echo "Ensuring package-lock.json is clean and synced..."
+    if command -v npm &> /dev/null; then
+        rm -f package-lock.json
+        echo "Running 'npm install' on host to generate valid lockfile..."
+        if npm install --package-lock-only --no-audit --no-fund; then
+            echo "✔ package-lock.json regenerated successfully."
+        else
+            echo "⚠ Warning: Failed to regenerate lockfile. 'npm install' returned error."
+        fi
+    else
+        echo "⚠ Warning: 'npm' not found on host. Skipping lockfile sync."
+    fi
+    echo "--------------------------------------------------"
 }
 
 display_help() {
@@ -102,10 +118,36 @@ ENV_FILE="config/.env.dev"
 EXAMPLE_ENV_FILE="config/.env.dev.example"
 DOCKER_COMPOSE_FILE="docker-compose.dev.yaml"
 PROJECT_NAME="gesturevision_dev_project"
+CONFIG_DEV_FILE="config/config.dev.json"
+CONFIG_EXAMPLE_FILE="config/config.example.json"
 
 if [ ! -f "$EXAMPLE_ENV_FILE" ]; then echo "ERROR: '$EXAMPLE_ENV_FILE' not found." >&2; exit 1; fi
 if [ ! -f "$ENV_FILE" ]; then echo "INFO: '$ENV_FILE' not found. Copying from '$EXAMPLE_ENV_FILE'."; cp "$EXAMPLE_ENV_FILE" "$ENV_FILE"; fi
 if [ ! -f "$DOCKER_COMPOSE_FILE" ]; then echo "ERROR: '$DOCKER_COMPOSE_FILE' not found." >&2; exit 1; fi
+
+# --- FIX: Check/Create config.dev.json to prevent Docker from creating a directory ---
+if [ -d "$CONFIG_DEV_FILE" ]; then
+    echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+    echo "ERROR: '$CONFIG_DEV_FILE' exists as a directory!"
+    echo "This prevents the backend from starting. It happens when the file is missing"
+    echo "and Docker creates a directory mount point instead."
+    echo
+    echo "ACTION REQUIRED: Run this command to fix it:"
+    echo "  sudo rm -rf $CONFIG_DEV_FILE"
+    echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+    exit 1
+fi
+
+if [ ! -f "$CONFIG_DEV_FILE" ]; then
+    if [ -f "$CONFIG_EXAMPLE_FILE" ]; then
+        echo "INFO: '$CONFIG_DEV_FILE' not found. Creating default config from example..."
+        cp "$CONFIG_EXAMPLE_FILE" "$CONFIG_DEV_FILE"
+    else
+        echo "ERROR: Could not create '$CONFIG_DEV_FILE'. Example file '$CONFIG_EXAMPLE_FILE' is missing." >&2
+        exit 1
+    fi
+fi
+
 echo "Initial checks passed. Using '$DOCKER_COMPOSE_CMD'."
 echo
 
@@ -123,7 +165,6 @@ else
     FINAL_IMAGE_TAG=$(eval echo "$TEMPLATE_IMAGE_NAME")
     echo "Evaluated image tag from .env.dev: $FINAL_IMAGE_TAG"
 fi
-
 export DEV_IMAGE_NAME="$FINAL_IMAGE_TAG"
 echo "Using image name for this session: $DEV_IMAGE_NAME (exported to environment)"
 echo
@@ -146,13 +187,21 @@ if [ "$ACTION_BUILD" == "ask" ]; then
 fi; echo
 
 if [ "$ACTION_BUILD" == "yes" ]; then
+    sync_lockfile
+    
     echo "[Step 5/7] Building development image: $FINAL_IMAGE_TAG..."
     BUILD_ARGS_DEV=""
     if $NO_CACHE_BUILD; then BUILD_ARGS_DEV="--no-cache"; echo "Building with --no-cache flag."; fi
+    
     # shellcheck disable=SC2086
     if $DOCKER_COMPOSE_CMD -p "$PROJECT_NAME" -f "$DOCKER_COMPOSE_FILE" --env-file "$ENV_FILE" build $BUILD_ARGS_DEV; then
         echo "Build successful for image: $FINAL_IMAGE_TAG"
-    else echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"; echo "!! DOCKER BUILD FAILED - Aborting update    !!"; echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"; exit 1; fi
+    else 
+        echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"; 
+        echo "!! DOCKER BUILD FAILED - Aborting update    !!"; 
+        echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"; 
+        exit 1; 
+    fi
 else echo "[Step 5/7] Skipping image build as requested."; fi; echo
 
 FINAL_DETACHED_FLAG_DEV=""

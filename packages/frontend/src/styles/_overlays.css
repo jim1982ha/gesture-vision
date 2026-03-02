@@ -1,3 +1,4 @@
+/* FILE: packages/frontend/src/styles/_overlays.css */
 @layer components {
   /* --- Keyframes for initial toolbar visibility --- */
   @keyframes fade-in-then-out {
@@ -7,24 +8,38 @@
 
   /* --- Main Overlay System --- */
   #output_canvas {
-    @apply absolute inset-0 z-10 pointer-events-none;
+    @apply absolute inset-0 z-10 pointer-events-auto; /* Auto allows ROI drag interactions */
   }
-  
   #video-overlay-container {
     @apply absolute inset-0 z-20 pointer-events-none flex flex-col justify-between p-2;
   }
-
   #video-toolbar-container {
-    @apply pointer-events-auto z-40;
+    @apply pointer-events-auto z-40 transition-opacity duration-300;
+    opacity: 1; /* Default visible when video is NOT active */
   }
 
-  /* --- Toolbar visibility logic --- */
+  /* --- Toolbar & Tuning Panel visibility logic --- */
+  /* Hide controls when video is active to avoid clutter... */
+  .video-container.video-active #video-toolbar-container,
+  .video-container.video-active #tuning-panels-container {
+    opacity: 0; 
+  }
+  
+  /* ...but show them when hovering the container */
+  .video-container.video-active:hover #video-toolbar-container,
+  .video-container.video-active:hover #tuning-panels-container {
+    opacity: 1; 
+  }
+  
+  /* Show initially for 4s on load */
+  .video-container.initial-show #video-toolbar-container,
+  .video-container.initial-show #tuning-panels-container { 
+    animation: fade-in-then-out 4s ease-in-out forwards; 
+  }
+
   #stream-actions-group { @apply hidden; }
   .video-container.video-active #stream-actions-group { @apply flex; }
-  .video-container.video-active #video-toolbar-container { @apply opacity-0 transition-opacity duration-300; }
-  .video-container:not(.video-active) #video-toolbar-container { @apply opacity-100; }
-  .video-container.video-active:hover #video-toolbar-container { @apply opacity-100; animation: none; }
-  .video-container.initial-show #video-toolbar-container { animation: fade-in-then-out 4s ease-in-out forwards; }
+
 
   /* --- Status Overlay (Connecting/Idle) --- */
   #status-overlay {
@@ -46,6 +61,7 @@
     @apply overlay-surface rounded-lg p-2 w-72 text-xs;
     box-shadow: var(--shadow-depth-md);
   }
+  
   .tuning-sliders-container { @apply flex items-center gap-2; }
   .slider-group label { @apply w-16 text-right; color: hsl(var(--color-text-secondary)); }
   .slider-group output { @apply w-12 text-left font-mono; }
@@ -54,7 +70,7 @@
   #gesture-feedback-overlay { @apply overlay-surface rounded-full p-2 items-center gap-2 text-xs; }
   #gesture-feedback-overlay #currentGestureSpan { @apply flex-shrink-0; }
   #gesture-feedback-overlay .timer-display { @apply flex items-center gap-1 flex-shrink-0; }
-
+  
   .confidence-bar-container { @apply relative h-4 bg-black/20 rounded-full overflow-hidden border border-white/20 min-w-[6rem] max-w-[9rem] w-full; }
   .confidence-bar { 
     @apply h-full rounded-full transition-all duration-150 ease-linear relative flex items-center justify-end;
@@ -62,7 +78,7 @@
     overflow: visible;
   }
   .confidence-threshold-marker { @apply absolute top-0 w-0.5 h-full bg-white/80 transition-all duration-300 ease-out; box-shadow: 0 0 2px black; }
-  
+
   /* --- Progress Rings --- */
   #progress-rings-overlay {
     @apply opacity-0 transition-opacity duration-200;
@@ -78,7 +94,7 @@
     border-color: hsl(var(--color-on-primary) / 0.2);
     @apply absolute inset-0 rounded-full backdrop-blur-md border;
   }
-  
+
   .progress-rings { 
     filter: drop-shadow(0 4px 6px rgb(0 0 0 / 0.7)); 
   }

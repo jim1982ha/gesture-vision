@@ -1,5 +1,5 @@
 /* FILE: packages/frontend/src/services/gesture.service.ts */
-import { GESTURE_EVENTS, pubsub, type EnrichedGestureConfig, type ActionConfig, type ActionDetails, WEBCAM_EVENTS, type GestureCategoryIconType, type EnrichedPoseConfig } from '#shared/index.js';
+import { GESTURE_EVENTS, pubsub, type EnrichedGestureConfig, type ActionConfig, type ActionDetails, WEBCAM_EVENTS, type GestureCategoryIconType, type EnrichedPoseConfig, normalizeNameForMtx } from '#shared/index.js';
 import { webSocketService } from './websocket-service.js';
 import type { AppStore } from '#frontend/core/state/app-store.js';
 import type { TranslationService } from './translation.service.js';
@@ -49,7 +49,6 @@ export class GestureService {
   constructor(appStore: AppStore, translationService: TranslationService) {
     this.#appStore = appStore;
     this.#translationService = translationService;
-
     this.#subscriptions.push(
       pubsub.subscribe(WEBCAM_EVENTS.STREAM_STOP, this.#resetAllTimersAndStates),
       pubsub.subscribe(GESTURE_EVENTS.SUPPRESS_ACTIONS, () => { this.#isActionDispatchSuppressed = true; }),
@@ -65,13 +64,14 @@ export class GestureService {
   public processDetections(detections: ActionableRecognition[], worldLandmarks?: Landmark[]): void {
     const now = Date.now();
     const state = this.#appStore.getState();
-
     let allDetections = detections;
+
     if (state.enablePoseProcessing && worldLandmarks) {
       const poseConfigs = state.gestureConfigs.filter((c): c is EnrichedPoseConfig => 'pose' in c);
       allDetections = [...detections, ...this.#checkForStaticPoses(worldLandmarks, poseConfigs)];
     }
 
+    // Match detected gestures to configurations using normalized names
     const matchedDetections: MatchedDetection[] = allDetections
       .map(d => ({ detection: d, config: this.#getActiveConfig(d.name, state.gestureConfigs) }))
       .filter((item): item is MatchedDetection => item.config !== null);
@@ -81,15 +81,26 @@ export class GestureService {
     if (!this.#isCooldownActive(now) && !this.#isActionDispatchSuppressed) {
       this.#updateGestureHoldStates(matchedDetections, now);
     }
-    
+
     this.#processAndDispatch(matchedDetections, now);
   }
 
   #getActiveConfig(gestureName: string, configs: EnrichedGestureConfig[]): EnrichedGestureConfig | null {
-    const config = configs.find(c => c.display.name === gestureName);
+    if (!gestureName) return null;
+    
+    // Normalize the input gesture name (e.g., "Thumb_Up" -> "thumb_up")
+    const normalizedInput = normalizeNameForMtx(gestureName).toLowerCase();
+
+    const config = configs.find(c => {
+        const configName = c.display.name;
+        // Normalize the config name (e.g., "THUMB_UP" -> "thumb_up")
+        return normalizeNameForMtx(configName).toLowerCase() === normalizedInput;
+    });
+
     if (!config) return null;
 
     const { enableBuiltInHandGestures, enableCustomHandGestures, enablePoseProcessing } = this.#appStore.getState();
+
     switch (config.display.category) {
         case 'BUILT_IN_HAND': return enableBuiltInHandGestures ? config : null;
         case 'CUSTOM_HAND': return enableCustomHandGestures ? config : null;
@@ -104,13 +115,18 @@ export class GestureService {
       const confidenceMet = detection.confidence >= (config.confidence ?? 50) / 100.0;
       
       const state = this.#holdState[gestureName];
+
       if (confidenceMet) {
-        if (!state) this.#holdState[gestureName] = { startTime: now, lastSeen: now };
-        else {
+        if (!state) {
+            // New hold started
+            this.#holdState[gestureName] = { startTime: now, lastSeen: now };
+        } else {
+          // Continue hold
           state.lastSeen = now;
           if (state.startTime === null) state.startTime = now;
         }
       } else if (state) {
+        // Confidence lost, reset start time but keep entry briefly (debounce)
         state.startTime = null;
         state.lastSeen = now;
       }
@@ -122,19 +138,26 @@ export class GestureService {
     let triggeredMatch: MatchedDetection | null = null;
     let primaryMatchForDisplay: MatchedDetection | null = null;
 
+    // 1. Prioritize displaying the gesture currently being held
     const gestureInHold = Object.entries(this.#holdState).find(([, state]) => state.startTime !== null)?.[0];
+    
     if (gestureInHold) {
       primaryMatchForDisplay = matchedDetections.find(item => item.config.display.name === gestureInHold) || null;
-    } else if (matchedDetections.length > 0) {
+    } 
+    
+    // 2. Fallback to highest confidence detection if nothing is held
+    if (!primaryMatchForDisplay && matchedDetections.length > 0) {
       primaryMatchForDisplay = matchedDetections.reduce((prev, current) => (prev.detection.confidence > current.detection.confidence) ? prev : current);
     }
-  
+
+    // 3. Check for Trigger
     if (!isCooldownActive && !this.#isActionDispatchSuppressed) {
       for (const item of matchedDetections) {
         const holdState = this.#holdState[item.config.display.name];
         if (holdState?.startTime) {
           const holdDuration = now - holdState.startTime;
           const requiredDurationMs = (item.config.duration || 1.0) * 1000;
+          
           if (holdDuration >= requiredDurationMs) {
             triggeredMatch = item;
             break; 
@@ -146,6 +169,7 @@ export class GestureService {
     this.#updateUIDisplay(primaryMatchForDisplay, now, isCooldownActive);
 
     if (triggeredMatch) {
+      console.log(`[GestureService] Action Triggered: ${triggeredMatch.config.display.name}`);
       this.#triggerAction(triggeredMatch.config, matchedDetections, now);
       this.#startGlobalCooldown(now);
       this.#resetAllGestureHoldStates();
@@ -160,7 +184,13 @@ export class GestureService {
     if (actionConfig && pluginId !== 'none') {
         const latestDetection = currentDetections.find(d => d.config.display.name === gestureName);
         const actionConfidence = latestDetection?.detection.confidence ?? ((config.confidence ?? 50) / 100.0);
-        const actionDetails: ActionDetails = { gestureName, confidence: actionConfidence, timestamp: now };
+        
+        const actionDetails: ActionDetails = { 
+            gestureName, 
+            confidence: actionConfidence, 
+            timestamp: now 
+        };
+        
         webSocketService.sendDispatchAction(config, actionDetails);
     }
 
@@ -193,7 +223,7 @@ export class GestureService {
             feedbackState.holdPercent = feedbackState.requiredHoldMs > 0 ? Math.min(1, feedbackState.currentHoldMs / feedbackState.requiredHoldMs) : 0;
         }
     }
-    
+
     pubsub.publish(GESTURE_EVENTS.UI_FEEDBACK_UPDATE, {
       ...feedbackState,
       gestureText: this.#translationService.translate(feedbackState.gestureName, { defaultValue: feedbackState.gestureName }),
@@ -205,19 +235,22 @@ export class GestureService {
   #pruneExpiredHoldStates = (now: number): void => Object.keys(this.#holdState).forEach(key => { 
     if (now - this.#holdState[key].lastSeen > GESTURE_STATE_PRUNE_MS) delete this.#holdState[key];
   });
-  
+
   #isCooldownActive = (now: number): boolean => now < this.#globalCooldownEndTime;
+
   #getGlobalCooldownPercent = (now: number): number => {
     const cooldownMs = (this.#appStore.getState().globalCooldown ?? 0) * 1000;
     if (cooldownMs <= 0 || !this.#isCooldownActive(now)) return 0;
     const startTime = this.#globalCooldownEndTime - cooldownMs;
     return Math.min(1, (now - startTime) / cooldownMs);
   };
+
   #startGlobalCooldown = (now: number): void => {
     this.#globalCooldownEndTime = now + (this.#appStore.getState().globalCooldown * 1000);
   };
 
   #resetAllGestureHoldStates = (): void => { this.#holdState = {}; };
+
   #resetAllTimersAndStates = (): void => {
     this.#globalCooldownEndTime = 0;
     this.#resetAllGestureHoldStates();
@@ -225,15 +258,16 @@ export class GestureService {
   };
 
   #subtract = (v1: Vector3D, v2: Vector3D): Vector3D => ({ x: v1.x - v2.x, y: v1.y - v2.y, z: v1.z - v2.z });
+
   #normalize = (v: Vector3D): Vector3D => {
     const mag = Math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
     return mag > 1e-6 ? { x: v.x / mag, y: v.y / mag, z: v.z / mag } : { x: 0, y: 0, z: 0 };
   }
+
   #dot = (v1: Vector3D, v2: Vector3D): number => v1.x * v2.x + v1.y * v2.y + v1.z * v2.z;
 
   #checkForStaticPoses(worldLandmarks: Landmark[], poseConfigs: EnrichedPoseConfig[]): ActionableRecognition[] {
     if (poseConfigs.length === 0 || worldLandmarks.length < 33) return [];
-    
     const detectedPoses: ActionableRecognition[] = [];
     const customMetadata = this.#appStore.getState().customGestureMetadataList;
 
@@ -241,6 +275,7 @@ export class GestureService {
       const meta = customMetadata.find(m => m.name === config.pose);
       // @ts-expect-error - baseRules is not strongly typed on metadata, which is expected as it comes from a JS file.
       const rules = meta?.baseRules as { vectors?: BasePoseRule[] } | undefined;
+      
       if (!rules?.vectors || rules.vectors.length === 0) continue;
 
       let totalSimilarity = 0;
@@ -250,11 +285,11 @@ export class GestureService {
         const p1 = worldLandmarks[rule.p1];
         const p2 = worldLandmarks[rule.p2];
         if (!p1 || !p2) continue;
-        
+
         const liveVector = this.#normalize(this.#subtract(p1, p2));
         const referenceVector = { x: rule.x.mean, y: rule.y.mean, z: rule.z.mean };
-        const similarity = this.#dot(liveVector, referenceVector);
         
+        const similarity = this.#dot(liveVector, referenceVector);
         totalSimilarity += similarity;
         validVectorCount++;
       }

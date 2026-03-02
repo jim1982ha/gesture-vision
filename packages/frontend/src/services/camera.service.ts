@@ -1,5 +1,5 @@
 /* FILE: packages/frontend/src/services/camera.service.ts */
-import { pubsub, UI_EVENTS, WEBCAM_EVENTS, PERMISSION_EVENTS, CAMERA_SOURCE_EVENTS, normalizeNameForMtx, type RtspSourceConfig, WEBSOCKET_EVENTS } from '#shared/index.js';
+import { pubsub, UI_EVENTS, WEBSOCKET_EVENTS, PERMISSION_EVENTS, CAMERA_SOURCE_EVENTS, normalizeNameForMtx, type RtspSourceConfig, WEBCAM_EVENTS } from '#shared/index.js';
 import { secureStorage } from '#shared/services/security-utils.js';
 import { DEFAULT_WEBCAM_FACING_MODE, MOBILE_WEBCAM_PLACEHOLDER_ID, STORAGE_KEY_LAST_WEBCAM_ID, STORAGE_KEY_SELECTED_CAMERA_SOURCE, STORAGE_KEY_MIRROR_STATE_PER_SOURCE } from '#frontend/constants/index.js';
 import { WebcamError } from '#frontend/camera/webcam-error.js';
@@ -33,19 +33,15 @@ export class CameraService {
   #gestureProcessor: GestureProcessor;
   #canvasRenderer: CanvasRenderer;
   #translationService: TranslationService;
-
   #stream: MediaStream | null = null;
   #currentSourceId: string | null = '';
   #mirrorStateMap = new Map<string, boolean>();
   #currentFacingMode: 'user' | 'environment' = DEFAULT_WEBCAM_FACING_MODE;
   #animationFrameId: number | null = null;
-  
   #rtspConnector: RtspConnector | null = null;
   #activeOnDemandSource: string | null = null;
-  
   #deviceMap = new Map<string, string>();
   #isMobile = false;
-
   #subscriptions: (() => void)[] = [];
 
   constructor(dependencies: CameraServiceDependencies) {
@@ -60,9 +56,9 @@ export class CameraService {
 
   public initialize(): void {
     this.#loadPreferences();
-    this.#rebuildAndValidateDeviceList(); // Initial build
+    this.#rebuildAndValidateDeviceList(); 
     this.#subscribeToEvents();
-    this.refreshDeviceList(); // Trigger async refresh
+    setTimeout(() => this.refreshDeviceList(), 100);
   }
 
   public destroy(): void {
@@ -81,7 +77,7 @@ export class CameraService {
   }
 
   #handleStoreChange(state: AppState, prevState: AppState): void {
-    const { rtspSources, processingResolutionWidthPreference, showHandLandmarks, showPoseLandmarks } = state;
+    const { rtspSources, processingResolutionWidthPreference, showHandLandmarks, showPoseLandmarks, lowLightBrightness, lowLightContrast } = state;
     if (JSON.stringify(rtspSources) !== JSON.stringify(prevState.rtspSources)) {
       this.#rebuildAndValidateDeviceList();
       if (this.isStreaming()) this.#handleLiveRtspConfigUpdate(rtspSources);
@@ -91,6 +87,9 @@ export class CameraService {
     }
     if (showHandLandmarks !== prevState.showHandLandmarks || showPoseLandmarks !== prevState.showPoseLandmarks) {
       this.#canvasRenderer.drawOutput();
+    }
+    if (lowLightBrightness !== prevState.lowLightBrightness || lowLightContrast !== prevState.lowLightContrast) {
+        this.#applyVideoFilters(lowLightBrightness, lowLightContrast);
     }
   }
 
@@ -102,18 +101,22 @@ export class CameraService {
     } catch (e) { console.error('[CameraService] Failed to load mirror state:', e); }
   }
 
+  #applyVideoFilters(brightness: number, contrast: number): void {
+      if (this.#videoElement) {
+          this.#videoElement.style.filter = `brightness(${brightness}%) contrast(${contrast}%)`;
+      }
+  }
+
   public async startStream(options: StartStreamOptions): Promise<void> {
     if (!options.cameraId) return;
     if (this.isStreamActive()) await this.stopStream(false);
-    
     const { actions } = this.#appStore.getState();
     actions.setIsStreamConnecting(true);
-
     try {
       this.#currentSourceId = options.cameraId;
       this.#videoElement.classList.toggle('mirrored', this.isMirrored());
       this.#videoElement.closest('.video-container')?.classList.add('video-active');
-
+      
       const stream = await this.#acquireStream(options.cameraId);
       this.#stream = stream;
       this.#videoElement.srcObject = stream;
@@ -135,18 +138,27 @@ export class CameraService {
     if (this.#animationFrameId) { cancelAnimationFrame(this.#animationFrameId); this.#animationFrameId = null; }
     if (streamPromiseAbortController) { streamPromiseAbortController.abort('Stream stop initiated'); streamPromiseAbortController = null; }
     
+    // FIX: Automatically exit fullscreen (expanded mode) if stream stops
+    if (this.#appStore.getState().isVideoExpanded) {
+        this.#appStore.getState().actions.toggleVideoExpanded();
+    }
+
     this.#rtspConnector?.disconnect();
     this.#rtspConnector = null;
+    
     if (this.#activeOnDemandSource) {
       webSocketService.sendMessage({ type: WEBSOCKET_EVENTS.RTSP_DISCONNECT_REQUEST, payload: { pathName: this.#activeOnDemandSource } });
       this.#activeOnDemandSource = null;
     }
-
+    
     this.#gestureProcessor.enableProcessing(false);
     this.#stream?.getTracks().forEach((track) => track.stop());
     this.#stream = null; this.#videoElement.srcObject = null; this.#videoElement.pause();
     this.#videoElement.closest('.video-container')?.classList.remove('video-active');
     this.#canvasRenderer.clearVideoSource();
+    
+    this.#videoElement.style.filter = '';
+
     if (publishStopEvent) {
       pubsub.publish(WEBCAM_EVENTS.STREAM_STOP);
       this.#appStore.getState().actions.setWebcamRunningStatus(false);
@@ -157,11 +169,12 @@ export class CameraService {
     if (streamPromiseAbortController) streamPromiseAbortController.abort('New stream start initiated');
     streamPromiseAbortController = new AbortController();
     const signal = streamPromiseAbortController.signal;
-
+    
     try {
       if (signal.aborted) throw new DOMException('Aborted before start', 'AbortError');
       const isRtsp = targetDeviceId.startsWith('rtsp:');
       const stream = isRtsp ? await this.#startRtspStream(targetDeviceId, signal) : await this.#startWebcamStream(targetDeviceId, signal);
+      
       if (!stream) throw new WebcamError('STREAM_ACQUISITION_FAILED', 'Failed to acquire stream.');
       streamPromiseAbortController = null;
       return stream;
@@ -172,29 +185,41 @@ export class CameraService {
   }
 
   async #startWebcamStream(targetDeviceId: string, signal: AbortSignal): Promise<MediaStream> {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new WebcamError('HTTPS_REQUIRED', 'HTTPS Required');
+    }
+
     const { processingResolutionWidthPreference, targetFpsPreference } = this.#appStore.getState();
     const constraints: MediaStreamConstraints = {
       audio: false,
       video: { width: { ideal: processingResolutionWidthPreference }, frameRate: { ideal: targetFpsPreference } },
     };
+
     if (targetDeviceId && targetDeviceId !== MOBILE_WEBCAM_PLACEHOLDER_ID) {
       (constraints.video as MediaTrackConstraints).deviceId = { exact: targetDeviceId };
     } else if (targetDeviceId === MOBILE_WEBCAM_PLACEHOLDER_ID && this.canFlipCamera()) {
       (constraints.video as MediaTrackConstraints).facingMode = { exact: this.#currentFacingMode };
     }
-    const stream = await navigator.mediaDevices.getUserMedia(constraints);
-    if (signal.aborted) { stream.getTracks().forEach(t => t.stop()); throw new DOMException('Aborted after stream aquired', 'AbortError'); }
-    return stream;
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      if (signal.aborted) { stream.getTracks().forEach(t => t.stop()); throw new DOMException('Aborted after stream aquired', 'AbortError'); }
+      return stream;
+    } catch (error) {
+       console.error("[CameraService] getUserMedia error:", error);
+       throw error;
+    }
   }
-  
+
   async #startRtspStream(targetDeviceId: string, signal: AbortSignal): Promise<MediaStream> {
     const normalizedPathName = targetDeviceId.substring(5);
     const rtspConfig = this.#appStore.getState().rtspSources.find(s => normalizeNameForMtx(s.name) === normalizedPathName);
+    
     if (!rtspConfig) throw new WebcamError('RTSP_CONFIG_NOT_FOUND', `Config for '${targetDeviceId}' not found.`);
     
     await webSocketService.request(WEBSOCKET_EVENTS.RTSP_CONNECT_REQUEST, { pathName: normalizedPathName, url: rtspConfig.url }, 10000);
     if (rtspConfig.sourceOnDemand) this.#activeOnDemandSource = normalizedPathName;
-
+    
     this.#rtspConnector = new RtspConnector();
     signal.addEventListener('abort', () => this.#rtspConnector?.abort());
     return this.#rtspConnector.connect(normalizedPathName);
@@ -218,9 +243,14 @@ export class CameraService {
     if (!this.isStreamingRtsp()) {
       const deviceId = this.#stream?.getVideoTracks()[0]?.getSettings().deviceId;
       if (deviceId) { this.#currentSourceId = deviceId; secureStorage.set(STORAGE_KEY_LAST_WEBCAM_ID, deviceId); }
+      
+      this.refreshDeviceList();
     }
-
     const roi = this.isStreamingRtsp() ? this.#appStore.getState().rtspSources.find(s => `rtsp:${normalizeNameForMtx(s.name)}` === this.#currentSourceId)?.roi ?? null : null;
+    
+    const state = this.#appStore.getState();
+    this.#applyVideoFilters(state.lowLightBrightness, state.lowLightContrast);
+
     this.#gestureProcessor.setActiveStreamRoi(roi);
     this.#canvasRenderer.updateSourceInfo(this.#currentSourceId, roi);
     this.#canvasRenderer.handleResize();
@@ -231,7 +261,7 @@ export class CameraService {
     this.#gestureProcessor.enableProcessing(true);
     this.#processingLoop();
   }
-  
+
   #processingLoop = (timestamp?: number): void => {
     if (!this.isStreamActive()) return;
     this.#gestureProcessor.processFrame({
@@ -248,13 +278,12 @@ export class CameraService {
     const currentNormalizedName = this.#currentSourceId.substring(5);
     const newConfig = newSources.find(s => normalizeNameForMtx(s.name) === currentNormalizedName);
     const oldConfig = this.#appStore.getState().rtspSources.find(s => normalizeNameForMtx(s.name) === currentNormalizedName);
-  
+    
     if (!newConfig || newConfig.url !== oldConfig?.url) {
       pubsub.publish(UI_EVENTS.SHOW_NOTIFICATION, { messageKey: !newConfig ? 'notificationStreamStoppedConfigChanged' : 'notificationStreamUrlChanged', type: 'warning' });
       this.stopStream();
       return;
     }
-  
     if (JSON.stringify(newConfig.roi) !== JSON.stringify(oldConfig?.roi)) {
       const newRoi = newConfig.roi || null;
       this.#canvasRenderer.updateSourceInfo(this.#currentSourceId, newRoi);
@@ -263,18 +292,42 @@ export class CameraService {
   }
 
   public async refreshDeviceList(): Promise<void> {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+        console.warn("[CameraService] navigator.mediaDevices is undefined. HTTPS required.");
+        pubsub.publish(UI_EVENTS.SHOW_ERROR, { messageKey: "httpsRequired" });
+        return;
+    }
+
     try {
-      const devices = await navigator.mediaDevices.enumerateDevices();
-      const webcamDevices = devices
-        .filter(d => d.kind === 'videoinput')
-        .map((d, i) => ({ id: d.deviceId, label: d.label || `${this.#translationService.translate('Camera')} ${i + 1}` }));
-      
-      const webcamMap = this.#isMobile && webcamDevices.length > 0
+      let devices = await navigator.mediaDevices.enumerateDevices();
+      let webcamDevices = devices.filter(d => d.kind === 'videoinput');
+
+      const hasUnlabeledDevices = webcamDevices.length > 0 && webcamDevices.some(d => !d.label);
+
+      if (hasUnlabeledDevices) {
+          console.log("[CameraService] Detected unlabeled devices. Requesting permission...");
+          try {
+              const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+              stream.getTracks().forEach(t => t.stop());
+              devices = await navigator.mediaDevices.enumerateDevices();
+              webcamDevices = devices.filter(d => d.kind === 'videoinput');
+          } catch (permError) {
+              console.warn("[CameraService] Permission denied or failed:", permError);
+          }
+      }
+
+      const webcamList = webcamDevices.map((d, i) => ({ 
+          id: d.deviceId, 
+          label: d.label || `${this.#translationService.translate('Camera')} ${i + 1}` 
+      }));
+
+      const webcamMap = this.#isMobile && webcamList.length > 0
         ? new Map([[MOBILE_WEBCAM_PLACEHOLDER_ID, this.#translationService.translate("Webcam")]])
-        : new Map(webcamDevices.map(d => [d.id, d.label]));
+        : new Map(webcamList.map(d => [d.id, d.label]));
 
       this.#deviceMap = new Map([...webcamMap, ...this.#createRtspDeviceMap(this.#appStore.getState().rtspSources)]);
       this.#rebuildAndValidateDeviceList();
+      
     } catch (error) {
       console.error('[CameraService] Device enumeration failed:', error);
       this.#rebuildAndValidateDeviceList();
@@ -285,13 +338,14 @@ export class CameraService {
     const rtspMap = this.#createRtspDeviceMap(this.#appStore.getState().rtspSources);
     const oldWebcamEntries = Array.from(this.#deviceMap.entries()).filter(([id]) => !id.startsWith('rtsp:'));
     this.#deviceMap = new Map([...oldWebcamEntries, ...rtspMap]);
-
+    
     if (this.#currentSourceId && !this.#deviceMap.has(this.#currentSourceId)) {
       this.setSelectedCameraSource('');
     }
+    
     pubsub.publish(CAMERA_SOURCE_EVENTS.MAP_UPDATED, new Map(this.#deviceMap));
   };
-  
+
   #createRtspDeviceMap(rtspSources: RtspSourceConfig[]): Map<string, string> {
     return new Map((rtspSources || []).map(src => [`rtsp:${normalizeNameForMtx(src.name)}`, src.name]));
   }
@@ -300,14 +354,19 @@ export class CameraService {
     this.#currentSourceId = deviceId?.trim() ?? '';
     secureStorage.set(STORAGE_KEY_SELECTED_CAMERA_SOURCE, this.#currentSourceId);
   }
-  
+
   public isStreaming = (): boolean => this.isStreamActive();
   public isStreamingRtsp = (): boolean => !!this.#currentSourceId?.startsWith('rtsp:');
-  public canFlipCamera = (): boolean => 'facingMode' in navigator.mediaDevices.getSupportedConstraints();
+  
+  public canFlipCamera = (): boolean => {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getSupportedConstraints) return false;
+      return 'facingMode' in navigator.mediaDevices.getSupportedConstraints();
+  };
+
   public getStreamElements = (): { video: HTMLVideoElement; canvas: HTMLCanvasElement } => ({ video: this.#videoElement, canvas: this.#canvasElement });
   public getCurrentDeviceId = (): string | null => this.#currentSourceId;
   public getLandmarkSnapshot = (): Promise<SnapshotData> => this.#gestureProcessor.getSnapshot();
-  
+
   public isMirrored(): boolean {
     const deviceId = this.#currentSourceId || '';
     return this.#mirrorStateMap.get(deviceId) ?? !deviceId.startsWith('rtsp:');
@@ -332,6 +391,7 @@ export class CameraService {
     const newState = !this.isMirrored();
     this.#mirrorStateMap.set(deviceId, newState);
     secureStorage.set(STORAGE_KEY_MIRROR_STATE_PER_SOURCE, Object.fromEntries(this.#mirrorStateMap));
+    
     if (this.isStreaming()) {
       this.#videoElement.classList.toggle('mirrored', newState);
       this.#canvasRenderer.drawOutput();

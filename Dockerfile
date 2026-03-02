@@ -19,18 +19,26 @@ ARG TARGETARCH=amd64
 RUN curl -Ls https://github.com/bluenviron/mediamtx/releases/download/${MEDIAMTX_VERSION}/mediamtx_${MEDIAMTX_VERSION}_linux_${TARGETARCH}.tar.gz | tar -xz -C /usr/local/bin/
 RUN chmod +x /usr/local/bin/mediamtx
 
-# ---- NEW Stage: Deps ----
+# ---- Stage: Deps ----
 # Solely responsible for installing npm dependencies. This layer is only rebuilt
 # if package.json or package-lock.json changes.
 FROM base AS deps
 WORKDIR /app
 COPY package.json package-lock.json* ./
-RUN npm ci --loglevel=error --include=dev
+# FIX: Changed 'npm ci' to 'npm install'.
+# 'npm ci' is too strict for some cross-platform/cross-version lockfile scenarios.
+# 'npm install' recalculates the tree if necessary, preventing the build failure.
+RUN npm install --include=dev
 
 # ---- Stage 1: Builder ----
 # Builds all production assets.
 FROM base AS builder
 WORKDIR /app
+
+# Declare ARGs that may be passed via --build-arg
+ARG VITE_PROD_WHEP_BASE_URL
+ARG VITE_PROD_HA_DEFAULT_URL
+ARG VITE_PROD_HA_DEFAULT_TOKEN
 
 # MODIFIED: Copy pre-installed node_modules from the 'deps' stage.
 COPY --from=deps /app/node_modules ./node_modules

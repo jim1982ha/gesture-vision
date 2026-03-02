@@ -1,12 +1,10 @@
 #!/bin/bash
 # FILE: tools/update_prod.sh
 # Interactive script. Handles server deployment and optionally prepares APK assets.
-
 # Navigate to the project root (parent directory of this script)
 cd "$(dirname "$0")/.." || exit 1
 
 # --- Configuration ---
-# FIX: Point to the correct file locations inside the config/ directory
 ENV_FILE="config/.env.prod"
 EXAMPLE_ENV_FILE="config/.env.prod.example"
 DOCKER_COMPOSE_FILE="docker-compose.yaml"
@@ -56,6 +54,21 @@ get_env_var() {
         elif [[ "$value" == \'*\' && "$value" == *\' ]]; then value=$(echo "$value" | sed -e "s/^'//" -e "s/'$//"); fi;
         echo "$value";
     else echo ""; fi
+}
+
+sync_lockfile() {
+    echo "--------------------------------------------------"
+    echo "Checking package-lock.json consistency for production build..."
+    if command -v npm &> /dev/null; then
+        if npm install --package-lock-only --no-audit --no-fund; then
+            echo "✔ package-lock.json synchronized."
+        else
+            echo "⚠ Warning: Failed to sync lockfile. Docker build might handle it."
+        fi
+    else
+        echo "⚠ Warning: 'npm' not found on host. Skipping lockfile sync."
+    fi
+    echo "--------------------------------------------------"
 }
 
 save_config_to_env() {
@@ -157,7 +170,6 @@ if [ ! -f "$EXAMPLE_ENV_FILE" ]; then echo "Error: '$EXAMPLE_ENV_FILE' not found
 if [ ! -f "$ENV_FILE" ]; then echo "Info: '$ENV_FILE' not found. Copying from '$EXAMPLE_ENV_FILE'."; cp "$EXAMPLE_ENV_FILE" "$ENV_FILE"; fi
 
 if $DO_APK_PREP; then
-    # FIX: Point to the correct file location inside the config/ directory
     if [ ! -f "config/.env.apk" ]; then echo "Error: 'config/.env.apk' not found. This is required for APK asset build." >&2; exit 1; fi
     if ! command -v npm &> /dev/null; then echo "Error: npm is not installed. Required for 'npm run build:apk'." >&2; exit 1; fi
     if ! command -v npx &> /dev/null; then echo "Error: npx is not installed. Required for Capacitor commands." >&2; exit 1; fi
@@ -165,13 +177,13 @@ fi
 
 if ! $APK_ONLY_MODE; then
     if [ ! -f "$DOCKER_COMPOSE_FILE" ]; then echo "Error: '$DOCKER_COMPOSE_FILE' not found for server deployment." >&2; exit 1; fi
-    # FIX: Point to the correct file location inside the config/ directory
     if [ ! -f "config/config.prod.json" ]; then echo "Warning: 'config/config.prod.json' not found. Server deployment may lack key settings."; fi
 fi
 
 declare -A current_env_values; APP_VERSION=$(node -p "require('./package.json').version" 2>/dev/null || echo "unknown"); export APP_VERSION
 ALL_KEYS_TO_LOAD=( "PROD_IMAGE_NAME" "${!ENV_VARS_TO_REVIEW[@]}" ); mapfile -t UNIQUE_KEYS < <(printf "%s\n" "${ALL_KEYS_TO_LOAD[@]}" | sort -u)
 for key in "${UNIQUE_KEYS[@]}"; do current_env_values["$key"]=$(get_env_var "$key" "$ENV_FILE"); done
+
 SUGGESTED_SERVER_TAG="gesturevision:${APP_VERSION}";
 DEFAULT_SERVER_IMAGE_PROMPT="${SPECIFIED_SERVER_TAG:-${current_env_values["PROD_IMAGE_NAME"]:-$SUGGESTED_SERVER_TAG}}"
 if [ -n "$SPECIFIED_SERVER_TAG" ]; then current_env_values["PROD_IMAGE_NAME"]="$SPECIFIED_SERVER_TAG"; fi
@@ -199,7 +211,7 @@ if [ "$DO_SERVER_DEPLOY" == "yes" ]; then
     DO_SERVER_BUILD_ACTION="$FORCE_SERVER_BUILD"
     CHOSEN_SERVER_IMAGE_TAG="${current_env_values["PROD_IMAGE_NAME"]}"
     SERVER_DETACHED_FLAG_CHOICE="$FORCE_SERVER_DETACHED"
-
+    
     declare -A updated_env_values_server
     for key in "${!current_env_values[@]}"; do updated_env_values_server["$key"]="${current_env_values[$key]}"; done
     CONFIG_SERVER_CHANGED=false; SAVE_SERVER_NEEDED=false
@@ -210,16 +222,19 @@ if [ "$DO_SERVER_DEPLOY" == "yes" ]; then
         CHOSEN_SERVER_IMAGE_TAG=${SPECIFIED_SERVER_TAG:-${updated_env_values_server["PROD_IMAGE_NAME"]:-$SUGGESTED_SERVER_TAG}}
         updated_env_values_server["PROD_IMAGE_NAME"]="$CHOSEN_SERVER_IMAGE_TAG"
         if [[ "$CHOSEN_SERVER_IMAGE_TAG" != "${current_env_values["PROD_IMAGE_NAME"]}" ]]; then SAVE_SERVER_NEEDED=true; fi
+        
         # Ensure essential internal ports have defaults if not set in bypass mode
         if [[ -z "${updated_env_values_server[MTX_PROD_WEBRTC_PORT_INTERNAL]}" ]]; then updated_env_values_server[MTX_PROD_WEBRTC_PORT_INTERNAL]="8888"; SAVE_SERVER_NEEDED=true; fi
         if [[ -z "${updated_env_values_server[MTX_PROD_ICE_UDP_PORT_INTERNAL]}" ]]; then updated_env_values_server[MTX_PROD_ICE_UDP_PORT_INTERNAL]="8189"; SAVE_SERVER_NEEDED=true; fi
         if [[ -z "${updated_env_values_server[MTX_API]}" ]]; then updated_env_values_server[MTX_API]="yes"; SAVE_SERVER_NEEDED=true; fi
         if [[ -z "${updated_env_values_server[MTX_APIADDRESS_INTERNAL]}" ]]; then updated_env_values_server[MTX_APIADDRESS_INTERNAL]="0.0.0.0:9997"; SAVE_SERVER_NEEDED=true; fi
         if [[ -z "${updated_env_values_server[BACKEND_API_PORT_INTERNAL]}" ]]; then updated_env_values_server[BACKEND_API_PORT_INTERNAL]="9001"; SAVE_SERVER_NEEDED=true; fi
+        
         if [[ "$FORCE_SERVER_DETACHED" == "ask" ]]; then SERVER_DETACHED_FLAG_CHOICE="yes"; fi
-    else # Interactive mode for server config
+    else # Interactive mode
         echo; echo "Step 1: Server Image Strategy"
         if [ "$DO_SERVER_BUILD_ACTION" == "ask" ]; then while true; do read -r -p "Build server image from source? (Y/n/s=skip) [Y]: " yn_build; yn_build=${yn_build:-Y}; case $yn_build in [Yy]* ) DO_SERVER_BUILD_ACTION="yes"; break;; [NnSs]* ) DO_SERVER_BUILD_ACTION="no"; break;; * ) echo "Ans y/n/s.";; esac; done; fi
+
         echo; echo "Step 2: Server Image Name/Tag"
         if [ -z "$CHOSEN_SERVER_IMAGE_TAG" ] && [ -z "$SPECIFIED_SERVER_TAG" ]; then
             PROMPT_TEXT_S="Enter server image tag "; CURRENT_ENV_TAG_VALUE_S="${updated_env_values_server["PROD_IMAGE_NAME"]}"; TRANSLATED_TAG_VALUE_S=$(echo "$CURRENT_ENV_TAG_VALUE_S" | sed "s/\${APP_VERSION}/$APP_VERSION/g")
@@ -229,6 +244,7 @@ if [ "$DO_SERVER_DEPLOY" == "yes" ]; then
             read -r -p "$PROMPT_TEXT_S" tag_input_s; CHOSEN_SERVER_IMAGE_TAG=${tag_input_s:-$DEFAULT_SERVER_IMAGE_PROMPT}
             if [[ "$DO_SERVER_BUILD_ACTION" == "no" && -z "$CHOSEN_SERVER_IMAGE_TAG" ]]; then echo "Error: Server image name required." >&2; exit 1; fi
         elif [ -n "$SPECIFIED_SERVER_TAG" ]; then CHOSEN_SERVER_IMAGE_TAG="$SPECIFIED_SERVER_TAG"; fi
+
         echo "Will use server image tag: $CHOSEN_SERVER_IMAGE_TAG"; if [[ "${updated_env_values_server[PROD_IMAGE_NAME]}" != "$CHOSEN_SERVER_IMAGE_TAG" ]]; then updated_env_values_server["PROD_IMAGE_NAME"]="$CHOSEN_SERVER_IMAGE_TAG"; SAVE_SERVER_NEEDED=true; fi
 
         echo; echo "Step 3: Review/Configure Server Environment ('$ENV_FILE')"
@@ -260,9 +276,9 @@ if [ "$DO_SERVER_DEPLOY" == "yes" ]; then
     if [[ -z "${updated_env_values_server[MTX_PROD_WEBRTC_PORT_INTERNAL]}" ]]; then updated_env_values_server[MTX_PROD_WEBRTC_PORT_INTERNAL]="8888"; SAVE_SERVER_NEEDED=true; fi
     if [[ -z "${updated_env_values_server[MTX_PROD_ICE_UDP_PORT_INTERNAL]}" ]]; then updated_env_values_server[MTX_PROD_ICE_UDP_PORT_INTERNAL]="8189"; SAVE_SERVER_NEEDED=true; fi
     if [[ -z "${updated_env_values_server[MTX_API]}" ]]; then updated_env_values_server[MTX_API]="yes"; SAVE_SERVER_NEEDED=true; fi
-    if [[ -z "${updated_env_values_server[MTX_APIADDRESS_INTERNAL]}" ]]; then updated_env_values_server[MTX_APIADDRESS_INTERNAL]="0.0.0.0:9997"; SAVE_SERVER_NEEDED=true; fi # Use 0.0.0.0
+    if [[ -z "${updated_env_values_server[MTX_APIADDRESS_INTERNAL]}" ]]; then updated_env_values_server[MTX_APIADDRESS_INTERNAL]="0.0.0.0:9997"; SAVE_SERVER_NEEDED=true; fi
     if [[ -z "${updated_env_values_server[BACKEND_API_PORT_INTERNAL]}" ]]; then updated_env_values_server[BACKEND_API_PORT_INTERNAL]="9001"; SAVE_SERVER_NEEDED=true; fi
-
+    
     if $SAVE_SERVER_NEEDED; then save_config_to_env "$ENV_FILE" updated_env_values_server "$EXAMPLE_ENV_FILE"; fi
 
     FINAL_SERVER_IMAGE_TAG="${updated_env_values_server[PROD_IMAGE_NAME]}"
@@ -270,13 +286,20 @@ if [ "$DO_SERVER_DEPLOY" == "yes" ]; then
 
     echo; echo "======================================================"; echo "=== Server Deployment Actions ==="; echo "======================================================"
     echo "Server Image Strategy: ${DO_SERVER_BUILD_ACTION}"; echo "Server Image: ${FINAL_SERVER_IMAGE_TAG}"; echo "Server Detached: '${FINAL_SERVER_DETACHED_FLAG}'"; echo
+
     echo "[ACTION] Stopping server instance and removing volumes..."
     $DOCKER_COMPOSE_CMD -p "$PROJECT_NAME" --env-file "$ENV_FILE" -f "$DOCKER_COMPOSE_FILE" down -v || echo "[INFO] No previous instance or error stopping."
+
     if [ "$DO_SERVER_BUILD_ACTION" == "yes" ]; then
+        # --- FIX: Sync Lockfile before production build ---
+        sync_lockfile
+
         echo "[ACTION] Building Production Server Image (tag: $FINAL_SERVER_IMAGE_TAG)..."
         BUILD_ARGS_PROD=""
         if $NO_CACHE_BUILD; then BUILD_ARGS_PROD="--no-cache"; echo "Building with --no-cache flag."; fi
-        # Pass Vite build-time args to Docker build
+        
+        # Pass Vite build-time args to Docker build. 
+        # Note: These are also mapped in docker-compose.yaml, but passing them explicitly here ensures latest env var values are used.
         VITE_BUILD_ARGS="--build-arg VITE_PROD_WHEP_BASE_URL=\"${updated_env_values_server[APP_EXTERNAL_URL]}\" \
                          --build-arg VITE_PROD_HA_DEFAULT_URL=\"${updated_env_values_server[VITE_PROD_HA_DEFAULT_URL]}\" \
                          --build-arg VITE_PROD_HA_DEFAULT_TOKEN=\"${updated_env_values_server[VITE_PROD_HA_DEFAULT_TOKEN]}\""

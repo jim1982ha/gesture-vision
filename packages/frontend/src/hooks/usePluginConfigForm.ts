@@ -20,7 +20,6 @@ export const usePluginConfigForm = <T extends Record<string, unknown>>(
 ) => {
     const context = useContext(AppContext);
     if (!context) throw new Error("usePluginConfigForm must be used within an AppProvider");
-
     const { pluginUIService, translationService, pubsub } = context.services;
     const { actions } = context.appStore.getState();
     const { translate } = translationService;
@@ -30,19 +29,14 @@ export const usePluginConfigForm = <T extends Record<string, unknown>>(
         (state: AppState) => (state.pluginGlobalConfigs.get(pluginId) as T) || initialValues,
         [pluginId, initialValues]
     );
-    const globalConfig = useAppStore(globalConfigSelector);
 
+    const globalConfig = useAppStore(globalConfigSelector);
     const [formState, setFormState] = useState<T>(globalConfig || initialValues);
     const [isSaving, setIsSaving] = useState(false);
     const [isTesting, setIsTesting] = useState(false);
 
     const isDirty = useMemo(() => JSON.stringify(formState) !== JSON.stringify(globalConfig), [formState, globalConfig]);
 
-    // This effect now correctly handles synchronizing with the global state.
-    // It will update the form if the global config changes (e.g., from a server push)
-    // ONLY IF the user has not made any local changes (i.e., the form is not "dirty").
-    // This prevents user input from being overwritten. It also correctly resets the form
-    // when switching to a different plugin because `globalConfig` will change.
     useEffect(() => {
         if (!isDirty) {
             setFormState(globalConfig || initialValues);
@@ -62,7 +56,6 @@ export const usePluginConfigForm = <T extends Record<string, unknown>>(
     }, [pluginId, formState, actions, pluginUIService, options]);
 
     const handleCancel = useCallback(() => {
-        // On cancel, explicitly reset the form to the latest global config.
         setFormState(globalConfig);
         options?.onCancel?.();
     }, [globalConfig, options]);
@@ -71,11 +64,29 @@ export const usePluginConfigForm = <T extends Record<string, unknown>>(
         setIsTesting(true);
         const result = await pluginUIService.sendPluginTestConnectionRequest(pluginId, formState);
         setIsTesting(false);
+        
         if (result) {
+            const rawErrorMessage = result.error?.message || 'Unknown error';
+            
+            // Try to translate the key. If the key doesn't exist, 'translate' returns the key itself or defaults.
+            // We pass the raw message as a substitution variable named 'message' and 'details'.
+            let translatedMessage = translate(result.messageKey || 'errorGeneric', { 
+                message: rawErrorMessage,
+                details: rawErrorMessage
+            });
+
+            // Fallback: If translation returned a string containing unconverted placeholders like {message}
+            // or if it simply returned the key name, append the raw error for visibility.
+            if (translatedMessage.includes('{message}') || translatedMessage.includes('{details}')) {
+                 translatedMessage = `${result.success ? 'Success' : 'Error'}: ${rawErrorMessage}`;
+            }
+
             pubsub.publish('ui:showNotification', {
-                message: translate(result.messageKey || 'errorGeneric', { message: result.error?.message || 'Unknown error' }),
+                message: translatedMessage,
                 type: result.success ? 'success' : 'error'
             });
+            
+            console.log(`[PluginConfig] Test Result for ${pluginId}:`, result);
         }
     }, [pluginId, formState, pluginUIService, pubsub, translate]);
 

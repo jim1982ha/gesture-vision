@@ -1,3 +1,4 @@
+/* FILE: packages/frontend/src/styles/_modals.css */
 @layer components {
   .modal {
     @apply fixed inset-0 z-modal-overlay flex items-start justify-center p-4 opacity-0 transition-opacity duration-300;
@@ -9,24 +10,16 @@
     visibility: visible;
     opacity: 1;
   }
+
+  /* Note: width classes are now applied directly in the Modal component (e.g. max-w-4xl) to ensure Tailwind builds them */
   .modal-content {
     background-color: hsl(var(--color-surface));
-    @apply rounded-lg w-full max-w-lg flex flex-col max-h-[90vh] scale-95 opacity-0 transition-all duration-300 ease-out;
+    @apply rounded-lg flex flex-col scale-95 opacity-0 transition-all duration-300 ease-out;
     box-shadow: var(--shadow-depth-xl);
   }
   .modal.visible .modal-content {
     transform: scale(1);
     opacity: 1;
-  }
-  
-  /* "Normal" large modal for Settings and Gesture Studio */
-  .modal-content-lg {
-    @apply !max-w-4xl h-[90vh];
-  }
-  
-  /* Extra-large modal for Docs and Dashboard */
-  .modal-content-xl {
-    @apply !max-w-6xl h-[90vh];
   }
 
   .modal-header {
@@ -44,9 +37,11 @@
   .modal-header .header-close-btn {
     @apply ml-auto;
   }
+
   .modal-scrollable-content {
     @apply flex-1 p-4 overflow-y-auto min-h-0;
   }
+
   .modal-actions {
     @apply flex-shrink-0 flex items-center justify-between gap-2 p-4 border-t z-10;
     border-color: hsl(var(--color-border));
@@ -56,12 +51,10 @@
   #settings-tabs-mobile-nav {
     border-bottom: 1px solid hsl(var(--color-border));
   }
-
   #settingsTabsDesktopNav {
     border-color: hsl(var(--color-border));
     background-color: hsl(var(--color-background));
   }
-
   .settings-tab-nav-button {
     @apply justify-start font-medium border-none;
     background-color: transparent;
@@ -89,7 +82,7 @@
   .settings-tab-content.active {
     @apply flex flex-col h-full;
   }
-  
+
   #plugin-dev-info-container {
     color: hsl(var(--color-text-secondary));
   }
@@ -102,12 +95,12 @@
   #plugin-dev-info-link:hover {
     color: hsl(var(--color-primary-hover));
   }
-  
+
   #gesture-config-modal-content .form-actions-container {
     @apply mt-6 pt-4 border-t;
     border-color: hsl(var(--color-border));
   }
-  
+
   /* --- Dark Mode fix for Tailwind Prose --- */
   .prose.dark\:prose-invert {
     --tw-prose-body: hsl(var(--color-text-secondary));
