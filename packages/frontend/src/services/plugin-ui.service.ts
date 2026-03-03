@@ -127,7 +127,8 @@ export class PluginUIService {
     if (document.getElementById(stylesheetId)) return;
     const link = Object.assign(document.createElement('link'), {
         id: stylesheetId, rel: 'stylesheet', type: 'text/css',
-        href: `/plugins/${pluginId}/frontend/style.css?v=${manifest.version || Date.now()}`,
+        // FIXED: Relative path
+        href: `plugins/${pluginId}/frontend/style.css?v=${manifest.version || Date.now()}`,
         onerror: () => link.remove()
     });
     document.head.appendChild(link);

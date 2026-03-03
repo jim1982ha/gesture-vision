@@ -4,10 +4,8 @@ import type { GestureRecognizer, HandLandmarkerResult, PoseLandmarker, PoseLandm
 import type { CustomGestureMetadata, RoiConfig } from '#shared/index.js';
 
 // --- Type Definitions ---
-// Define a more specific type for the resolved object from FilesetResolver.
 type VisionFilesetResolver = object;
 
-// Define the shape of the MediaPipe global object for strong typing.
 interface MediaPipeTasksVisionModule {
     FilesetResolver: {
         forVisionTasks: (path: string) => Promise<VisionFilesetResolver>;
@@ -19,8 +17,6 @@ interface MediaPipeTasksVisionModule {
         createFromOptions: (vision: VisionFilesetResolver, options: object) => Promise<PoseLandmarker>;
     };
 }
-
-// Explicitly declare the global constant that `importScripts` will create.
 declare const MediaPipeTasksVision: MediaPipeTasksVisionModule;
 
 type CheckGestureFunction = (landmarks: Landmark[], worldLandmarks: Landmark[], tolerance: number) => { detected: boolean; confidence: number };
@@ -34,6 +30,7 @@ interface CustomGestureModule {
 type MediaPipeModel = GestureRecognizer | PoseLandmarker;
 
 interface WorkerReconfigurePayload {
+  basePath?: string; // Added field
   numHands: number;
   enableHandProcessing: boolean;
   enablePoseProcessing: boolean;
@@ -60,17 +57,15 @@ let poseLandmarker: PoseLandmarker | null = null;
 const customGestureModules: Map<string, CustomGestureModule> = new Map();
 let mediaPipeLoadPromise: Promise<void> | null = null;
 let workerReady = false;
-
 let config: WorkerReconfigurePayload | null = null;
 
 // --- MediaPipe and Model Management ---
-
-function ensureMediaPipeIsLoaded(): Promise<void> {
+function ensureMediaPipeIsLoaded(basePath: string): Promise<void> {
   if (!mediaPipeLoadPromise) {
     mediaPipeLoadPromise = new Promise((resolve, reject) => {
       if (typeof MediaPipeTasksVision !== 'undefined') return resolve();
       try {
-        const scriptUrl = `${self.location.origin}/local-bundles/mediapipe-tasks-vision-umd.js`;
+        const scriptUrl = `${basePath}local-bundles/mediapipe-tasks-vision-umd.js`;
         importScripts(scriptUrl);
         resolve();
       } catch (e) {
@@ -83,9 +78,10 @@ function ensureMediaPipeIsLoaded(): Promise<void> {
 }
 
 async function initializeHandLandmarker(): Promise<GestureRecognizer> {
-  const vision = await MediaPipeTasksVision.FilesetResolver.forVisionTasks('/wasm');
+  const basePath = config?.basePath || '/';
+  const vision = await MediaPipeTasksVision.FilesetResolver.forVisionTasks(`${basePath}wasm`);
   return MediaPipeTasksVision.GestureRecognizer.createFromOptions(vision, {
-    baseOptions: { modelAssetPath: '/models/gesture_recognizer.task', delegate: 'CPU' },
+    baseOptions: { modelAssetPath: `${basePath}models/gesture_recognizer.task`, delegate: 'CPU' },
     runningMode: 'VIDEO',
     numHands: config!.numHands,
     minHandDetectionConfidence: config!.handDetectionConfidence,
@@ -95,9 +91,10 @@ async function initializeHandLandmarker(): Promise<GestureRecognizer> {
 }
 
 async function initializePoseLandmarker(): Promise<PoseLandmarker> {
-  const vision = await MediaPipeTasksVision.FilesetResolver.forVisionTasks('/wasm');
+  const basePath = config?.basePath || '/';
+  const vision = await MediaPipeTasksVision.FilesetResolver.forVisionTasks(`${basePath}wasm`);
   return MediaPipeTasksVision.PoseLandmarker.createFromOptions(vision, {
-    baseOptions: { modelAssetPath: '/models/pose_landmarker_lite.task', delegate: 'CPU' },
+    baseOptions: { modelAssetPath: `${basePath}models/pose_landmarker_lite.task`, delegate: 'CPU' },
     runningMode: 'VIDEO',
     numPoses: 1,
     minPoseDetectionConfidence: config!.poseDetectionConfidence,
@@ -131,11 +128,9 @@ async function manageModelLifecycle<T extends MediaPipeModel>(modelType: 'hand' 
 }
 
 // --- Custom Gesture Execution ---
-
 function executeCustomHandGestures(handResults: HandLandmarkerResult): { categoryName: string; score: number }[] {
     const detections: { categoryName: string; score: number }[] = [];
     if (!config?.enableCustomHandGestures || !handResults?.landmarks || handResults.landmarks.length === 0) return detections;
-    
     for (const [name, module] of customGestureModules.entries()) {
       if (module.type === 'hand' && module.checkGesture && handResults.landmarks[0] && handResults.worldLandmarks[0]) {
         const result = module.checkGesture(handResults.landmarks[0], handResults.worldLandmarks[0], 0.5);
@@ -148,14 +143,12 @@ function executeCustomHandGestures(handResults: HandLandmarkerResult): { categor
 }
 
 // --- Frame Processing ---
-
 function detect(payload: ProcessFramePayload) {
   const { imageBitmap, timestamp, requestSnapshot } = payload;
   if (!imageBitmap || !config || !workerReady) {
     imageBitmap.close();
     return;
   }
-  
   const startTime = performance.now();
   let handGestureResults: HandLandmarkerResult | undefined;
   let poseLandmarkerResults: PoseLandmarkerResult | undefined;
@@ -166,12 +159,12 @@ function detect(payload: ProcessFramePayload) {
       handGestureResults = handLandmarker.recognizeForVideo(imageBitmap, timestamp);
       customActionableGestures = executeCustomHandGestures(handGestureResults);
     }
-  
     if (poseLandmarker && config.enablePoseProcessing) {
       poseLandmarkerResults = poseLandmarker.detectForVideo(imageBitmap, timestamp);
     }
-  
+
     const processingTime = performance.now() - startTime;
+    
     let snapshot: { imageData: ImageData | null; landmarks2d: Landmark[] | null; landmarks3d: Landmark[] | null; } | null = null;
     if (requestSnapshot) {
       const offscreen = new OffscreenCanvas(imageBitmap.width, imageBitmap.height);
@@ -183,7 +176,7 @@ function detect(payload: ProcessFramePayload) {
         landmarks3d: handGestureResults?.worldLandmarks?.[0] || poseLandmarkerResults?.worldLandmarks?.[0] || null,
       };
     }
-  
+
     self.postMessage({
       type: 'results',
       results: { handGestureResults, poseLandmarkerResults, customActionableGestures, snapshot },
@@ -191,26 +184,23 @@ function detect(payload: ProcessFramePayload) {
     });
 
   } finally {
-    // Always close the ImageBitmap to release its memory immediately.
     imageBitmap.close();
   }
 }
 
 // --- Message Handling ---
-
 self.onmessage = async (event: MessageEvent) => {
   const { type, payload } = event.data;
-
   switch (type) {
     case 'initialize': {
-      workerReady = false; // Set not ready until all models are configured
+      workerReady = false; 
       const newConfig = payload as WorkerReconfigurePayload;
       const handModelNeedsRecreation = !config || newConfig.numHands !== config.numHands || newConfig.handDetectionConfidence !== config.handDetectionConfidence || newConfig.handPresenceConfidence !== config.handPresenceConfidence || newConfig.handTrackingConfidence !== config.handTrackingConfidence;
       const poseModelNeedsRecreation = !config || newConfig.poseDetectionConfidence !== config.poseDetectionConfidence || newConfig.posePresenceConfidence !== config.posePresenceConfidence || newConfig.poseTrackingConfidence !== config.poseTrackingConfidence;
       config = newConfig;
 
       try {
-        await ensureMediaPipeIsLoaded();
+        await ensureMediaPipeIsLoaded(config.basePath || '/');
       } catch (_e) {
         console.error("[Worker] Aborting initialization due to MediaPipe load failure.");
         return;
@@ -220,7 +210,6 @@ self.onmessage = async (event: MessageEvent) => {
         manageModelLifecycle('hand', handLandmarker, config.enableHandProcessing, initializeHandLandmarker, handModelNeedsRecreation).then(res => { handLandmarker = res; }),
         manageModelLifecycle('pose', poseLandmarker, config.enablePoseProcessing, initializePoseLandmarker, poseModelNeedsRecreation).then(res => { poseLandmarker = res; })
       ]);
-      
       workerReady = true;
       self.postMessage({ type: 'worker_ready' });
       break;
@@ -231,10 +220,8 @@ self.onmessage = async (event: MessageEvent) => {
       for (const gestureMeta of gesturesToLoad) {
         try {
           if (gestureMeta.codeString.includes('export const baseRules')) continue;
-          
           const checkFnName = gestureMeta.type === 'pose' ? 'checkPose' : 'checkGesture';
           const functionBodyMatch = gestureMeta.codeString.match(new RegExp(`export function ${checkFnName}\\s*\\(([^)]*)\\)\\s*\\{([\\s\\S]*)\\}`, 'm'));
-          
           if (functionBodyMatch) {
             const [_, args, body] = functionBodyMatch;
             const argNames = args.split(',').map(arg => arg.split('=')[0].trim()).filter(Boolean);

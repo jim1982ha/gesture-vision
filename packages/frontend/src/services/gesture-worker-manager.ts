@@ -5,8 +5,8 @@ import type { SnapshotPromise, SnapshotData, TestResultPayload } from '#frontend
 import type { HandLandmarkerResult, PoseLandmarkerResult } from '@mediapipe/tasks-vision';
 
 // --- Type definitions for worker communication ---
-
 export interface InitializePayload {
+  basePath?: string; // New field for relative path resolution
   numHands: number;
   enableHandProcessing: boolean;
   enablePoseProcessing: boolean;
@@ -19,14 +19,12 @@ export interface InitializePayload {
   posePresenceConfidence: number;
   poseTrackingConfidence: number;
 }
-
 export interface ProcessFramePayload {
   imageBitmap: ImageBitmap;
   timestamp: number;
   roiConfig: RoiConfig | null;
   requestSnapshot: boolean;
 }
-
 interface ResultsMessage {
   type: 'results';
   results: {
@@ -38,11 +36,9 @@ interface ResultsMessage {
   };
   processingTime: number;
 }
-
 interface ErrorMessage { type: 'error'; error: { code: string; message: string; }; }
 interface ModelLoadedMessage { type: 'model_loaded', modelType: 'hand' | 'pose', status: boolean }
 // --- End of type definitions ---
-
 
 let hasInitializedOnce = false;
 
@@ -63,6 +59,7 @@ export class GestureWorkerManager {
       this.#worker = new Worker(new URL('../workers/gesture-worker.ts', import.meta.url), { type: 'classic' });
       this.#worker.onmessage = this.#handleMessage;
       this.#worker.onerror = this.#handleError;
+
       if (!hasInitializedOnce) {
         console.info('[Init] Gesture processing worker created.');
         hasInitializedOnce = true;
@@ -88,9 +85,22 @@ export class GestureWorkerManager {
 
   reconfigure(override?: Partial<InitializePayload>): void {
     if (!this.#worker) return;
-    this.#resetModelReadyPromise(); // Reset promise for new configuration
+    this.#resetModelReadyPromise(); 
     const state = this.#appStore.getState();
+    
+    // Calculate base path from current window location to ensure worker can fetch assets relative to Ingress path
+    const href = window.location.href;
+    // Strip query params and hash if present, then strip file name
+    const urlObj = new URL(href);
+    let path = urlObj.pathname;
+    if (!path.endsWith('/')) {
+        path = path.substring(0, path.lastIndexOf('/') + 1);
+    }
+    // Final base path including origin (e.g., https://ha.com/api/ingress/TOKEN/)
+    const basePath = `${urlObj.origin}${path}`;
+
     const payload: InitializePayload = {
+      basePath,
       numHands: override?.numHands ?? state.numHandsPreference,
       enableHandProcessing: override?.enableHandProcessing ?? (state.enableBuiltInHandGestures || state.enableCustomHandGestures),
       enablePoseProcessing: override?.enablePoseProcessing ?? state.enablePoseProcessing,
@@ -120,7 +130,7 @@ export class GestureWorkerManager {
       this.#snapshotPromise = { resolve, reject };
     });
   }
-  
+
   public getSnapshotPromise(): SnapshotPromise | null { return this.#snapshotPromise; }
 
   terminate(): void {
@@ -137,7 +147,6 @@ export class GestureWorkerManager {
       case 'results': {
         const { results, processingTime } = data as ResultsMessage;
         pubsub.publish(GESTURE_EVENTS.RENDER_OUTPUT, { ...results, processingTime });
-        
         if (results.testResult) pubsub.publish(GESTURE_EVENTS.TEST_RESULT, results.testResult);
         if (this.#snapshotPromise && results.snapshot) {
           this.#snapshotPromise.resolve(results.snapshot);

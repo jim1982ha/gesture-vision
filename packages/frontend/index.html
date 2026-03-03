@@ -1,7 +1,6 @@
 <!-- FILE: packages/frontend/index.html -->
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -9,46 +8,36 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" id="apple-status-bar-style-meta" content="default">
-
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-
     <link rel="preload" href="https://fonts.googleapis.com/icon?family=Material+Icons&display=swap" as="style"
         onload="this.onload=null;this.rel='stylesheet'">
     <noscript>
         <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons&display=swap">
     </noscript>
-
     <link rel="preload" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
     <noscript>
         <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap">
     </noscript>
-
-    <link rel="preload" href="/vendor/mdi/materialdesignicons.min.css" as="style" />
-    <link rel="stylesheet" href="/vendor/mdi/materialdesignicons.min.css" />
-
-    <link rel="manifest" href="/manifest.webmanifest" />
     
-    <link rel="icon" type="image/svg+xml" href="/icons/favicon.svg" />
-
-    <script src="/vendor/markdown/marked.min.js" defer></script>
-    <script src="/vendor/markdown/purify.min.js" defer></script>
+    <!-- FIXED: Removed leading slashes for relative resolution -->
+    <link rel="preload" href="vendor/mdi/materialdesignicons.min.css" as="style" />
+    <link rel="stylesheet" href="vendor/mdi/materialdesignicons.min.css" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="icon" type="image/svg+xml" href="icons/favicon.svg" />
     
+    <script src="vendor/markdown/marked.min.js" defer></script>
+    <script src="vendor/markdown/purify.min.js" defer></script>
     <script>
-      // Global registry for GestureVision frontend plugin modules
       window.GestureVisionPlugins = {};
     </script>
     <script id="app-config"></script>
-    
     <script>
-      // PWA Detection & Window Controls Overlay script with improved logic and logging
       (function() {
         const isDesktopPWA = window.matchMedia('(display-mode: standalone)').matches || 'windowControlsOverlay' in navigator;
-        
         if (isDesktopPWA) {
           document.documentElement.classList.add('is-pwa-desktop');
         }
-
         if ('windowControlsOverlay' in navigator) {
           const handleGeometryChange = () => {
             const isVisible = navigator.windowControlsOverlay.visible;
@@ -59,23 +48,18 @@
         }
       })();
     </script>
-
     <title>GestureVision</title>
 </head>
-
 <body>
     <script>
-      // Pre-boot theme application script.
       (function() {
         try {
           const storedPrefsRaw = localStorage.getItem('themePreference');
           const prefs = storedPrefsRaw ? JSON.parse(storedPrefsRaw) : { base: 'main', mode: 'system' };
-          
           let effectiveMode = prefs.mode;
           if (effectiveMode === 'system') {
             effectiveMode = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
           }
-          
           const themeId = `${prefs.base || 'main'}-${effectiveMode}`;
           document.body.dataset.theme = themeId;
         } catch (e) {
@@ -87,5 +71,4 @@
     <div id="root" class="h-full"></div>
     <script type="module" src="/src/main.tsx"></script>
 </body>
-
 </html>
