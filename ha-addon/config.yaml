@@ -1,6 +1,6 @@
 # --- ha-addon/config.yaml --- (complete version) ---
 name: "GestureVision"
-version: "4.2.2"
+version: "-t"
 slug: "ha-addon"
 description: "AI-Powered Gesture Control using Webcams or RTSP cameras."
 url: "https://github.com/jim1982ha/gesture-vision-app"
