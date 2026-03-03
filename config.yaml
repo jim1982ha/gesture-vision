@@ -1,0 +1,39 @@
+# --- config.yaml --- (complete version) ---
+name: "GestureVision"
+version: "4.1.0"
+slug: "gesturevision"
+description: "AI-Powered Gesture Control using Webcams or RTSP cameras."
+url: "https://github.com/jim1982ha/gesture-vision"
+arch:
+  - aarch64
+  - amd64
+startup: application
+boot: auto
+init: false
+# Map /config for backup purposes or advanced tweaking, though /data is primary persistence
+map:
+  - "config:rw"
+# Allow access to video devices (Webcams)
+devices:
+  - /dev/video0:rwm
+  - /dev/video1:rwm
+  - /dev/video2:rwm
+# Ingress handles the Web UI (Port 80)
+ingress: true
+ingress_port: 80
+panel_icon: mdi:hand-wave
+# Ports that CANNOT go through Ingress (WebRTC media, RTSP, RTMP)
+# These map container ports to host ports.
+ports:
+  8888/tcp: 8888    # WHEP/WebRTC Signaling (Direct access alternative)
+  8189/udp: 8189    # WebRTC ICE (CRITICAL for video stream)
+  1935/tcp: 1935    # RTMP
+  8554/tcp: 8554    # RTSP
+# Options exposed in HA UI
+options:
+  mtx_ice_host: ""
+  log_level: "info"
+schema:
+  mtx_ice_host: str?
+  log_level: list(debug, info, warn, error)
+image: "{name}-{arch}"

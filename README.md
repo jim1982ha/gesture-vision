@@ -57,7 +57,7 @@ This project is managed as a monorepo. All commands should be run from the proje
 If you are a Home Assistant user, this is the recommended installation method.
 
 1.  **Add Repository:** Go to your Home Assistant Add-on Store -> Repositories and add:
-    `https://github.com/jim1982ha/gesture-vision-app`
+    `https://github.com/jim1982ha/gesture-vision`
 2.  **Install:** Find "GestureVision" in the list and click Install.
 3.  **Configure:** In the Add-on Configuration tab, set your `mtx_ice_host` to your Home Assistant LAN IP address (required for video streaming).
 4.  **Start:** Start the add-on and open the Web UI. The Home Assistant plugin will be auto-installed and configured for you.
@@ -68,8 +68,8 @@ This method is for running the application as a stable service on a generic Linu
 
 1.  **Clone the Repository:**
     ```bash
-    git clone https://github.com/jim1982ha/gesture-vision-app.git
-    cd gesture-vision-app
+    git clone https://github.com/jim1982ha/gesture-vision.git
+    cd gesture-vision
     ```
 2.  **Run the Interactive Setup Script:**
     This script will guide you through creating the necessary environment files and deploying the container.
@@ -85,8 +85,8 @@ For contributors or those who want to modify the code.
 
 1.  **Clone and Install:**
     ```bash
-    git clone https://github.com/jim1982ha/gesture-vision-app.git
-    cd gesture-vision-app
+    git clone https://github.com/jim1982ha/gesture-vision.git
+    cd gesture-vision
     npm install
     ```
 2.  **Run the Development Setup Script:**

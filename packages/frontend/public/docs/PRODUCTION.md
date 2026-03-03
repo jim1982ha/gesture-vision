@@ -14,7 +14,7 @@ This is the simplest deployment method if you are already using Home Assistant O
 1.  Navigate to **Settings** > **Add-ons** > **Add-on Store**.
 2.  Click the **three dots** in the top right > **Repositories**.
 3.  Add the GestureVision repository URL:
-    `https://github.com/jim1982ha/gesture-vision-app`
+    `https://github.com/jim1982ha/gesture-vision`
 4.  Find **GestureVision** in the list and click **Install**.
 
 ### 2. Configuration
@@ -63,7 +63,7 @@ On your server, create a directory for the GestureVision application and get the
     cd /opt/gesturevision
     
     # Download or clone the project files into this directory
-    # For example: git clone https://github.com/your-username/gesture-vision-app.git .
+    # For example: git clone https://github.com/your-username/gesture-vision.git .
     ```
 
 You must have the following files and directories from the project repository:

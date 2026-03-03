@@ -38,8 +38,8 @@ Add a line to the file with the format `<LOCAL_IP_OF_PROXY> <YOUR_SERVICE_DOMAIN
 ## Step 1: Initial Project Setup
 1.  **Clone the Repository:**
     ```bash
-    git clone https://github.com/jim1982ha/gesture-vision-app.git
-    cd gesture-vision-app
+    git clone https://github.com/jim1982ha/gesture-vision.git
+    cd gesture-vision
     ```
 2.  **Install Root Dependencies:**
     ```bash
