@@ -16,19 +16,26 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# Install MediaMTX
+# Install MediaMTX with Arch Fix
 ARG MEDIAMTX_VERSION=v1.12.0
-ARG TARGETARCH=amd64
-RUN curl -Ls https://github.com/bluenviron/mediamtx/releases/download/${MEDIAMTX_VERSION}/mediamtx_${MEDIAMTX_VERSION}_linux_${TARGETARCH}.tar.gz | tar -xz -C /usr/local/bin/
+ARG TARGETARCH
+# Logic to map Docker's 'arm64' to MediaMTX's 'arm64v8'
+RUN ARCH="${TARGETARCH}"; \
+    if [ "$ARCH" = "arm64" ]; then ARCH="arm64v8"; fi; \
+    echo "Downloading MediaMTX for ${ARCH}..." && \
+    curl -Ls "https://github.com/bluenviron/mediamtx/releases/download/${MEDIAMTX_VERSION}/mediamtx_${MEDIAMTX_VERSION}_linux_${ARCH}.tar.gz" | tar -xz -C /usr/local/bin/
 RUN chmod +x /usr/local/bin/mediamtx
 
 WORKDIR /app
 
-# Clone the repository
-# FIXED: Updated URL to match your actual repo name 'gesture-vision'
+# Clone the main repository
 ARG BUILD_VERSION=main
 RUN git clone https://github.com/jim1982ha/gesture-vision.git . && \
     git checkout ${BUILD_VERSION} || git checkout main
+
+# Clone the Home Assistant Plugin (Critical for Add-on)
+RUN mkdir -p extensions/plugins/gesture-vision-plugin-home-assistant && \
+    git clone --depth 1 https://github.com/jim1982ha/gesture-vision-plugin-home-assistant.git extensions/plugins/gesture-vision-plugin-home-assistant
 
 # Install App Dependencies
 RUN npm install --include=dev
@@ -37,12 +44,14 @@ RUN npm install --include=dev
 ENV NODE_ENV=production
 RUN npm run build:backend
 RUN npm run build:umd
-# Override base path for Ingress
+
+# Override the base path for Ingress compatibility
 RUN sed -i 's|const appBase = "/";|const appBase = "./";|' packages/frontend/vite.config.js
+
 RUN npm run build:app
 RUN npm prune --omit=dev
 
-# Plugin Setup
+# Plugin Frontend Asset Setup
 RUN mkdir -p /usr/share/nginx/html/plugins && \
     chmod -R 755 /usr/share/nginx/html
 
@@ -57,14 +66,12 @@ RUN for plugin_dir in extensions/plugins/*; do \
       fi; \
     done
 
-# Internal Copy of Configs (from the cloned repo)
+# Internal Copy of Configs
 RUN cp config/nginx.conf /etc/nginx/nginx.conf
 RUN cp config/config.example.json /app/config.default.json
 RUN cp ha-addon/docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-# Labeling
-# FIXED: Uses the BUILD_VERSION arg passed by HA, so you don't define version here manually.
 ARG BUILD_VERSION
 LABEL \
     io.hass.name="GestureVision" \
