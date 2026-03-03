@@ -1,4 +1,3 @@
-// --- packages/frontend/src/components/header/Header.tsx --- (complete version) ---
 /* FILE: packages/frontend/src/components/header/Header.tsx */
 import { useContext, useEffect, useRef } from 'react';
 import { AppContext } from '#frontend/contexts/AppContext.js';
@@ -44,8 +43,8 @@ export function Header() {
         if (iconKey) {
             setIcon(indicator, iconKey);
         } else {
-            // FIXED: Removed leading slash for 'icons/favicon.svg' to support Ingress relative paths
-            indicator.innerHTML = `<img src="icons/favicon.svg" alt="Connected" style="width: var(--icon-size-status); height: var(--icon-size-status);">`;
+            // FIXED: Using relative path ./icons/ so it resolves correctly under HA Ingress
+            indicator.innerHTML = `<img src="./icons/favicon.svg" alt="Connected" style="width: var(--icon-size-status); height: var(--icon-size-status);">`;
         }
     }, [isWsConnected, isStreamConnecting, translate]);
 
