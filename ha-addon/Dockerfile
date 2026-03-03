@@ -1,6 +1,5 @@
 # --- ha-addon/Dockerfile --- (complete version) ---
 # We explicitly use the Node Debian image to ensure apt-get and npm work as expected
-# instead of relying on the variable $BUILD_FROM which HA injects (often Alpine).
 FROM node:22-bookworm
 
 # Install dependencies
@@ -29,6 +28,7 @@ RUN chmod +x /usr/local/bin/mediamtx
 WORKDIR /app
 
 # Clone the repository
+# We default to 'main' if BUILD_VERSION is not provided, but HA usually provides it.
 ARG BUILD_VERSION=main
 RUN git clone https://github.com/jim1982ha/gesture-vision-app.git . && \
     git checkout ${BUILD_VERSION} || git checkout main
@@ -63,20 +63,28 @@ RUN for plugin_dir in extensions/plugins/*; do \
       fi; \
     done
 
-# Copy Configs
-COPY nginx.conf /etc/nginx/nginx.conf
-COPY config.example.json /app/config.default.json
+# --- FIXED SECTION: Internal Copy instead of External COPY ---
+# Since we cloned the repo into /app, the config files are already here.
+# We move them to their final destinations.
 
-# Copy Entrypoint
-COPY docker-entrypoint.sh /usr/local/bin/
+# Move Nginx Config
+RUN cp config/nginx.conf /etc/nginx/nginx.conf
+
+# Move Default Config
+RUN cp config/config.example.json /app/config.default.json
+
+# Move Entrypoint (It resides in ha-addon/ folder in the repo)
+RUN cp ha-addon/docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 # Labeling for Home Assistant
+# We use the argument passed by HA to ensure the label matches the installed version
+ARG BUILD_VERSION
 LABEL \
     io.hass.name="GestureVision" \
     io.hass.description="AI-Powered Gesture Control for your Smart Home" \
     io.hass.type="addon" \
-    io.hass.version="4.1.0"
+    io.hass.version="${BUILD_VERSION}"
 
 EXPOSE 80 8888 1935 8554
 ENTRYPOINT ["docker-entrypoint.sh"]
