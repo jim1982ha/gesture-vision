@@ -1,11 +1,11 @@
 # --- ha-addon/Dockerfile --- (complete version) ---
-# We use the official Node image, so we do NOT need to apt-get install nodejs/npm
 FROM node:22-bookworm
 
-# Install system dependencies
-# REMOVED: nodejs npm (already in base image)
+# Install dependencies
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
+    nodejs \
+    npm \
     curl \
     ca-certificates \
     ffmpeg \
@@ -25,8 +25,9 @@ RUN chmod +x /usr/local/bin/mediamtx
 WORKDIR /app
 
 # Clone the repository
+# FIXED: Updated URL to match your actual repo name 'gesture-vision'
 ARG BUILD_VERSION=main
-RUN git clone https://github.com/jim1982ha/gesture-vision-app.git . && \
+RUN git clone https://github.com/jim1982ha/gesture-vision.git . && \
     git checkout ${BUILD_VERSION} || git checkout main
 
 # Install App Dependencies
@@ -36,10 +37,8 @@ RUN npm install --include=dev
 ENV NODE_ENV=production
 RUN npm run build:backend
 RUN npm run build:umd
-
-# Override the base path for Ingress compatibility during build
+# Override base path for Ingress
 RUN sed -i 's|const appBase = "/";|const appBase = "./";|' packages/frontend/vite.config.js
-
 RUN npm run build:app
 RUN npm prune --omit=dev
 
@@ -58,13 +57,14 @@ RUN for plugin_dir in extensions/plugins/*; do \
       fi; \
     done
 
-# Internal Copy of Configs
+# Internal Copy of Configs (from the cloned repo)
 RUN cp config/nginx.conf /etc/nginx/nginx.conf
 RUN cp config/config.example.json /app/config.default.json
 RUN cp ha-addon/docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 # Labeling
+# FIXED: Uses the BUILD_VERSION arg passed by HA, so you don't define version here manually.
 ARG BUILD_VERSION
 LABEL \
     io.hass.name="GestureVision" \
