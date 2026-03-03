@@ -15,7 +15,7 @@
     {
       "name": "Bedroom Cam",
       "url": "rtsp://another_user:another_password@another_camera_ip:554/stream2",
-      "sourceOnDemand": false
+      "sourceOnDemand": true
     }
   ],
   "gestureConfigs": [

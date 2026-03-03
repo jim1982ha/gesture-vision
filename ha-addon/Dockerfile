@@ -16,7 +16,7 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# Install MediaMTX with Arch Fix
+# Install MediaMTX
 ARG MEDIAMTX_VERSION=v1.12.0
 ARG TARGETARCH
 # Logic to map Docker's 'arm64' to MediaMTX's 'arm64v8'
@@ -51,6 +51,11 @@ RUN sed -i 's|const appBase = "/";|const appBase = "./";|' packages/frontend/vit
 RUN npm run build:app
 RUN npm prune --omit=dev
 
+# --- FIXED: Copy Frontend Build to Nginx Webroot ---
+# This was missing, causing the "Welcome to nginx" page
+RUN rm -rf /usr/share/nginx/html/* && \
+    cp -r packages/frontend/dist/* /usr/share/nginx/html/
+
 # Plugin Frontend Asset Setup
 RUN mkdir -p /usr/share/nginx/html/plugins && \
     chmod -R 755 /usr/share/nginx/html
@@ -67,6 +72,8 @@ RUN for plugin_dir in extensions/plugins/*; do \
     done
 
 # Internal Copy of Configs
+# Remove default nginx sites to prevent conflicts
+RUN rm -f /etc/nginx/sites-enabled/default
 RUN cp config/nginx.conf /etc/nginx/nginx.conf
 RUN cp config/config.example.json /app/config.default.json
 RUN cp ha-addon/docker-entrypoint.sh /usr/local/bin/
