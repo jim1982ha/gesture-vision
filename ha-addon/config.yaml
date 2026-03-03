@@ -29,5 +29,4 @@ options:
   log_level: "info"
 schema:
   mtx_ice_host: str?
-  # FIXED: Use 'match' with pipes for a dropdown selection
-  log_level: match(debug|info|warn|error)
+  log_level: list(debug|info|warn|error)

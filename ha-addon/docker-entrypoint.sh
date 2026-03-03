@@ -38,13 +38,17 @@ EOF
 
     # 3. Apply Options
     if [ -f "/data/options.json" ]; then
+        # ICE HOST
         ICE_HOST=$(jq -r '.mtx_ice_host // empty' /data/options.json)
         if [ -n "$ICE_HOST" ]; then
             echo "[HA Mode] Setting ICE Host to: $ICE_HOST"
             export MTX_WEBRTC_ADDITIONAL_HOSTS="$ICE_HOST"
         fi
         
+        # LOG LEVEL
+        # We ensure it defaults to 'info' if missing or invalid
         LOG_LEVEL=$(jq -r '.log_level // "info"' /data/options.json)
+        echo "[HA Mode] Setting Log Level to: $LOG_LEVEL"
         export MTX_LOGLEVEL="$LOG_LEVEL"
     fi
 
@@ -56,5 +60,4 @@ EOF
 fi
 
 echo "Starting Application..."
-# Using exec ensures the process receives signals correctly
 exec "$@"
