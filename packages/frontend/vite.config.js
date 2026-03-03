@@ -1,16 +1,14 @@
-// packages/frontend/vite.config.js
+// --- packages/frontend/vite.config.js --- (complete version) ---
 import dns from "dns";
 import fs from "fs";
 import path, { dirname } from "path";
 import { fileURLToPath } from "url";
-
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import basicSsl from "@vitejs/plugin-basic-ssl";
 import { VitePWA } from "vite-plugin-pwa";
 import { visualizer } from "rollup-plugin-visualizer";
 
-// --- CORE CONSTANTS & HELPERS ---
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const projectRoot = path.resolve(__dirname, '../..');
@@ -19,13 +17,16 @@ const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf-8"));
 const baseAppVersion = packageJson.version || "0.0.0";
 dns.setDefaultResultOrder("verbatim");
 
-// --- MAIN VITE CONFIGURATION ---
 export default defineConfig(({ mode }) => {
   const displayVersion = mode === "production" || mode === "apk" ? baseAppVersion : `${baseAppVersion}-dev`;
   const env = loadEnv(mode, projectRoot, "");
-  const appBase = "/";
-  const backendInternalPort = env.DEV_BACKEND_API_PORT_INTERNAL || "9001";
   
+  // CRITICAL CHANGE: Use relative base path "./" so assets load correctly 
+  // under arbitrary Ingress paths (e.g., /api/hassio_ingress/token/...)
+  const appBase = "./"; 
+  
+  const backendInternalPort = env.DEV_BACKEND_API_PORT_INTERNAL || "9001";
+
   const plugins = [
     react({ include: "**/*.{ts,tsx}" }),
     basicSsl(),
@@ -39,7 +40,7 @@ export default defineConfig(({ mode }) => {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff2,task,json}'],
         globIgnores: ['**/models/*.task'],
       },
-      manifest: false,
+      manifest: false, 
     }));
   }
 
@@ -63,9 +64,7 @@ export default defineConfig(({ mode }) => {
       host: "0.0.0.0",
       port: parseInt(env.DEV_VITE_PORT || "8001"),
       fs: { allow: [projectRoot] },
-      watch: {
-        usePolling: true,
-      },
+      watch: { usePolling: true },
       proxy: {
         "/api": { target: `http://localhost:${backendInternalPort}`, changeOrigin: true, secure: false },
         "/ws/": { target: `ws://localhost:${backendInternalPort}`, ws: true, changeOrigin: true, secure: false },
@@ -84,9 +83,7 @@ export default defineConfig(({ mode }) => {
       sourcemap: !(mode === "production" || mode === "apk"),
       minify: mode === "production" || mode === "apk" ? "terser" : false,
       rollupOptions: {
-        input: {
-          main: path.resolve(__dirname, 'index.html'),
-        },
+        input: { main: path.resolve(__dirname, 'index.html') },
         output: {
           entryFileNames: `assets/[name]-[hash].js`,
           chunkFileNames: `assets/[name]-[hash].js`,

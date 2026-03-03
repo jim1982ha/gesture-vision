@@ -97,4 +97,5 @@ pnpm-lock.yaml
     # capacitor.config.json
 
 # Additional context files that describe the user's specific setup
-    # additional_context/
+!extensions/plugins/*
+extensions/plugins/*/.git/

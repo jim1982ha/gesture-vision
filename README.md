@@ -1,3 +1,4 @@
+// --- README.md --- (complete version) ---
 # GestureVision: AI-Powered Gesture Control for Your Digital World
 
 <p align="center">
@@ -45,21 +46,25 @@ GestureVision is a modern full-stack application built with a clear separation o
 -   **Frontend (`packages/frontend`):** A React application (built with Vite) that handles the UI. All AI processing for webcam streams occurs client-side in a Web Worker, ensuring privacy and a responsive interface.
 -   **Backend (`packages/backend`):** A Node.js/Express server that serves application configuration, manages the plugin lifecycle, and facilitates real-time communication via WebSockets.
 -   **Streaming Server (MediaMTX):** Integrates the powerful MediaMTX server to ingest standard RTSP streams and efficiently re-stream them to the browser using the low-latency WHEP protocol.
--   **Containerized Deployment:** The entire application stack is containerized with Docker and managed via Docker Compose for simple, reproducible deployments.
+-   **Containerized Deployment:** The entire application stack is containerized with Docker and managed via Docker Compose (or HA Supervisor) for simple, reproducible deployments.
 
 ## 🚀 Getting Started
 
 This project is managed as a monorepo. All commands should be run from the project root.
 
-### 1. Prerequisites
+### 1. Home Assistant Add-on (Easiest)
 
--   Docker & Docker Compose V2
--   Node.js & npm (v22+ recommended)
--   Git
+If you are a Home Assistant user, this is the recommended installation method.
 
-### 2. Production Deployment (Recommended)
+1.  **Add Repository:** Go to your Home Assistant Add-on Store -> Repositories and add:
+    `https://github.com/jim1982ha/gesture-vision-app`
+2.  **Install:** Find "GestureVision" in the list and click Install.
+3.  **Configure:** In the Add-on Configuration tab, set your `mtx_ice_host` to your Home Assistant LAN IP address (required for video streaming).
+4.  **Start:** Start the add-on and open the Web UI. The Home Assistant plugin will be auto-installed and configured for you.
 
-This method is for running the application as a stable service. It uses Docker and assumes you have a reverse proxy like Nginx Proxy Manager.
+### 2. Production Deployment (Standalone Docker)
+
+This method is for running the application as a stable service on a generic Linux server. It uses Docker and assumes you have a reverse proxy like Nginx Proxy Manager.
 
 1.  **Clone the Repository:**
     ```bash

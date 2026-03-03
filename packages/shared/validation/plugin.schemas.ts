@@ -1,3 +1,4 @@
+// --- packages/shared/validation/plugin.schemas.ts --- (complete version) ---
 /* FILE: packages/shared/validation/plugin.schemas.ts */
 import { z } from 'zod';
 
@@ -27,6 +28,8 @@ export const PluginManifestSchema = z.object({
     locales: z.record(z.string(), z.record(z.string(), z.string())).optional(),
     status: z.enum(['enabled', 'disabled']).optional(),
     sourceUrl: z.string().optional(),
+    // NEW: Indicates if the plugin is system-managed/locked
+    locked: z.boolean().optional(),
 });
 export type PluginManifest = z.infer<typeof PluginManifestSchema>;
 

@@ -1,3 +1,4 @@
+// --- packages/frontend/src/services/websocket-service.ts --- (complete version) ---
 /* FILE: packages/frontend/src/services/websocket-service.ts */
 import { pubsub, WEBSOCKET_EVENTS, type WebSocketMessage, type GestureConfig, type PoseConfig, type ActionDetails } from '#shared/index.js';
 import { connectLogic, disconnectLogic, scheduleReconnectLogic, clearReconnectTimerLogic, stopPingTimerLogic } from './websocket/ws-lifecycle.js';
@@ -8,12 +9,14 @@ interface PendingRequest<T = unknown> {
   reject: (reason?: Error) => void;
   timeoutId: number;
 }
+
 export interface WebSocketInternalState {
   ws: WebSocket | null; url: string; reconnectAttempts: number; reconnectTimer: number | null;
   isConnected: boolean; isConnecting: boolean; pingIntervalTimer: number | null;
   pongTimeoutTimer: number | null; lastPingId: number | null;
   pendingRequests: Map<number, PendingRequest<unknown>>; messageQueue: WebSocketMessage<unknown>[];
 }
+
 const initializeWsState = (): WebSocketInternalState => ({
   ws: null, url: '', reconnectAttempts: 0, reconnectTimer: null, isConnected: false, isConnecting: false,
   pingIntervalTimer: null, pongTimeoutTimer: null, lastPingId: null, pendingRequests: new Map(), messageQueue: [],
@@ -21,7 +24,6 @@ const initializeWsState = (): WebSocketInternalState => ({
 
 class WebSocketServiceImpl {
   _state: WebSocketInternalState = initializeWsState();
-
   connect = connectLogic.bind(this);
   disconnect = disconnectLogic.bind(this);
   _scheduleReconnect = scheduleReconnectLogic.bind(this);
@@ -35,8 +37,20 @@ class WebSocketServiceImpl {
   handleMessage = handleWsMessageLogic.bind(this);
 
   constructor() {
-    const { protocol, host } = window.location;
-    this._state.url = `${protocol === 'https:' ? 'wss:' : 'ws:'}//${host}/ws/`;
+    // CRITICAL for HA Add-on: Construct WS URL relative to the current Ingress path.
+    // Ingress URLs look like: https://ha.domain.com/api/hassio_ingress/TOKEN/
+    const { protocol, host, pathname } = window.location;
+    
+    // Remove 'index.html' or trailing slash from current path
+    const basePath = pathname.replace(/\/index\.html$/, '').replace(/\/$/, '');
+    
+    // Determine WS protocol (wss if https, ws if http)
+    const wsProtocol = protocol === 'https:' ? 'wss:' : 'ws:';
+    
+    // Construct URL: ws://host/api/hassio_ingress/TOKEN/ws/
+    this._state.url = `${wsProtocol}//${host}${basePath}/ws/`;
+    
+    console.log(`[WS] Initialized with URL: ${this._state.url}`);
     this.connect();
   }
 

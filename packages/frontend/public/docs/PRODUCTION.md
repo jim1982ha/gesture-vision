@@ -2,11 +2,41 @@
 
 ## Introduction
 
-This guide provides an exhaustive walkthrough for deploying the GestureVision application in a production environment. This setup is designed to be robust, secure, and managed via Docker. A reverse proxy is **required** to handle HTTPS and route traffic correctly.
+This guide provides an exhaustive walkthrough for deploying the GestureVision application. There are two primary ways to deploy GestureVision in production: as a **Home Assistant Add-on** (recommended for HA users) or as a **Standalone Docker Container**.
+
+---
+
+## Option A: Home Assistant Add-on (Recommended for HA)
+
+This is the simplest deployment method if you are already using Home Assistant OS or Supervised. It handles SSL (via Ingress), authentication, and plugin configuration automatically.
+
+### 1. Installation
+1.  Navigate to **Settings** > **Add-ons** > **Add-on Store**.
+2.  Click the **three dots** in the top right > **Repositories**.
+3.  Add the GestureVision repository URL:
+    `https://github.com/jim1982ha/gesture-vision-app`
+4.  Find **GestureVision** in the list and click **Install**.
+
+### 2. Configuration
+Before starting the add-on, switch to the **Configuration** tab:
+1.  **`mtx_ice_host`**: Enter the **Local LAN IP** address of your Home Assistant server (e.g., `192.168.1.100`). This is crucial for the video stream (WebRTC) to function correctly.
+2.  **`log_level`** (Optional): Set to `info` or `debug` if you need to troubleshoot.
+3.  **Devices**: Ensure any USB Webcams you intend to use are plugged in; the add-on maps `/dev/video0`, etc., automatically.
+
+### 3. Usage
+1.  Start the add-on.
+2.  Click **Open Web UI**.
+3.  The **Home Assistant Plugin** will be pre-installed and locked. You do not need to configure the URL or Token; simply select "Home Assistant" as the Action Type when creating gesture configs.
+
+---
+
+## Option B: Standalone Docker Deployment
+
+This setup is designed for generic Linux servers, NAS, or cloud VMs. A reverse proxy is **required** to handle HTTPS and route traffic correctly.
 
 ## Server Prerequisites
 
-Before you begin, ensure your host server (e.g., a Linux server, NAS, or cloud VM) is properly configured with the following.
+Before you begin, ensure your host server is properly configured with the following.
 
 ### 1. Core Tools
 - **Docker Engine & Docker Compose V2:** The entire application stack runs in Docker containers.
@@ -47,7 +77,7 @@ You must have the following files and directories from the project repository:
 
 1.  **Create Production Environment File:** `cp config/.env.prod.example config/.env.prod`.
 2.  **Create Production Config File:** `cp config/config.example.json config/config.prod.json`.
-3.  **Prepare Plugin Configurations (if needed):** For example, for Home Assistant:
+3.  **Prepare Plugin Configurations (if needed):** For example, for Home Assistant (Standalone Mode only):
     ```bash
     cp extensions/plugins/gesture-vision-plugin-home-assistant/config.home-assistant.example.json extensions/plugins/gesture-vision-plugin-home-assistant/config.home-assistant.json
     ```

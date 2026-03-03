@@ -1,4 +1,4 @@
-/* FILE: packages/backend/src/plugins/base-backend.plugin.ts */
+// --- packages/backend/src/plugins/base-backend.plugin.ts --- (complete version) ---
 import { type ZodType } from 'zod';
 import type { PluginManifest } from '#shared/index.js';
 import type {
@@ -29,9 +29,11 @@ export class BaseBackendPlugin implements BackendPlugin {
   public setActionHandler(handler: ActionHandler): void {
     this.actionHandlerInstance = handler;
   }
+
   public setActionConfigSchema(schema: ZodType): void {
     this.actionConfigSchema = schema;
   }
+
   public setGlobalConfigSchema(schema: ZodType): void {
     this.globalConfigSchema = schema;
   }
@@ -43,14 +45,17 @@ export class BaseBackendPlugin implements BackendPlugin {
   getActionHandler(): ActionHandler | null {
     return this.actionHandlerInstance;
   }
+
   getGlobalConfigValidationSchema(): ZodType | null {
     return this.globalConfigSchema;
   }
+
   getActionConfigValidationSchema(): ZodType | null {
     return this.actionConfigSchema;
   }
 
   async onGlobalConfigUpdate(_newConfig: unknown): Promise<void> {}
+
   async testConnection(
     _configToTest: unknown
   ): Promise<{
@@ -64,5 +69,6 @@ export class BaseBackendPlugin implements BackendPlugin {
       error: { code: 'NOT_SUPPORTED' },
     };
   }
+
   async destroy(): Promise<void> {}
 }

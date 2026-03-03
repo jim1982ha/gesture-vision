@@ -1,3 +1,4 @@
+// --- packages/frontend/src/components/settings/cards/PluginCard.tsx --- (complete version) ---
 /* FILE: packages/frontend/src/components/settings/cards/PluginCard.tsx */
 import { useState, useContext, type ComponentType } from 'react';
 import { AppContext } from '#frontend/contexts/AppContext.js';
@@ -13,12 +14,12 @@ export const PluginCard = ({ manifest }: { manifest: PluginManifest }) => {
     const [GlobalSettingsComponent, setGlobalSettingsComponent] = useState<ComponentType<{ manifest: PluginManifest; onSaveSuccess?: () => void; onCancel?: () => void; }> | null>(null);
 
     if (!context) return null;
-    
     const { translate } = context.services.translationService;
     const { actions } = context.appStore.getState();
     const { pluginUIService } = context.services;
 
     const handleToggle = async () => {
+        if (manifest.locked) return;
         setIsPending(true);
         const newState = manifest.status === 'enabled' ? 'disabled' : 'enabled';
         try {
@@ -33,8 +34,9 @@ export const PluginCard = ({ manifest }: { manifest: PluginManifest }) => {
             setIsPending(false);
         }
     };
-    
+
     const handleUninstall = () => {
+        if (manifest.locked) return;
         actions.openOverlay('confirmation', {
             titleKey: 'uninstall',
             messageKey: 'confirmDeleteMessage',
@@ -57,7 +59,7 @@ export const PluginCard = ({ manifest }: { manifest: PluginManifest }) => {
     const handleEditClick = () => {
         setIsEditing(true);
         if (GlobalSettingsComponent || isLoadingForm || !manifest.capabilities.hasGlobalSettings) return;
-
+        
         setIsLoadingForm(true);
         pluginUIService.loadPluginFrontendModule(manifest.id)
             .then(module => {
@@ -66,7 +68,7 @@ export const PluginCard = ({ manifest }: { manifest: PluginManifest }) => {
             .catch(error => console.error(`Failed to load settings form for ${manifest.id}`, error))
             .finally(() => setIsLoadingForm(false));
     };
-    
+
     const handleCancelEditing = () => setIsEditing(false);
     const handleSaveSuccess = () => setIsEditing(false);
 
@@ -75,6 +77,7 @@ export const PluginCard = ({ manifest }: { manifest: PluginManifest }) => {
             <CardHeader id={`plugin-card-header-${manifest.id}`}>
                 <CardIcon id={`plugin-card-icon-${manifest.id}`} iconKey={manifest.icon?.name || 'UI_EXTENSION'} />
                 <CardTitle id={`plugin-card-title-${manifest.id}`}>{translate(manifest.nameKey, { defaultValue: manifest.id })}</CardTitle>
+                
                 {!isEditing && (
                     <CardActions id={`plugin-card-actions-${manifest.id}`}>
                         {manifest.capabilities.hasGlobalSettings && (
@@ -82,16 +85,27 @@ export const PluginCard = ({ manifest }: { manifest: PluginManifest }) => {
                                 <span ref={el => el && setIcon(el, 'UI_EDIT_NOTE')}></span>
                             </button>
                         )}
-                        <button id={`plugin-card-toggle-button-${manifest.id}`} className="btn btn-icon" onClick={handleToggle} title={translate(manifest.status === 'enabled' ? 'disable' : 'enable')}>
-                            <span ref={el => el && setIcon(el, manifest.status === 'enabled' ? 'UI_TOGGLE_ON' : 'UI_TOGGLE_OFF')}></span>
-                        </button>
-                         <button id={`plugin-card-uninstall-button-${manifest.id}`} className="btn btn-icon btn-icon-danger" onClick={handleUninstall} title={translate('uninstall')}>
-                            <span ref={el => el && setIcon(el, 'UI_DELETE_FOREVER')}></span>
-                        </button>
+                        
+                        {/* Only show management buttons if not locked */}
+                        {!manifest.locked && (
+                            <>
+                                <button id={`plugin-card-toggle-button-${manifest.id}`} className="btn btn-icon" onClick={handleToggle} title={translate(manifest.status === 'enabled' ? 'disable' : 'enable')}>
+                                    <span ref={el => el && setIcon(el, manifest.status === 'enabled' ? 'UI_TOGGLE_ON' : 'UI_TOGGLE_OFF')}></span>
+                                </button>
+                                <button id={`plugin-card-uninstall-button-${manifest.id}`} className="btn btn-icon btn-icon-danger" onClick={handleUninstall} title={translate('uninstall')}>
+                                    <span ref={el => el && setIcon(el, 'UI_DELETE_FOREVER')}></span>
+                                </button>
+                            </>
+                        )}
+                        
+                        {/* If locked, maybe show a lock icon instead */}
+                        {manifest.locked && (
+                             <span className="material-icons text-text-secondary text-sm ml-1 opacity-60" title="System Managed">lock</span>
+                        )}
                     </CardActions>
                 )}
             </CardHeader>
-            
+
             {isEditing && manifest.capabilities.hasGlobalSettings ? (
                 <div className="mt-3 pt-3">
                     {isLoadingForm && <div id={`plugin-settings-form-loading-${manifest.id}`}>Loading...</div>}

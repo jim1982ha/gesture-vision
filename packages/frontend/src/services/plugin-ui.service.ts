@@ -1,3 +1,4 @@
+// --- packages/frontend/src/services/plugin-ui.service.ts --- (complete version) ---
 /* FILE: packages/frontend/src/services/plugin-ui.service.ts */
 import type { AppStore } from '#frontend/core/state/app-store.js';
 import type { CameraService } from '#frontend/services/camera.service.js';
@@ -58,17 +59,15 @@ export class PluginUIService {
     if (!manifests || !Array.isArray(manifests)) return;
     const oldManifestsMap = new Map(this.#pluginManifests);
     const newManifestsMap = new Map(manifests.map(m => [m.id, m]));
-    
     this.#pluginManifests = newManifestsMap;
+    
     this.#translationService.mergePluginTranslations(manifests);
-
     await this.#reconcilePluginComponents(newManifestsMap, oldManifestsMap);
     pubsub.publish(UI_EVENTS.PLUGINS_MANIFESTS_PROCESSED);
   }
 
   async #reconcilePluginComponents(newManifests: Map<string, PluginManifest>, oldManifests: Map<string, PluginManifest>): Promise<void> {
     const allIds = new Set([...newManifests.keys(), ...oldManifests.keys()]);
-    
     for (const id of allIds) {
         const oldM = oldManifests.get(id);
         const newM = newManifests.get(id);
@@ -126,7 +125,6 @@ export class PluginUIService {
     if (!manifest.hasFrontendStyle) return;
     const stylesheetId = `plugin-stylesheet-${pluginId}`;
     if (document.getElementById(stylesheetId)) return;
-    
     const link = Object.assign(document.createElement('link'), {
         id: stylesheetId, rel: 'stylesheet', type: 'text/css',
         href: `/plugins/${pluginId}/frontend/style.css?v=${manifest.version || Date.now()}`,
@@ -163,7 +161,7 @@ export class PluginUIService {
                          const loaded = await import(/* @vite-ignore */ devPath);
                          module = loaded.default;
                          if (module) break; // Found it
-                     } catch (e) {
+                     } catch (_e) { // Changed 'e' to '_e' to fix lint warning
                          // Continue to next extension
                      }
                  }
@@ -188,7 +186,7 @@ export class PluginUIService {
         }
 
         this.injectStylesheet(pluginId, manifest);
-
+        
         if (typeof module.getActionDisplayDetails === 'function') {
             this.#actionDisplayRenderers.set(pluginId, module.getActionDisplayDetails);
             pubsub.publish(UI_EVENTS.PLUGIN_RENDERERS_UPDATED, { pluginId });
@@ -201,7 +199,6 @@ export class PluginUIService {
 
         this.#loadedFrontendModules.set(pluginId, module);
         return module;
-
     })().catch(e => {
         console.error(`Failed to load module for plugin '${pluginId}'.`, e);
         this.#moduleLoadPromises.delete(pluginId);
@@ -210,12 +207,11 @@ export class PluginUIService {
 
     this.#moduleLoadPromises.set(pluginId, loadPromise);
     loadPromise.finally(() => this.#moduleLoadPromises.delete(pluginId));
-    
     return loadPromise;
   }
 
   public getPluginManifest = (pluginId: string): PluginManifest | undefined => this.#pluginManifests.get(pluginId);
-
+  
   public getActionDisplayDetailsRenderer = (pluginId: string): ActionDisplayDetailsRendererFn | undefined => this.#actionDisplayRenderers.get(pluginId);
 
   public async savePluginGlobalConfig(pluginId: string, config: unknown): Promise<{ success: boolean; message?: string; config?: unknown; validationErrors?: unknown; }> {
