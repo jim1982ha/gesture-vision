@@ -1,6 +1,6 @@
 #!/bin/bash
 # --- tools/release.sh --- (complete version) ---
-# Usage: ./tools/release.sh 4.2.2
+# Usage: ./tools/release.sh -t patch -m "Description"
 
 # Navigate to project root
 cd "$(dirname "$0")/.." || exit 1
@@ -12,65 +12,100 @@ RED='\033[0;31m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
-if [ -z "$1" ]; then
-  echo "Usage: ./tools/release.sh <new_version>"
-  exit 1
-fi
+# --- Defaults ---
+BUMP_TYPE=""
+NEW_VERSION=""
+COMMIT_MESSAGE=""
+AUTO_CONFIRM=false
+SKIP_BUMP=false
 
-NEW_VERSION="$1"
-echo -e "${BLUE}Preparing release $NEW_VERSION...${NC}"
+# --- Argument Parsing ---
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -t|--type) BUMP_TYPE="$2"; shift 2 ;;
+        -v|--version) NEW_VERSION="$2"; shift 2 ;;
+        -m|--message) COMMIT_MESSAGE="$2"; shift 2 ;;
+        -y|--yes) AUTO_CONFIRM=true; shift ;;
+        -n|--no-bump) SKIP_BUMP=true; shift ;;
+        *) echo "Unknown argument: $1"; exit 1 ;;
+    esac
+done
 
-# 1. Update package.json
-if [ -f "package.json" ]; then
+# --- Functions ---
+get_current_version() {
+    if [ -f "package.json" ]; then
+        grep '"version":' package.json | head -1 | awk -F: '{ print $2 }' | sed 's/[",]//g' | tr -d '[[:space:]]'
+    else
+        echo "0.0.0"
+    fi
+}
+
+calculate_next_version() {
+    local type=$1
+    local v=$(get_current_version)
+    local major=$(echo $v | cut -d. -f1)
+    local minor=$(echo $v | cut -d. -f2)
+    local patch=$(echo $v | cut -d. -f3)
+
+    case $type in
+        major) major=$((major + 1)); minor=0; patch=0 ;;
+        minor) minor=$((minor + 1)); patch=0 ;;
+        patch) patch=$((patch + 1)) ;;
+    esac
+    echo "${major}.${minor}.${patch}"
+}
+
+# --- Main Logic ---
+
+if [ "$SKIP_BUMP" = false ]; then
+    if [ -n "$BUMP_TYPE" ]; then
+        NEW_VERSION=$(calculate_next_version "$BUMP_TYPE")
+    elif [ -z "$NEW_VERSION" ]; then
+        echo -e "${RED}Error: Must provide -t (type) or -v (version).${NC}"
+        exit 1
+    fi
+    echo -e "${BLUE}Bumping to version: $NEW_VERSION${NC}"
+    
+    # 1. Update package.json
     sed -i.bak "s/\"version\": \".*\"/\"version\": \"$NEW_VERSION\"/" package.json
     rm package.json.bak
     echo "✔ Updated package.json"
-fi
 
-# 2. Find and Update Add-on Config
-ADDON_DIR=""
-if [ -d "gesturevision" ]; then
-    ADDON_DIR="gesturevision"
-elif [ -d "ha-addon" ]; then
-    ADDON_DIR="ha-addon"
-fi
+    # 2. Update Add-on Config
+    ADDON_DIR=""
+    [ -d "gesturevision" ] && ADDON_DIR="gesturevision"
+    [ -d "ha-addon" ] && ADDON_DIR="ha-addon"
 
-if [ -n "$ADDON_DIR" ]; then
-    # Update config.yaml
-    CONFIG_FILE="$ADDON_DIR/config.yaml"
-    if [ -f "$CONFIG_FILE" ]; then
-        sed -i.bak "s/^version: \".*\"/version: \"$NEW_VERSION\"/" "$CONFIG_FILE"
-        rm "$CONFIG_FILE.bak"
-        echo "✔ Updated $CONFIG_FILE"
+    if [ -n "$ADDON_DIR" ]; then
+        CONFIG_FILE="$ADDON_DIR/config.yaml"
+        if [ -f "$CONFIG_FILE" ]; then
+            sed -i.bak "s/^version: \".*\"/version: \"$NEW_VERSION\"/" "$CONFIG_FILE"
+            rm "${CONFIG_FILE}.bak"
+            echo "✔ Updated $CONFIG_FILE"
+        fi
+
+        # 3. Update Changelog with Commit Message
+        CHANGELOG_FILE="$ADDON_DIR/CHANGELOG.md"
+        DATE=$(date +%Y-%m-%d)
+        DESC=${COMMIT_MESSAGE:-"Maintenance release."}
+        
+        if [ ! -f "$CHANGELOG_FILE" ]; then echo "# Changelog" > "$CHANGELOG_FILE"; fi
+        
+        # Prepend new entry
+        echo -e "## $NEW_VERSION ($DATE)\n- $DESC\n" > "$CHANGELOG_FILE.tmp"
+        cat "$CHANGELOG_FILE" >> "$CHANGELOG_FILE.tmp"
+        mv "$CHANGELOG_FILE.tmp" "$CHANGELOG_FILE"
+        echo "✔ Updated $CHANGELOG_FILE with message: $DESC"
     fi
-
-    # Update CHANGELOG.md (Prepend new version)
-    CHANGELOG_FILE="$ADDON_DIR/CHANGELOG.md"
-    DATE=$(date +%Y-%m-%d)
-    
-    # Check if changelog exists, if not create it
-    if [ ! -f "$CHANGELOG_FILE" ]; then
-        echo "# Changelog" > "$CHANGELOG_FILE"
-    fi
-    
-    # Create temp file with new entry
-    echo -e "## $NEW_VERSION ($DATE)\n- Maintenance release.\n" > "$CHANGELOG_FILE.tmp"
-    cat "$CHANGELOG_FILE" >> "$CHANGELOG_FILE.tmp"
-    mv "$CHANGELOG_FILE.tmp" "$CHANGELOG_FILE"
-    echo "✔ Updated $CHANGELOG_FILE"
-else
-    echo -e "${RED}Error: Could not find 'gesturevision' or 'ha-addon' directory.${NC}"
-    exit 1
 fi
 
-# 3. Git Operations
+# 4. Git Operations
+FULL_MSG="chore: release v$NEW_VERSION - ${COMMIT_MESSAGE:-Maintenance}"
 echo
-echo -e "${YELLOW}Staging and Pushing...${NC}"
+echo -e "${YELLOW}Staging files...${NC}"
 git add -A
-git commit -m "chore: release v$NEW_VERSION"
+git commit -m "$FULL_MSG"
 current_branch=$(git symbolic-ref --short HEAD)
 git push origin "$current_branch"
 
-echo
 echo -e "${GREEN}Success! v$NEW_VERSION pushed.${NC}"
-echo "Go to Home Assistant -> Add-on Store -> Check for updates."

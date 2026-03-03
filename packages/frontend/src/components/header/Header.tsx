@@ -1,3 +1,4 @@
+// --- packages/frontend/src/components/header/Header.tsx --- (complete version) ---
 /* FILE: packages/frontend/src/components/header/Header.tsx */
 import { useContext, useEffect, useRef } from 'react';
 import { AppContext } from '#frontend/contexts/AppContext.js';
@@ -21,12 +22,12 @@ export function Header() {
     useEffect(() => {
         const indicator = wsStatusRef.current;
         if (!indicator) return;
-
+        
         indicator.classList.remove('connected', 'disconnected', 'connecting');
         let statusClass = 'disconnected';
         let titleKey = 'wsDisconnected';
         let iconKey: string | null = 'UI_WS_DISCONNECTED';
-        
+
         if (isStreamConnecting) {
             statusClass = 'connecting';
             titleKey = 'wsConnecting';
@@ -36,18 +37,18 @@ export function Header() {
             titleKey = 'wsConnected';
             iconKey = null; // Use image for connected state
         }
-        
+
         indicator.classList.add(statusClass);
         indicator.title = translate(titleKey);
 
         if (iconKey) {
             setIcon(indicator, iconKey);
         } else {
-            indicator.innerHTML = `<img src="/icons/favicon.svg" alt="Connected" style="width: var(--icon-size-status); height: var(--icon-size-status);">`;
+            // FIXED: Removed leading slash for 'icons/favicon.svg' to support Ingress relative paths
+            indicator.innerHTML = `<img src="icons/favicon.svg" alt="Connected" style="width: var(--icon-size-status); height: var(--icon-size-status);">`;
         }
-
     }, [isWsConnected, isStreamConnecting, translate]);
-    
+
     if (!context) return null;
 
     const openAboutModal = () => actions.openOverlay('docs', 'ABOUT');
@@ -76,7 +77,7 @@ export function Header() {
 
             {/* Desktop navigation controls */}
             <NavControls layout="desktop" />
-            
+
             {/* Mobile "kebab" menu */}
             <div id="header-mobile-kebab-menu" className="desktop:hidden">
                 <Dropdown id="header-kebab-menu" trigger={kebabMenuTrigger}>
