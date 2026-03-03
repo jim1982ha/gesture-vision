@@ -1,12 +1,11 @@
 # --- ha-addon/Dockerfile --- (complete version) ---
-# We explicitly use the Node Debian image to ensure apt-get and npm work as expected
+# We use the official Node image, so we do NOT need to apt-get install nodejs/npm
 FROM node:22-bookworm
 
-# Install dependencies
+# Install system dependencies
+# REMOVED: nodejs npm (already in base image)
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-    nodejs \
-    npm \
     curl \
     ca-certificates \
     ffmpeg \
@@ -20,15 +19,12 @@ RUN apt-get update && \
 # Install MediaMTX
 ARG MEDIAMTX_VERSION=v1.12.0
 ARG TARGETARCH=amd64
-# Handle architecture translation for MediaMTX download if needed.
-# HA passes TARGETARCH automatically (amd64, arm64).
 RUN curl -Ls https://github.com/bluenviron/mediamtx/releases/download/${MEDIAMTX_VERSION}/mediamtx_${MEDIAMTX_VERSION}_linux_${TARGETARCH}.tar.gz | tar -xz -C /usr/local/bin/
 RUN chmod +x /usr/local/bin/mediamtx
 
 WORKDIR /app
 
 # Clone the repository
-# We default to 'main' if BUILD_VERSION is not provided, but HA usually provides it.
 ARG BUILD_VERSION=main
 RUN git clone https://github.com/jim1982ha/gesture-vision-app.git . && \
     git checkout ${BUILD_VERSION} || git checkout main
@@ -41,8 +37,7 @@ ENV NODE_ENV=production
 RUN npm run build:backend
 RUN npm run build:umd
 
-# Override the base path for Ingress compatibility during build.
-# This ensures the UI assets load correctly via the HA Proxy.
+# Override the base path for Ingress compatibility during build
 RUN sed -i 's|const appBase = "/";|const appBase = "./";|' packages/frontend/vite.config.js
 
 RUN npm run build:app
@@ -63,22 +58,13 @@ RUN for plugin_dir in extensions/plugins/*; do \
       fi; \
     done
 
-# --- FIXED SECTION: Internal Copy instead of External COPY ---
-# Since we cloned the repo into /app, the config files are already here.
-# We move them to their final destinations.
-
-# Move Nginx Config
+# Internal Copy of Configs
 RUN cp config/nginx.conf /etc/nginx/nginx.conf
-
-# Move Default Config
 RUN cp config/config.example.json /app/config.default.json
-
-# Move Entrypoint (It resides in ha-addon/ folder in the repo)
 RUN cp ha-addon/docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-# Labeling for Home Assistant
-# We use the argument passed by HA to ensure the label matches the installed version
+# Labeling
 ARG BUILD_VERSION
 LABEL \
     io.hass.name="GestureVision" \
