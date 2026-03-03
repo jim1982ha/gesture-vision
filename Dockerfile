@@ -1,4 +1,5 @@
 # --- Dockerfile --- (complete version) ---
+# Dockerfile - Standalone Production & Development
 FROM node:22-bookworm AS base
 WORKDIR /app
 RUN apt-get update && \
@@ -7,8 +8,6 @@ RUN apt-get update && \
     ca-certificates \
     ffmpeg \
     iputils-ping \
-    git \
-    jq \
     nginx-extras && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
@@ -24,7 +23,6 @@ RUN npm install --include=dev
 
 FROM base AS builder
 WORKDIR /app
-# These args might be passed by HA build args, but we handle dynamic config at runtime mostly.
 ARG VITE_PROD_WHEP_BASE_URL
 ARG VITE_PROD_HA_DEFAULT_URL
 COPY --from=deps /app/node_modules ./node_modules
@@ -50,22 +48,11 @@ RUN npm run build:umd
 RUN npm run copy:wasm
 COPY --from=base /usr/local/bin/mediamtx /usr/local/bin/mediamtx
 COPY config/config.example.json /app/config.default.json
-COPY docker-entrypoint.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 EXPOSE 8000 8889 8554 9001
-ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["npm", "run", "dev"]
 
 FROM base AS production
 WORKDIR /app
-# Add Labels for Home Assistant
-LABEL \
-    io.hass.name="GestureVision" \
-    io.hass.description="AI-Powered Gesture Control for your Smart Home" \
-    io.hass.arch="aarch64|amd64" \
-    io.hass.type="addon" \
-    io.hass.version="4.0.0"
-
 COPY --from=builder /app/node_modules ./node_modules
 COPY package.json .
 COPY tsconfig.json .
@@ -81,18 +68,12 @@ RUN for plugin_dir in /app/extensions/plugins/*; do \
         if [ -d "$plugin_dir/frontend" ]; then cp -r "$plugin_dir/frontend" "$dest_dir/"; fi; \
         if [ -d "$plugin_dir/locales" ]; then cp -r "$plugin_dir/locales" "$dest_dir/"; fi; \
         if [ -f "$plugin_dir/plugin.json" ]; then cp "$plugin_dir/plugin.json" "$dest_dir/"; fi; \
-        if [ -f "$plugin_dir/README.md" ]; then cp "$plugin_dir/README.md" "$dest_dir/"; fi; \
       fi; \
     done
 RUN chmod -R 755 /usr/share/nginx/html/*
 COPY config/nginx.conf /etc/nginx/nginx.conf
 COPY --from=base /usr/local/bin/mediamtx /usr/local/bin/mediamtx
 COPY config/config.example.json /app/config.default.json
-COPY docker-entrypoint.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-EXPOSE 80
-EXPOSE 8888
-EXPOSE 1935
-ENTRYPOINT ["docker-entrypoint.sh"]
+EXPOSE 80 8888 1935
 CMD ["npm", "run", "start:prod"]
