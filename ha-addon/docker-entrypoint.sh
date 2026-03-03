@@ -2,6 +2,7 @@
 # --- ha-addon/docker-entrypoint.sh --- (complete version) ---
 
 CONFIG_FILE="/app/config.json"
+DEFAULT_CONFIG_FILE="/app/config.default.json"
 DATA_CONFIG_FILE="/data/config.json"
 PLUGINS_DIR="/app/extensions/plugins"
 HA_PLUGIN_ID="gesture-vision-plugin-home-assistant"
@@ -13,7 +14,6 @@ if [ -n "$SUPERVISOR_TOKEN" ]; then
     echo "[HA Mode] Supervisor detected."
 
     # 1. Configure HA Plugin
-    # We assume the plugin files were copied during Docker build (see Dockerfile)
     echo "[HA Mode] Configuring Plugin..."
     cat > "$HA_PLUGIN_CONFIG_FILE" <<EOF
 {
@@ -26,7 +26,14 @@ EOF
     # 2. Persistent Config Logic
     if [ ! -f "$DATA_CONFIG_FILE" ]; then
         echo "[HA Mode] Initializing persistent config..."
-        if [ -f "$CONFIG_FILE" ]; then cp "$CONFIG_FILE" "$DATA_CONFIG_FILE"; else echo "{}" > "$DATA_CONFIG_FILE"; fi
+        # Copy from the default file we baked into the image
+        if [ -f "$DEFAULT_CONFIG_FILE" ]; then
+            cp "$DEFAULT_CONFIG_FILE" "$DATA_CONFIG_FILE"
+        elif [ -f "$CONFIG_FILE" ]; then 
+            cp "$CONFIG_FILE" "$DATA_CONFIG_FILE"
+        else 
+            echo "{}" > "$DATA_CONFIG_FILE"
+        fi
     fi
 
     # 3. Apply Options
@@ -36,6 +43,7 @@ EOF
             echo "[HA Mode] Setting ICE Host to: $ICE_HOST"
             export MTX_WEBRTC_ADDITIONAL_HOSTS="$ICE_HOST"
         fi
+        
         LOG_LEVEL=$(jq -r '.log_level // "info"' /data/options.json)
         export MTX_LOGLEVEL="$LOG_LEVEL"
     fi
@@ -48,4 +56,5 @@ EOF
 fi
 
 echo "Starting Application..."
+# Using exec ensures the process receives signals correctly
 exec "$@"

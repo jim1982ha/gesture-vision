@@ -1,6 +1,5 @@
 #!/bin/bash
-# FILE: tools/update_del_old_file.sh
-
+# --- tools/update_del_old_file.sh --- (complete version) ---
 # --- Helper Function: Display Help ---
 display_help() {
     local script_name
@@ -13,6 +12,7 @@ display_help() {
     echo "WARNING: This script uses 'sudo rm -rf' and will permanently delete the following:"
     echo "  - All 'dist', 'dist-*', and 'dev-dist' directories within './packages/'."
     echo "  - The root './dist' directory."
+    echo "  - Generated frontend assets (wasm, models, local-bundles)."
     echo "  - All '*.tsbuildinfo' files."
     echo "  - The root 'node_modules' directory and 'package-lock.json' file."
     echo
@@ -20,7 +20,7 @@ display_help() {
     echo "  1. Sets file ownership of the project to the current user using 'sudo chown'."
     echo "  2. Deletes all specified build artifacts and old dependency files."
     echo "  3. Runs a clean 'npm install' at the project root."
-    echo "  4. Rebuilds the backend TypeScript packages ('npm run build:backend')."
+    echo "  4. Rebuilds Backend, UMD bundles, and copies WASM/Models."
     echo
     echo "Options:"
     echo "  -h, --help    Display this help message and exit."
@@ -50,14 +50,20 @@ if [ "$(whoami)" != "root" ]; then
 fi
 
 echo "Cleaning up old build artifacts..."
-# Use sudo to remove directories that might have been created by root (e.g., from Docker)
+# Core build folders
 sudo rm -rf ./dist
 sudo rm -rf ./packages/*/dist
 sudo rm -rf ./packages/*/dist-*
 sudo rm -rf ./packages/*/dev-dist
+
+# Specific Frontend Generated Assets (Ensure fresh copy on rebuild)
+sudo rm -rf ./packages/frontend/public/wasm
+sudo rm -rf ./packages/frontend/public/models
+sudo rm -rf ./packages/frontend/public/local-bundles
+
+# TypeScript incremental build info
 sudo find ./packages -name '*.tsbuildinfo' -type f -exec rm -f {} +
 sudo find . -name '*.tsbuildinfo' -type f -exec rm -f {} +
-
 
 # Clean up root node_modules and package-lock.json to ensure a fresh install
 echo "Removing root node_modules and package-lock.json..."
@@ -68,7 +74,12 @@ echo "Running a clean npm install..."
 # Run npm install as the current user, NOT with sudo
 npm install
 
-echo "Building all TypeScript packages..."
+echo "Building Backend and Prerequisites..."
+# We rebuild backend AND the frontend prerequisites (UMD/WASM/Models)
+# so the system is ready to start immediately after this script.
+npm run copy:wasm
+npm run copy:models
+npm run build:umd
 npm run build:backend
 
 echo "Cleanup and rebuild complete."

@@ -1,7 +1,6 @@
 /* FILE: packages/backend/src/api/routes/plugins.router.ts */
 import { Router, type Request, type Response, type NextFunction } from 'express';
 import { z } from 'zod';
-
 import type { PluginManagerService } from '../../services/plugin-manager.service.js';
 import { asyncHandler } from '../async-handler.js';
 
@@ -16,7 +15,7 @@ export default function createPluginsRouter(pluginManager: PluginManagerService)
     router.get('/manifests', asyncHandler(async (_req, res) => {
         res.json(await pluginManager.getAllPluginManifestsWithCapabilities());
     }));
-    
+
     router.post('/manage/install', asyncHandler(async (req, res) => {
         const validation = InstallPluginBodySchema.safeParse(req.body);
         if (!validation.success) {
@@ -29,17 +28,19 @@ export default function createPluginsRouter(pluginManager: PluginManagerService)
 
     router.post('/manage/:pluginId/uninstall', asyncHandler(async (req, res) => {
         const { pluginId } = req.params;
-        const result = await pluginManager.initiatePluginUninstall(pluginId);
+        const result = await pluginManager.initiatePluginUninstall(pluginId as string);
         res.status(result.success ? 200 : 400).json(result);
     }));
 
     router.post('/manage/:pluginId/state', asyncHandler(async (req, res) => {
         const { pluginId } = req.params;
         const { state } = req.body; // Expects "enabled" or "disabled"
+
         if (state !== 'enabled' && state !== 'disabled') {
             return res.status(400).json({ success: false, message: 'Invalid state provided. Must be "enabled" or "disabled".' });
         }
-        const result = await pluginManager.setPluginState(pluginId, state);
+        
+        const result = await pluginManager.setPluginState(pluginId as string, state);
         res.status(result.success ? 200 : 400).json(result);
     }));
 
@@ -48,7 +49,7 @@ export default function createPluginsRouter(pluginManager: PluginManagerService)
     // router if the plugin is currently enabled and provides one.
     router.use('/:pluginId', (req: Request, res: Response, next: NextFunction) => {
         const { pluginId } = req.params;
-        const plugin = pluginManager.getPlugin(pluginId);
+        const plugin = pluginManager.getPlugin(pluginId as string);
 
         if (plugin && plugin.manifest.status === 'enabled') {
             const pluginApiRouter = plugin.instance.getApiRouter?.();
@@ -57,6 +58,7 @@ export default function createPluginsRouter(pluginManager: PluginManagerService)
                 // so the plugin's router can match its own routes (e.g., '/entities').
                 const originalUrl = req.url;
                 req.url = req.originalUrl.replace(`/api/plugins/${pluginId}`, '');
+                
                 pluginApiRouter(req, res, (err) => {
                     // Restore the original URL after the plugin router is done
                     req.url = originalUrl;
@@ -71,8 +73,10 @@ export default function createPluginsRouter(pluginManager: PluginManagerService)
 
     // --- Core config and test routes that use :pluginId must come after the dynamic middleware ---
     router.get('/:pluginId/config', asyncHandler(async (req, res) => {
-        const config = await pluginManager.getPluginGlobalConfig(req.params.pluginId);
-        const manifest = pluginManager.getPluginManifest(req.params.pluginId);
+        const pluginId = req.params.pluginId as string;
+        const config = await pluginManager.getPluginGlobalConfig(pluginId);
+        const manifest = pluginManager.getPluginManifest(pluginId);
+
         if (!manifest) {
             return res.status(404).json({ error: "PLUGIN_NOT_FOUND" });
         }
@@ -82,43 +86,47 @@ export default function createPluginsRouter(pluginManager: PluginManagerService)
         if (config === null) {
             return res.status(404).json({ error: "PLUGIN_CONFIG_NOT_FOUND_OR_ERROR" });
         }
+
         res.json(config);
     }));
 
     router.patch('/:pluginId/config', asyncHandler(async (req, res) => {
+        const pluginId = req.params.pluginId as string;
         if (typeof req.body !== 'object' || req.body === null) {
             return res.status(400).json({ error: "BAD_REQUEST_PAYLOAD" });
         }
-        const result = await pluginManager.savePluginGlobalConfig(req.params.pluginId, req.body);
+
+        const result = await pluginManager.savePluginGlobalConfig(pluginId, req.body);
+
         if (result.success) {
             res.status(200).json({
-                message: `Plugin '${req.params.pluginId}' config updated`,
-                config: await pluginManager.getPluginGlobalConfig(req.params.pluginId)
+                message: `Plugin '${pluginId}' config updated`,
+                config: await pluginManager.getPluginGlobalConfig(pluginId)
             });
         } else {
             const validationErrors = result.validationErrors;
             const errors = validationErrors?.errors || (validationErrors?.error ? [validationErrors.error] : []);
+            
             res.status(400).json({
                 error: "PLUGIN_CONFIG_PATCH_FAILED",
-                pluginId: req.params.pluginId,
+                pluginId: pluginId,
                 message: result.message,
                 validationErrors: errors,
             });
         }
     }));
-    
+
     // Centralized route for testing a plugin's connection with a given config.
     router.post('/:pluginId/test', asyncHandler(async (req, res) => {
         const { pluginId } = req.params;
         const configToTest = req.body;
+        const pluginInstance = pluginManager.getPluginInstance(pluginId as string);
 
-        const pluginInstance = pluginManager.getPluginInstance(pluginId);
         if (!pluginInstance) {
             return res.status(404).json({ success: false, message: `Plugin '${pluginId}' not found.` });
         }
-        
+
         const result = await pluginInstance.testConnection!(configToTest);
-        
         res.json({ pluginId, ...result });
     }));
 

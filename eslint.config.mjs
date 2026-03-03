@@ -1,4 +1,4 @@
-/* FILE: eslint.config.mjs */
+// --- eslint.config.mjs --- (complete version) ---
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -107,7 +107,6 @@ export default [
     },
     languageOptions: {
       parserOptions: {
-        project: true,
         projectService: true,
         tsconfigRootDir: __dirname,
         ecmaVersion: "latest",
@@ -136,7 +135,6 @@ export default [
     rules: {},
     languageOptions: {
       parserOptions: {
-        project: true,
         projectService: true,
         tsconfigRootDir: __dirname,
       },
@@ -170,7 +168,6 @@ export default [
     rules: {},
     languageOptions: {
       parserOptions: {
-        project: true,
         projectService: true,
         tsconfigRootDir: __dirname,
       },
