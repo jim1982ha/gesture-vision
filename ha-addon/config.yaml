@@ -1,7 +1,7 @@
 # --- ha-addon/config.yaml --- (complete version) ---
 name: "GestureVision"
-version: "4.0.0"
-slug: "gesturevision"
+version: "4.1.0"
+slug: "ha-addon"
 description: "AI-Powered Gesture Control using Webcams or RTSP cameras."
 url: "https://github.com/jim1982ha/gesture-vision"
 arch:
@@ -30,4 +30,3 @@ options:
 schema:
   mtx_ice_host: str?
   log_level: list(debug, info, warn, error)
-image: "{name}-{arch}"
