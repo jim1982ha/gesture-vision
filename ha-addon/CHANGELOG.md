@@ -1,3 +1,6 @@
+## 4.2.12 (2026-03-04)
+- New Fix for HA AddOns
+
 ## 4.2.11 (2026-03-04)
 - New Fix for HA AddOns
 
