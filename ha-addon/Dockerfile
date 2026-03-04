@@ -1,91 +1,81 @@
-# --- ha-addon/Dockerfile --- (complete version) ---
-FROM node:22-bookworm
-
-# Install dependencies
+# Dockerfile - Standalone Production & Development
+FROM node:22-bookworm AS base
+WORKDIR /app
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-    nodejs \
-    npm \
     curl \
     ca-certificates \
     ffmpeg \
     iputils-ping \
+    nginx-extras \
     git \
-    jq \
-    nginx-extras && \
+    jq && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
-
-# Install MediaMTX
 ARG MEDIAMTX_VERSION=v1.12.0
-ARG TARGETARCH
-# Logic to map Docker's 'arm64' to MediaMTX's 'arm64v8'
-RUN ARCH="${TARGETARCH}"; \
-    if [ "$ARCH" = "arm64" ]; then ARCH="arm64v8"; fi; \
-    echo "Downloading MediaMTX for ${ARCH}..." && \
-    curl -Ls "https://github.com/bluenviron/mediamtx/releases/download/${MEDIAMTX_VERSION}/mediamtx_${MEDIAMTX_VERSION}_linux_${ARCH}.tar.gz" | tar -xz -C /usr/local/bin/
+ARG TARGETARCH=amd64
+RUN curl -Ls https://github.com/bluenviron/mediamtx/releases/download/${MEDIAMTX_VERSION}/mediamtx_${MEDIAMTX_VERSION}_linux_${TARGETARCH}.tar.gz | tar -xz -C /usr/local/bin/
 RUN chmod +x /usr/local/bin/mediamtx
 
+FROM base AS deps
 WORKDIR /app
-
-# Clone the main repository
-ARG BUILD_VERSION=main
-RUN git clone https://github.com/jim1982ha/gesture-vision.git . && \
-    git checkout ${BUILD_VERSION} || git checkout main
-
-# Clone the Home Assistant Plugin (Critical for Add-on)
-RUN mkdir -p extensions/plugins/gesture-vision-plugin-home-assistant && \
-    git clone --depth 1 https://github.com/jim1982ha/gesture-vision-plugin-home-assistant.git extensions/plugins/gesture-vision-plugin-home-assistant
-
-# Install App Dependencies
+COPY package.json package-lock.json* ./
 RUN npm install --include=dev
 
-# Build Application
-ENV NODE_ENV=production
+FROM base AS builder
+WORKDIR /app
+ARG VITE_PROD_WHEP_BASE_URL
+ARG VITE_PROD_HA_DEFAULT_URL
+COPY --from=deps /app/node_modules ./node_modules
+COPY package.json package-lock.json* ./
+COPY tsconfig.json ./tsconfig.json
+COPY packages/ ./packages/
+# Only copy local extensions. We DO NOT hardcode external clones here.
+# Any built-in plugins must be present in the local filesystem before build context creation.
+COPY extensions/ ./extensions/
+COPY config/config.example.json ./config/config.example.json
+
 RUN npm run build:backend
 RUN npm run build:umd
-
-# Override the base path for Ingress compatibility
-RUN sed -i 's|const appBase = "/";|const appBase = "./";|' packages/frontend/vite.config.js
-
 RUN npm run build:app
+ENV NODE_ENV=production
 RUN npm prune --omit=dev
 
-# --- FIXED: Copy Frontend Build to Nginx Webroot ---
-# This was missing, causing the "Welcome to nginx" page
-RUN rm -rf /usr/share/nginx/html/* && \
-    cp -r packages/frontend/dist/* /usr/share/nginx/html/
+FROM base AS development
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY package.json package-lock.json* ./
+COPY tsconfig.json ./tsconfig.json
+COPY packages/ ./packages/
+COPY extensions/ ./extensions/
+RUN npm run build:umd
+RUN npm run copy:wasm
+COPY --from=base /usr/local/bin/mediamtx /usr/local/bin/mediamtx
+COPY config/config.example.json /app/config.default.json
+EXPOSE 8000 8889 8554 9001
+CMD ["npm", "run", "dev"]
 
-# Plugin Frontend Asset Setup
+FROM base AS production
+WORKDIR /app
+COPY --from=builder /app/node_modules ./node_modules
+COPY package.json .
+COPY tsconfig.json .
+COPY --from=builder /app/packages ./packages
+COPY --from=builder /app/extensions ./extensions
+COPY --from=builder /app/packages/frontend/dist /usr/share/nginx/html/
+
+# Prepare webroot for plugins, but do not pre-populate it aggressively.
+# The entrypoint script will handle symlinking to persistent data.
 RUN mkdir -p /usr/share/nginx/html/plugins && \
     chmod -R 755 /usr/share/nginx/html
 
-RUN for plugin_dir in extensions/plugins/*; do \
-      if [ -d "$plugin_dir" ]; then \
-        plugin_id=$(basename "$plugin_dir"); \
-        dest_dir="/usr/share/nginx/html/plugins/$plugin_id"; \
-        mkdir -p "$dest_dir"; \
-        if [ -d "$plugin_dir/frontend" ]; then cp -r "$plugin_dir/frontend" "$dest_dir/"; fi; \
-        if [ -d "$plugin_dir/locales" ]; then cp -r "$plugin_dir/locales" "$dest_dir/"; fi; \
-        if [ -f "$plugin_dir/plugin.json" ]; then cp "$plugin_dir/plugin.json" "$dest_dir/"; fi; \
-      fi; \
-    done
-
 # Internal Copy of Configs
-# Remove default nginx sites to prevent conflicts
 RUN rm -f /etc/nginx/sites-enabled/default
-RUN cp config/nginx.conf /etc/nginx/nginx.conf
-RUN cp config/config.example.json /app/config.default.json
-RUN cp ha-addon/docker-entrypoint.sh /usr/local/bin/
+COPY config/nginx.conf /etc/nginx/nginx.conf
+COPY --from=base /usr/local/bin/mediamtx /usr/local/bin/mediamtx
+COPY config/config.example.json /app/config.default.json
+COPY ha-addon/docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-ARG BUILD_VERSION
-LABEL \
-    io.hass.name="GestureVision" \
-    io.hass.description="AI-Powered Gesture Control for your Smart Home" \
-    io.hass.type="addon" \
-    io.hass.version="${BUILD_VERSION}"
-
-EXPOSE 80 8888 1935 8554
-ENTRYPOINT ["docker-entrypoint.sh"]
+EXPOSE 80 8888 1935
 CMD ["npm", "run", "start:prod"]
