@@ -1,9 +1,9 @@
 # --- ha-addon/config.yaml --- (complete version) ---
 name: "GestureVision"
-version: "4.2.3"
+version: "4.2.4"
 slug: "ha-addon"
 description: "AI-Powered Gesture Control using Webcams or RTSP cameras."
-url: "https://github.com/jim1982ha/gesture-vision-app"
+url: "https://github.com/jim1982ha/gesture-vision"
 arch:
   - aarch64
   - amd64
@@ -19,6 +19,8 @@ devices:
 ingress: true
 ingress_port: 80
 panel_icon: mdi:hand-wave
+# CRITICAL: This enables the internal proxy to Home Assistant Core
+homeassistant_api: true
 ports:
   8888/tcp: 8888
   8189/udp: 8189

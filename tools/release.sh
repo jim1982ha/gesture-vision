@@ -1,5 +1,4 @@
 #!/bin/bash
-# --- tools/release.sh --- (complete version) ---
 # Usage: ./tools/release.sh -t patch -m "Description"
 
 # Navigate to project root
@@ -13,16 +12,17 @@ BLUE='\033[0;34m'
 NC='\033[0m'
 
 # --- Defaults ---
-ADDON_DIR="ha-addon"
 BUMP_TYPE=""
 NEW_VERSION=""
 COMMIT_MESSAGE=""
 AUTO_CONFIRM=false
 SKIP_BUMP=false
+SHOW_HELP=false
 
 # --- Argument Parsing ---
 while [[ $# -gt 0 ]]; do
     case $1 in
+        -h|--help) SHOW_HELP=true; shift ;;
         -t|--type) BUMP_TYPE="$2"; shift 2 ;;
         -v|--version) NEW_VERSION="$2"; shift 2 ;;
         -m|--message) COMMIT_MESSAGE="$2"; shift 2 ;;
@@ -31,6 +31,21 @@ while [[ $# -gt 0 ]]; do
         *) echo "Unknown argument: $1"; exit 1 ;;
     esac
 done
+
+if [ "$SHOW_HELP" = true ]; then
+    echo -e "${BLUE}GestureVision Release Tool${NC}"
+    echo "Usage: ./tools/release.sh [options]"
+    echo
+    echo "Options:"
+    echo "  -h, --help               Show this help message"
+    echo "  -t, --type <type>        Bump type: patch, minor, major"
+    echo "  -v, --version <ver>      Set explicit version (e.g. 1.2.3)"
+    echo "  -m, --message <msg>      Commit message description"
+    echo "  -n, --no-bump            Skip version bump, just commit/push"
+    echo "  -y, --yes                Skip confirmation prompts"
+    echo
+    exit 0
+fi
 
 # --- Functions ---
 get_current_version() {
@@ -45,7 +60,6 @@ calculate_next_version() {
     local type=$1
     local v=$(get_current_version)
     
-    # Validation: Ensure version is numeric X.Y.Z
     if [[ ! "$v" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
         echo "INVALID_VERSION_FORMAT"
         return
@@ -65,8 +79,13 @@ calculate_next_version() {
 
 # --- Main Logic ---
 
-if [ ! -d "$ADDON_DIR" ]; then
-    echo -e "${RED}Error: Add-on directory '$ADDON_DIR' not found.${NC}"
+# Determine Add-on Directory
+ADDON_DIR=""
+if [ -d "gesturevision" ]; then ADDON_DIR="gesturevision"; 
+elif [ -d "ha-addon" ]; then ADDON_DIR="ha-addon"; fi
+
+if [ -z "$ADDON_DIR" ]; then
+    echo -e "${RED}Error: Add-on directory (gesturevision or ha-addon) not found.${NC}"
     exit 1
 fi
 
@@ -83,12 +102,12 @@ if [ "$SKIP_BUMP" = false ]; then
     fi
     echo -e "${BLUE}Bumping to version: $NEW_VERSION${NC}"
     
-    # 1. Update package.json
+    # Update package.json
     sed -i.bak "s/\"version\": \".*\"/\"version\": \"$NEW_VERSION\"/" package.json
     rm package.json.bak
     echo "✔ Updated package.json"
 
-    # 2. Update Add-on Config
+    # Update Add-on Config
     CONFIG_FILE="$ADDON_DIR/config.yaml"
     if [ -f "$CONFIG_FILE" ]; then
         sed -i.bak "s/^version: \".*\"/version: \"$NEW_VERSION\"/" "$CONFIG_FILE"
@@ -96,14 +115,13 @@ if [ "$SKIP_BUMP" = false ]; then
         echo "✔ Updated $CONFIG_FILE"
     fi
 
-    # 3. Update Changelog
+    # Update Changelog
     CHANGELOG_FILE="$ADDON_DIR/CHANGELOG.md"
     DATE=$(date +%Y-%m-%d)
     DESC=${COMMIT_MESSAGE:-"Maintenance release."}
     
     if [ ! -f "$CHANGELOG_FILE" ]; then echo "# Changelog" > "$CHANGELOG_FILE"; fi
     
-    # Check if entry already exists to avoid duplicates if re-running
     if ! grep -q "## $NEW_VERSION" "$CHANGELOG_FILE"; then
         echo -e "## $NEW_VERSION ($DATE)\n- $DESC\n" > "$CHANGELOG_FILE.tmp"
         cat "$CHANGELOG_FILE" >> "$CHANGELOG_FILE.tmp"
@@ -114,7 +132,7 @@ if [ "$SKIP_BUMP" = false ]; then
     fi
 fi
 
-# 4. Icon Generation Check
+# Icon Generation Check
 if [ ! -f "$ADDON_DIR/icon.png" ]; then
     echo -e "${BLUE}Generating Add-on icon.png from source...${NC}"
     if command -v ffmpeg &> /dev/null; then
@@ -126,7 +144,7 @@ if [ ! -f "$ADDON_DIR/icon.png" ]; then
     fi
 fi
 
-# 5. Git Operations
+# Git Operations
 FULL_MSG="chore: release v${NEW_VERSION:-update} - ${COMMIT_MESSAGE:-Maintenance}"
 echo
 echo -e "${YELLOW}Staging files...${NC}"

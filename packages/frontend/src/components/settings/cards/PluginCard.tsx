@@ -80,7 +80,8 @@ export const PluginCard = ({ manifest }: { manifest: PluginManifest }) => {
                 
                 {!isEditing && (
                     <CardActions id={`plugin-card-actions-${manifest.id}`}>
-                        {manifest.capabilities.hasGlobalSettings && (
+                        {/* MODIFIED: Hide Edit button if plugin is locked (System Managed) */}
+                        {manifest.capabilities.hasGlobalSettings && !manifest.locked && (
                             <button id={`plugin-card-edit-button-${manifest.id}`} className="btn btn-icon" onClick={handleEditClick} title={translate('edit')}>
                                 <span ref={el => el && setIcon(el, 'UI_EDIT_NOTE')}></span>
                             </button>
@@ -98,9 +99,9 @@ export const PluginCard = ({ manifest }: { manifest: PluginManifest }) => {
                             </>
                         )}
                         
-                        {/* If locked, maybe show a lock icon instead */}
+                        {/* If locked, show a lock icon to indicate system management */}
                         {manifest.locked && (
-                             <span className="material-icons text-text-secondary text-sm ml-1 opacity-60" title="System Managed">lock</span>
+                             <span className="material-icons text-text-secondary text-sm ml-1 opacity-60 cursor-help" title="System Managed (Config Locked)">lock</span>
                         )}
                     </CardActions>
                 )}
