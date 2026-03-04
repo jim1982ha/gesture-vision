@@ -1,6 +1,6 @@
 # --- ha-addon/config.yaml --- (complete version) ---
 name: "GestureVision"
-version: "4.2.5"
+version: "4.2.6"
 slug: "ha-addon"
 description: "AI-Powered Gesture Control using Webcams or RTSP cameras."
 url: "https://github.com/jim1982ha/gesture-vision"
@@ -19,8 +19,15 @@ devices:
 ingress: true
 ingress_port: 80
 panel_icon: mdi:hand-wave
-# CRITICAL: This enables the internal proxy to Home Assistant Core
+
+# HA Permissions Best Practices
+# Enables access to the Core API (Control devices)
 homeassistant_api: true
+# Enables access to Supervisor API (Add-on info)
+hassio_api: true
+# Enables Ingress Authentication (User context)
+auth_api: true
+
 ports:
   8888/tcp: 8888
   8189/udp: 8189

@@ -1,3 +1,6 @@
+## 4.2.6 (2026-03-04)
+- Fix module resolution and HA integration
+
 ## 4.2.5 (2026-03-04)
 - plugin installtion fix and mtx intialisation
 

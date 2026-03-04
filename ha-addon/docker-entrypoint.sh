@@ -16,7 +16,6 @@ if [ -n "$SUPERVISOR_TOKEN" ]; then
     echo "[HA Mode] Supervisor detected."
 
     # --- 0. Setup Persistent Plugins Directory ---
-    # Move plugins to /data so they are writable and survive updates
     if [ ! -d "$DATA_PLUGINS_DIR" ]; then
         echo "[HA Mode] Initializing persistent plugins directory..."
         mkdir -p "$DATA_PLUGINS_DIR"
@@ -25,11 +24,20 @@ if [ -n "$SUPERVISOR_TOKEN" ]; then
             cp -r "$APP_PLUGINS_DIR/"* "$DATA_PLUGINS_DIR/"
         fi
     fi
+
+    # CRITICAL FIX: Link app node_modules to data plugins so they can resolve dependencies
+    # Node resolves modules by looking up the directory tree.
+    # Plugin: /data/plugins/my-plugin/index.ts -> looks in /data/plugins/node_modules -> FOUND via symlink
+    if [ -d "/app/node_modules" ]; then
+        echo "[HA Mode] Linking node_modules for plugins..."
+        rm -rf "$DATA_PLUGINS_DIR/node_modules" # Remove existing if any
+        ln -s "/app/node_modules" "$DATA_PLUGINS_DIR/node_modules"
+    fi
     
     # Symlink /app/extensions/plugins -> /data/plugins
-    # This allows the backend to write (install/uninstall) plugins at runtime
+    # This allows the backend (running in /app) to see the persistent plugins
     if [ -d "$APP_PLUGINS_DIR" ] && [ ! -L "$APP_PLUGINS_DIR" ]; then
-        echo "[HA Mode] Symlinking plugins to persistent storage..."
+        echo "[HA Mode] Symlinking app plugins dir to persistent storage..."
         rm -rf "$APP_PLUGINS_DIR"
         ln -s "$DATA_PLUGINS_DIR" "$APP_PLUGINS_DIR"
     fi
@@ -37,12 +45,9 @@ if [ -n "$SUPERVISOR_TOKEN" ]; then
     # --- 1. Configure HA Plugin ---
     HA_PLUGIN_CONFIG_FILE="$APP_PLUGINS_DIR/$HA_PLUGIN_ID/config.home-assistant.json"
     
-    # Ensure HA plugin exists in data (in case it was deleted or fresh install)
+    # Ensure HA plugin exists in data
     if [ ! -d "$APP_PLUGINS_DIR/$HA_PLUGIN_ID" ]; then
-         echo "[HA Mode] Restoring HA Plugin..."
-         # We can't clone here easily without git, but the copy step above should have handled it.
-         # If missing, we might need to rely on the user or a rebuild.
-         # Ideally, the image build puts it in /app, and step 0 moves it to /data.
+         echo "[HA Mode] Warning: HA Plugin missing in persistent data. Re-copying is complex here, relying on image build."
     fi
 
     echo "[HA Mode] Configuring Home Assistant Plugin for Zero-Config..."
@@ -54,7 +59,7 @@ if [ -n "$SUPERVISOR_TOKEN" ]; then
 }
 EOF
     if [ -f "$HA_PLUGIN_CONFIG_FILE" ]; then
-        echo "[HA Mode] Plugin config written successfully."
+        echo "[HA Mode] Plugin config written."
         chmod 644 "$HA_PLUGIN_CONFIG_FILE"
     else
         echo "[HA Mode] ERROR: Failed to write plugin config."
