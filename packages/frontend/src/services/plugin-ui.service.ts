@@ -11,12 +11,9 @@ import type { GestureProcessor } from '#frontend/gestures/processor.js';
 import * as constants from '#shared/index.js';
 import * as actionDisplayUtils from '#frontend/ui/helpers/ui-helpers.js';
 import * as sharedUtils from '#shared/utils/index.js';
-
 const pluginModules = import.meta.glob('../../../../extensions/plugins/*/frontend/index.{js,ts,tsx}');
-
 // Potential entry points for plugins. Order matters (prioritize TSX/TS).
 const ENTRY_FILE_CANDIDATES = ['index.tsx', 'index.ts', 'index.jsx', 'index.js'];
-
 export class PluginUIService {
   #pluginManifests = new Map<string, PluginManifest>();
   #loadedFrontendModules = new Map<string, FrontendPluginModule>();
@@ -27,7 +24,6 @@ export class PluginUIService {
   #cameraServiceRef: CameraService | null = null;
   #gestureProcessorRef: GestureProcessor | null = null;
   #unsubscribeStore: () => void;
-
   constructor(appStore: AppStore, translationService: TranslationService) {
     this.#appStore = appStore;
     this.#translationService = translationService;
@@ -37,12 +33,10 @@ export class PluginUIService {
       }
     });
   }
-
   public setDependencies(deps: { cameraService: CameraService; gestureProcessor: GestureProcessor }): void {
       this.#cameraServiceRef = deps.cameraService;
       this.#gestureProcessorRef = deps.gestureProcessor;
   }
-
   destroy() {
     this.#unsubscribeStore();
     this.#loadedFrontendModules.forEach(async (module, pluginId) => {
@@ -54,24 +48,20 @@ export class PluginUIService {
     });
     this.#loadedFrontendModules.clear();
   }
-
   async #handleManifestUpdate(manifests?: PluginManifest[]): Promise<void> {
     if (!manifests || !Array.isArray(manifests)) return;
     const oldManifestsMap = new Map(this.#pluginManifests);
     const newManifestsMap = new Map(manifests.map(m => [m.id, m]));
     this.#pluginManifests = newManifestsMap;
-    
     this.#translationService.mergePluginTranslations(manifests);
     await this.#reconcilePluginComponents(newManifestsMap, oldManifestsMap);
     pubsub.publish(UI_EVENTS.PLUGINS_MANIFESTS_PROCESSED);
   }
-
   async #reconcilePluginComponents(newManifests: Map<string, PluginManifest>, oldManifests: Map<string, PluginManifest>): Promise<void> {
     const allIds = new Set([...newManifests.keys(), ...oldManifests.keys()]);
     for (const id of allIds) {
         const oldM = oldManifests.get(id);
         const newM = newManifests.get(id);
-
         if (oldM && !newM) {
             await this.#deregisterPlugin(id, true);
             this.#appStore.getState().actions.clearPluginExtData(id);
@@ -86,7 +76,6 @@ export class PluginUIService {
         }
     }
   }
-
   async #deregisterPlugin(pluginId: string, wasUninstalled: boolean): Promise<void> {
     const loadedModule = this.#loadedFrontendModules.get(pluginId);
     if (loadedModule && typeof loadedModule.destroy === 'function') {
@@ -100,12 +89,9 @@ export class PluginUIService {
     this.#actionDisplayRenderers.delete(pluginId);
     this.#moduleLoadPromises.delete(pluginId);
     document.getElementById(`plugin-stylesheet-${pluginId}`)?.remove();
-
     if (wasUninstalled) webSocketService.sendMessage({ type: WEBSOCKET_EVENTS.FINALIZE_UNINSTALL, payload: { pluginId } });
   }
-
   public getLoadedModuleById = (pluginId: string): FrontendPluginModule | undefined => this.#loadedFrontendModules.get(pluginId);
-
   public getPluginUIContext(pluginId?: string): PluginUIContext {
     return {
       manifest: pluginId ? this.getPluginManifest(pluginId) : undefined,
@@ -120,40 +106,33 @@ export class PluginUIService {
       shared: { constants, services: { actionDisplayUtils }, utils: sharedUtils },
     };
   }
-
   private injectStylesheet(pluginId: string, manifest: PluginManifest): void {
     if (!manifest.hasFrontendStyle) return;
     const stylesheetId = `plugin-stylesheet-${pluginId}`;
     if (document.getElementById(stylesheetId)) return;
     const link = Object.assign(document.createElement('link'), {
         id: stylesheetId, rel: 'stylesheet', type: 'text/css',
-        // FIXED: Relative path
+        // FIXED: Relative path for Ingress
         href: `plugins/${pluginId}/frontend/style.css?v=${manifest.version || Date.now()}`,
         onerror: () => link.remove()
     });
     document.head.appendChild(link);
   }
-
   public loadPluginFrontendModule(pluginId: string): Promise<FrontendPluginModule | undefined> {
     if (this.#loadedFrontendModules.has(pluginId)) return Promise.resolve(this.#loadedFrontendModules.get(pluginId));
     if (this.#moduleLoadPromises.has(pluginId)) return this.#moduleLoadPromises.get(pluginId)!;
-
     const manifest = this.getPluginManifest(pluginId);
     if (!manifest?.frontendEntry) return Promise.resolve(undefined);
-
     // 1. Try finding via Glob first (build-time index)
     const modulePath = Object.keys(pluginModules).find(p => p.includes(`/${pluginId}/frontend/index.`));
-    
     const loadPromise = (async () => {
         let module: FrontendPluginModule | undefined;
-
         if (modulePath) {
              const loaded = await pluginModules[modulePath]() as { default: FrontendPluginModule };
              module = loaded.default;
         } else {
              // 2. Fallback: Dynamic import for runtime-added plugins
              console.warn(`[PluginUIService] Plugin '${pluginId}' not in build map. Attempting dynamic import fallback.`);
-             
              if (import.meta.env.DEV) {
                  // DEV MODE: Try to hit Vite's FS server directly to get on-the-fly compilation for TSX/TS.
                  for (const ext of ENTRY_FILE_CANDIDATES) {
@@ -172,32 +151,28 @@ export class PluginUIService {
              } else {
                  // PROD MODE: Expect a standard built file served by Nginx
                  try {
-                    const loaded = await import(/* @vite-ignore */ `/plugins/${pluginId}/frontend/index.js`);
+                    // FIXED: Relative path for Ingress
+                    const loaded = await import(/* @vite-ignore */ `plugins/${pluginId}/frontend/index.js`);
                     module = loaded.default;
                  } catch (e) {
                      console.error(`[PluginUIService] Production import failed for '${pluginId}'.`, e);
                  }
              }
         }
-
         if (!module) {
              // Clean up if we failed completely so we can retry later
              this.#moduleLoadPromises.delete(pluginId);
              return undefined; 
         }
-
         this.injectStylesheet(pluginId, manifest);
-        
         if (typeof module.getActionDisplayDetails === 'function') {
             this.#actionDisplayRenderers.set(pluginId, module.getActionDisplayDetails);
             pubsub.publish(UI_EVENTS.PLUGIN_RENDERERS_UPDATED, { pluginId });
         }
-
         const cleanup = await module.init?.(this.getPluginUIContext(pluginId));
         if (typeof cleanup === 'function') {
             module.destroy = cleanup;
         }
-
         this.#loadedFrontendModules.set(pluginId, module);
         return module;
     })().catch(e => {
@@ -205,25 +180,21 @@ export class PluginUIService {
         this.#moduleLoadPromises.delete(pluginId);
         throw e;
     });
-
     this.#moduleLoadPromises.set(pluginId, loadPromise);
     loadPromise.finally(() => this.#moduleLoadPromises.delete(pluginId));
     return loadPromise;
   }
-
   public getPluginManifest = (pluginId: string): PluginManifest | undefined => this.#pluginManifests.get(pluginId);
-  
   public getActionDisplayDetailsRenderer = (pluginId: string): ActionDisplayDetailsRendererFn | undefined => this.#actionDisplayRenderers.get(pluginId);
-
   public async savePluginGlobalConfig(pluginId: string, config: unknown): Promise<{ success: boolean; message?: string; config?: unknown; validationErrors?: unknown; }> {
     if (!this.#pluginManifests.has(pluginId)) return { success: false, message: `Plugin '${pluginId}' not registered.` };
     return webSocketService.request('PATCH_PLUGIN_GLOBAL_CONFIG', { pluginId, config });
   }
-
   public async sendPluginTestConnectionRequest(pluginId: string, configToTest: unknown): Promise<PluginTestConnectionResultPayload | null> {
     if (!this.#pluginManifests.has(pluginId)) return { pluginId, success: false, messageKey: 'pluginNotRegistered', error: { message: `Plugin '${pluginId}' not found.` } };
     try {
-      const response = await fetch(`/api/plugins/${pluginId}/test`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(configToTest), });
+      // FIX: Removed leading slash
+      const response = await fetch(`api/plugins/${pluginId}/test`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(configToTest), });
       return response.json() as Promise<PluginTestConnectionResultPayload>;
     } catch (error) {
       return { pluginId, success: false, messageKey: 'TEST_FAILED', error: { message: (error as Error).message } };

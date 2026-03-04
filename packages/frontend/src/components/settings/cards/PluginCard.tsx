@@ -5,25 +5,23 @@ import { AppContext } from '#frontend/contexts/AppContext.js';
 import { type PluginManifest } from '#shared/index.js';
 import { setIcon, clsx } from '#frontend/ui/helpers/ui-helpers.js';
 import { CardRoot, CardHeader, CardIcon, CardTitle, CardActions, CardDetails, CardDetailLine, CardFooter } from '#frontend/components/shared/cards/Card.js';
-
 export const PluginCard = ({ manifest }: { manifest: PluginManifest }) => {
     const context = useContext(AppContext);
     const [isEditing, setIsEditing] = useState(false);
     const [isPending, setIsPending] = useState(false);
     const [isLoadingForm, setIsLoadingForm] = useState(false);
     const [GlobalSettingsComponent, setGlobalSettingsComponent] = useState<ComponentType<{ manifest: PluginManifest; onSaveSuccess?: () => void; onCancel?: () => void; }> | null>(null);
-
     if (!context) return null;
     const { translate } = context.services.translationService;
     const { actions } = context.appStore.getState();
     const { pluginUIService } = context.services;
-
     const handleToggle = async () => {
         if (manifest.locked) return;
         setIsPending(true);
         const newState = manifest.status === 'enabled' ? 'disabled' : 'enabled';
         try {
-            await fetch(`/api/plugins/manage/${manifest.id}/state`, {
+            // FIX: Removed leading slash
+            await fetch(`api/plugins/manage/${manifest.id}/state`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ state: newState }),
@@ -34,7 +32,6 @@ export const PluginCard = ({ manifest }: { manifest: PluginManifest }) => {
             setIsPending(false);
         }
     };
-
     const handleUninstall = () => {
         if (manifest.locked) return;
         actions.openOverlay('confirmation', {
@@ -46,7 +43,8 @@ export const PluginCard = ({ manifest }: { manifest: PluginManifest }) => {
             onConfirm: async () => {
                 setIsPending(true);
                 try {
-                    await fetch(`/api/plugins/manage/${manifest.id}/uninstall`, { method: 'POST' });
+                    // FIX: Removed leading slash
+                    await fetch(`api/plugins/manage/${manifest.id}/uninstall`, { method: 'POST' });
                 } catch (error) {
                     console.error(`Failed to uninstall plugin ${manifest.id}`, error);
                 } finally {
@@ -55,11 +53,9 @@ export const PluginCard = ({ manifest }: { manifest: PluginManifest }) => {
             }
         });
     };
-
     const handleEditClick = () => {
         setIsEditing(true);
         if (GlobalSettingsComponent || isLoadingForm || !manifest.capabilities.hasGlobalSettings) return;
-        
         setIsLoadingForm(true);
         pluginUIService.loadPluginFrontendModule(manifest.id)
             .then(module => {
@@ -68,25 +64,21 @@ export const PluginCard = ({ manifest }: { manifest: PluginManifest }) => {
             .catch(error => console.error(`Failed to load settings form for ${manifest.id}`, error))
             .finally(() => setIsLoadingForm(false));
     };
-
     const handleCancelEditing = () => setIsEditing(false);
     const handleSaveSuccess = () => setIsEditing(false);
-
     return (
         <CardRoot id={`plugin-card-${manifest.id}`} className={clsx(manifest.status === 'disabled' && 'config-item-disabled', isPending && 'is-pending')}>
             <CardHeader id={`plugin-card-header-${manifest.id}`}>
                 <CardIcon id={`plugin-card-icon-${manifest.id}`} iconKey={manifest.icon?.name || 'UI_EXTENSION'} />
                 <CardTitle id={`plugin-card-title-${manifest.id}`}>{translate(manifest.nameKey, { defaultValue: manifest.id })}</CardTitle>
-                
                 {!isEditing && (
                     <CardActions id={`plugin-card-actions-${manifest.id}`}>
-                        {/* MODIFIED: Hide Edit button if plugin is locked (System Managed) */}
+                        {/* Only show Edit button if plugin is NOT locked (System Managed) */}
                         {manifest.capabilities.hasGlobalSettings && !manifest.locked && (
                             <button id={`plugin-card-edit-button-${manifest.id}`} className="btn btn-icon" onClick={handleEditClick} title={translate('edit')}>
                                 <span ref={el => el && setIcon(el, 'UI_EDIT_NOTE')}></span>
                             </button>
                         )}
-                        
                         {/* Only show management buttons if not locked */}
                         {!manifest.locked && (
                             <>
@@ -98,7 +90,6 @@ export const PluginCard = ({ manifest }: { manifest: PluginManifest }) => {
                                 </button>
                             </>
                         )}
-                        
                         {/* If locked, show a lock icon to indicate system management */}
                         {manifest.locked && (
                              <span className="material-icons text-text-secondary text-sm ml-1 opacity-60 cursor-help" title="System Managed (Config Locked)">lock</span>
@@ -106,7 +97,6 @@ export const PluginCard = ({ manifest }: { manifest: PluginManifest }) => {
                     </CardActions>
                 )}
             </CardHeader>
-
             {isEditing && manifest.capabilities.hasGlobalSettings ? (
                 <div className="mt-3 pt-3">
                     {isLoadingForm && <div id={`plugin-settings-form-loading-${manifest.id}`}>Loading...</div>}

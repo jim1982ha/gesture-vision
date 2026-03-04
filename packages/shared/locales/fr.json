@@ -241,6 +241,7 @@
     "Hand": "Main",
     "Pose": "Pose",
     "historyActionFailed": "Action '{{actionType}}' échouée : {{reason}}",
+    "haDataFetchFailed": "Échec de la récupération des données Home Assistant : {{message}}",
     "noRtspSourcesConfigured": "Aucune source RTSP configurée. Ajoutez-en une pour commencer.",
     "rtspNameUrlRequired": "Le nom RTSP et une URL rtsp:// valide sont requis.",
     "Open Palm": "Paume Ouverte",

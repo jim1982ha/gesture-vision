@@ -241,6 +241,7 @@
   "Hand": "手部",
   "Pose": "姿态",
   "historyActionFailed": "动作 '{{actionType}}' 失败：{{reason}}",
+  "haDataFetchFailed": "获取 Home Assistant 数据失败: {{message}}",
   "noRtspSourcesConfigured": "未配置 RTSP 源。请添加一个以开始。",
   "rtspNameUrlRequired": "需要 RTSP 名称和有效的 rtsp:// URL。",
   "Open Palm": "张开手掌",
