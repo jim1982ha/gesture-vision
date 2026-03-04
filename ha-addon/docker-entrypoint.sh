@@ -1,5 +1,4 @@
 #!/bin/bash
-# --- ha-addon/docker-entrypoint.sh --- (complete version) ---
 CONFIG_FILE="/app/config.json"
 DEFAULT_CONFIG_FILE="/app/config.default.json"
 DATA_CONFIG_FILE="/data/config.json"
@@ -42,6 +41,7 @@ if [ -n "$SUPERVISOR_TOKEN" ]; then
     fi
     echo "[HA Mode] Configuring Home Assistant Plugin for Zero-Config..."
     # FIX: Keys must match HaGlobalConfigSchema in schemas.ts (url, token)
+    # Previous version used 'haUrl' and 'longLivedAccessToken' which caused the backend to reject the config
     cat > "$HA_PLUGIN_CONFIG_FILE" <<EOF
 {
   "url": "http://supervisor/core",

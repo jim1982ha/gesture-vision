@@ -1,5 +1,3 @@
-// --- packages/frontend/src/components/settings/forms/PluginInstall.tsx --- (complete version) ---
-/* FILE: packages/frontend/src/components/settings/forms/PluginInstall.tsx */
 import { useState, useContext } from 'react';
 import { AppContext } from '#frontend/contexts/AppContext.js';
 import { pubsub, UI_EVENTS } from '#shared/index.js';
@@ -20,12 +18,14 @@ export const PluginInstall = () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ url }),
             });
+            // FIX: Read text first to debug non-JSON responses which caused the crash when HA returns HTML 404/500
+            const textResponse = await response.text();
             let result;
             try {
-              result = await response.json();
-            } catch (_e) { // Renamed unused variable to _e
-              // Handle non-JSON responses (e.g. 404 HTML from HA Ingress if path is wrong)
-              throw new Error(`Server returned non-JSON response (Status: ${response.status}). Check connection.`);
+              result = JSON.parse(textResponse);
+            } catch (_e) {
+              console.error('[PluginInstall] Non-JSON response:', textResponse);
+              throw new Error(`Server returned non-JSON response (Status: ${response.status}). Raw: ${textResponse.substring(0, 100)}...`);
             }
             if (result.success) {
                 pubsub.publish(UI_EVENTS.SHOW_NOTIFICATION, { message: result.message, type: 'success' });
