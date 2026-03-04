@@ -1,3 +1,6 @@
+## 4.2.7 (2026-03-04)
+- New Fix for HA AddOns
+
 ## 4.2.6 (2026-03-04)
 - Fix module resolution and HA integration
 
