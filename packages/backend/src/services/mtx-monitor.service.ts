@@ -50,8 +50,17 @@ export class MtxMonitorService {
         this.isRunning = false; console.log("[MtxMonitorService] Stopped.");
     }
 
+    // MODIFIED: Added waitForMtx flag to handle startup race condition
     async syncMtxPathsWithConfig(rtspSources: RtspSourceConfig[]) {
         console.log("[MtxMonitorService SYNC_START] Syncing RTSP sources with MediaMTX.");
+        
+        // Wait for MediaMTX to be responsive before trying to list paths
+        const mtxReady = await this.#waitForMediaMtx();
+        if (!mtxReady) {
+             console.error("[MtxMonitorService] MediaMTX did not become ready. Skipping sync.");
+             return;
+        }
+
         try {
             const desiredPaths = new Map((rtspSources || []).filter(s => s?.name && s.url).map(s => [normalizeNameForMtx(s.name), s]));
             const mtxPathsData = await callMtxApi<MtxPathConfList>('/v3/config/paths/list');
@@ -60,7 +69,7 @@ export class MtxMonitorService {
             const pathsToRemove = Array.from(currentPaths.keys()).filter(key => !desiredPaths.has(key));
             // Always sync all desired paths to ensure their configuration is up-to-date.
             const pathsToSync = Array.from(desiredPaths.keys());
-            
+
             for (const key of pathsToRemove) await this.deletePathConfig(key);
             for (const key of pathsToSync) await this.addOrUpdatePathConfig(key, desiredPaths.get(key)!);
             
@@ -68,14 +77,28 @@ export class MtxMonitorService {
         console.log("[MtxMonitorService SYNC_END] Finished sync.");
     }
 
+    // NEW: Poll MediaMTX API until it responds
+    async #waitForMediaMtx(retries = 10, delay = 1000): Promise<boolean> {
+        for (let i = 0; i < retries; i++) {
+            try {
+                // Simple health check call
+                await callMtxApi('/v3/paths/list'); 
+                return true;
+            } catch (e) {
+                if (i === retries - 1) return false;
+                await new Promise(r => setTimeout(r, delay));
+            }
+        }
+        return false;
+    }
+
     private createPayload(source: RtspSourceConfig, key: string): MtxPathConfPayload {
         const getWebhookUrl = (status: 'ready' | 'notReady') => `http://${BACKEND_SERVICE_NAME}:${BACKEND_SERVICE_PORT}/api/mtx-hook/${status}/${encodeURIComponent(key)}`;
         const basePayload: MtxPathConfPayload = { source: source.url, sourceOnDemand: !!source.sourceOnDemand };
-        
+
         if (basePayload.sourceOnDemand) {
             return { ...basePayload, sourceOnDemandStartTimeout: '15s', sourceOnDemandCloseAfter: '15s' };
         }
-
         // For always-on streams, use runOnReady/NotReady with curl (lighter than wget).
         return {
             ...basePayload,
@@ -93,11 +116,11 @@ export class MtxMonitorService {
             console.error(`[MtxMonitorService] Failed to sync path '${key}':`, (err as Error).message);
         }
     }
-    
+
     public async connectOnDemandStream(pathName: string, rtspSources: RtspSourceConfig[]) {
         const sourceConfig = rtspSources.find(s => normalizeNameForMtx(s.name) === pathName);
         if (!sourceConfig?.url) throw new Error(`Configuration for RTSP source '${pathName}' not found or URL is missing.`);
-        
+
         try {
             // This is robust for both on-demand and always-on streams.
             await this.addOrUpdatePathConfig(pathName, sourceConfig);
@@ -121,6 +144,6 @@ export class MtxMonitorService {
             if (!(error as Error).message.includes('404')) console.warn(`[MtxMonitorService] Failed to delete path '${pathName}':`, (error as Error).message);
         }
     }
-    
+
     setStreamStatusBroadcaster = (fn: BroadcastStreamStatusFn) => { this.streamStatusBroadcaster = fn; }
 }

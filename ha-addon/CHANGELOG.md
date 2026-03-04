@@ -1,3 +1,6 @@
+## 4.2.5 (2026-03-04)
+- plugin installtion fix and mtx intialisation
+
 ## 4.2.4 (2026-03-04)
 - Fix HA Addon paths
 
