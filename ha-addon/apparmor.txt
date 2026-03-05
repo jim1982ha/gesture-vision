@@ -1,3 +1,5 @@
+# This profile allows the add-on to function correctly while providing a baseline of security.
+# It is designed to be compliant with Home Assistant's security model.
 #include <tunables/global>
 
 profile gesture-vision flags=(attach_disconnected,complain) {
@@ -6,36 +8,39 @@ profile gesture-vision flags=(attach_disconnected,complain) {
   #include <abstractions/nameservice>
   #include <abstractions/user-tmp>
 
-  # --- Device Access (Webcam/V4L2) ---
+  # Allow access to video devices
   /dev/video* rw,
 
-  # --- Network Access ---
-  # Allow all network access for MediaMTX, Nginx, and Node
+  # Allow all standard network access for Node.js, Nginx, and MediaMTX
   network,
 
-  # --- Application Files ---
-  /app/** r,
-  /app/** ix,
-  /app/** m,
-  /data/** rw,
-  /data/** ix,
-  /data/** m,
-  /run/** rw,
-  /tmp/** rw,
-  /var/log/nginx/** rw,
-  /var/lib/nginx/** rw,
-  /usr/local/bin/mediamtx ix,
-  /usr/local/bin/docker-entrypoint.sh ix,
-  /usr/bin/node ix,
-  /usr/sbin/nginx ix,
+  # Allow execution of the main processes
+  /usr/local/bin/mediamtx ixr,
+  /usr/local/bin/docker-entrypoint.sh ixr,
+  /usr/sbin/nginx ixr,
 
-  # --- Signal Handling ---
-  signal (receive, send) set=("kill", "term", "int", "hup", "usr1", "usr2", "cont", "stop"),
+  # Allow read/write access to persistent data and log directories
+  /data/** rwk,
+  /config/** rwk,
+  /tmp/** rwk,
+  /var/log/nginx/** rwk,
+  /var/lib/nginx/** rwk,
+  
+  # Allow access to shared libraries needed by Node.js and other binaries
+  /lib{,32,64}/** mr,
 
-  # --- Capabilities (MediaMTX might need these for binding ports/sockets) ---
+  # Allow shell execution for runOnReady/NotReady scripts
+  /bin/sh ixr,
+  /bin/dash ixr,
+  /usr/bin/curl ixr,
+  
+  # Capabilities needed by MediaMTX and Nginx
   capability net_bind_service,
   capability chown,
   capability setgid,
   capability setuid,
   capability dac_override,
+
+  # Allow signal handling for process management
+  signal,
 }
