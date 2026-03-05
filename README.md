@@ -1,4 +1,3 @@
-// --- README.md --- (complete version) ---
 # GestureVision: AI-Powered Gesture Control for Your Digital World
 
 <p align="center">

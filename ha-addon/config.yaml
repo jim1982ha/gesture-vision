@@ -1,6 +1,5 @@
-# --- ha-addon/config.yaml --- (complete version) ---
 name: "GestureVision"
-version: "4.2.14"
+version: "4.2.15"
 slug: "ha-addon"
 description: "AI-Powered Gesture Control using Webcams or RTSP cameras."
 url: "https://github.com/jim1982ha/gesture-vision"
@@ -12,22 +11,18 @@ boot: auto
 init: false
 map:
   - "config:rw"
+# FIX: Updated to new list format (removed :rwm suffix) to resolve deprecation warning
 devices:
-  - /dev/video0:rwm
-  - /dev/video1:rwm
-  - /dev/video2:rwm
+  - /dev/video0
+  - /dev/video1
+  - /dev/video2
 ingress: true
 ingress_port: 80
 panel_icon: mdi:hand-wave
-
 # HA Permissions Best Practices
-# Enables access to the Core API (Control devices)
 homeassistant_api: true
-# Enables access to Supervisor API (Add-on info)
 hassio_api: true
-# Enables Ingress Authentication (User context)
 auth_api: true
-
 ports:
   8888/tcp: 8888
   8189/udp: 8189

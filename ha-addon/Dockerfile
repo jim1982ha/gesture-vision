@@ -12,16 +12,34 @@ RUN apt-get update && \
     jq && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
+
+# Install MediaMTX with robust Architecture Detection for HA Supervisor
 ARG MEDIAMTX_VERSION=v1.12.0
-ARG TARGETARCH=amd64
-RUN curl -Ls https://github.com/bluenviron/mediamtx/releases/download/${MEDIAMTX_VERSION}/mediamtx_${MEDIAMTX_VERSION}_linux_${TARGETARCH}.tar.gz | tar -xz -C /usr/local/bin/
+# BUILD_ARCH is automatically passed by HA Supervisor (amd64, aarch64, armv7)
+ARG BUILD_ARCH
+
+RUN if [ -z "$BUILD_ARCH" ]; then \
+      # Fallback for standalone Docker builds (outside HA)
+      ARCH=$(dpkg --print-architecture); \
+    else \
+      ARCH=$BUILD_ARCH; \
+    fi; \
+    # Map Architecture to MediaMTX naming convention
+    if [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then MTX_ARCH="arm64v8"; \
+    elif [ "$ARCH" = "armv7" ]; then MTX_ARCH="armv7"; \
+    elif [ "$ARCH" = "amd64" ] || [ "$ARCH" = "x86_64" ]; then MTX_ARCH="amd64"; \
+    else echo "Unsupported Architecture: $ARCH" && exit 1; fi; \
+    \
+    echo "Downloading MediaMTX for architecture: $MTX_ARCH (System: $ARCH)..."; \
+    curl -f -Ls "https://github.com/bluenviron/mediamtx/releases/download/${MEDIAMTX_VERSION}/mediamtx_${MEDIAMTX_VERSION}_linux_${MTX_ARCH}.tar.gz" | tar -xz -C /usr/local/bin/
+
 RUN chmod +x /usr/local/bin/mediamtx
 
 FROM base AS deps
 WORKDIR /app
-# We cannot COPY package.json from context because context is 'ha-addon' dir.
-# We must rely on the git clone in the builder stage.
-# This stage is kept for structure but mostly acts as a pass-through in this specific HA flow.
+# Context is limited in HA build, dependency install happens in builder
+COPY package.json package-lock.json* ./
+RUN npm install --include=dev
 
 FROM base AS builder
 WORKDIR /app
@@ -29,8 +47,6 @@ ARG VITE_PROD_WHEP_BASE_URL
 ARG VITE_PROD_HA_DEFAULT_URL
 
 # --- 1. Fetch Source Code via Git ---
-# This is the Source of Truth. We clone the repo here because we cannot COPY it from the host
-# when running inside Home Assistant Add-on builder (context is restricted).
 ARG BUILD_VERSION=main
 RUN echo "Cloning GestureVision core (branch: ${BUILD_VERSION})..." && \
     git clone https://github.com/jim1982ha/gesture-vision.git . && \
@@ -62,18 +78,13 @@ RUN npm run build:app
 RUN npm prune --omit=dev
 
 FROM base AS development
-# Dev stage logic (unused in HA Add-on production build but kept for standalone compatibility)
 WORKDIR /app
-# In standalone dev, we map volumes, so this is just a placeholder
 CMD ["npm", "run", "dev"]
 
 FROM base AS production
 WORKDIR /app
 
 # --- 4. Copy Artifacts FROM BUILDER ---
-# CRITICAL FIX: We copy *everything* from the builder stage because the local build context
-# only contains the contents of the 'ha-addon' folder, not the full source.
-
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json .
 COPY --from=builder /app/tsconfig.json .
@@ -98,7 +109,6 @@ RUN for plugin_dir in extensions/plugins/*; do \
     done
 
 # Internal Copy of Configs
-# These files are sourced from the builder image, which has the full repo clone.
 RUN rm -f /etc/nginx/sites-enabled/default
 COPY --from=builder /app/config/nginx.conf /etc/nginx/nginx.conf
 COPY --from=base /usr/local/bin/mediamtx /usr/local/bin/mediamtx

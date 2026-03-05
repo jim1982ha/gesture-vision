@@ -1,3 +1,6 @@
+## 4.2.15 (2026-03-05)
+- New Fix for HA AddOns
+
 ## 4.2.14 (2026-03-05)
 - Stop trying to COPY files from the local build context
 
