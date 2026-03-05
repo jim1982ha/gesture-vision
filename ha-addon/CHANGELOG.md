@@ -1,3 +1,6 @@
+## 4.2.20 (2026-03-05)
+- make sure the RtspConnector isn't silently failing
+
 ## 4.2.19 (2026-03-05)
 - ensure the backend uses 127.0.0.1 or localhost when generating internal webhooks for the Add-on environment
 

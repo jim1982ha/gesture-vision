@@ -1,6 +1,7 @@
 /* FILE: packages/frontend/src/camera/rtsp/connector.ts */
 // Manages the WebRTC connection to MediaMTX using WHEP (WebRTC-HTTP Egress Protocol).
 import { WebcamError } from "../webcam-error.js";
+import { pubsub, UI_EVENTS } from "#shared/index.js"; // Import pubsub to notify UI
 
 const TRACK_TIMEOUT_MS = 18000;
 const MAX_CONNECTION_ATTEMPTS = 3;
@@ -37,27 +38,30 @@ export class RtspConnector {
   async _attemptConnection(pathName: string): Promise<MediaStream> {
     this._connectionAttempts++;
     this.#clearTrackTimeout();
-  
+
     if (this.#abortController?.signal.aborted) {
       throw new DOMException("Connection aborted by user.", "AbortError");
     }
-  
+
     try {
       this._peerConnection = new RTCPeerConnection();
       const signal = this.#abortController?.signal;
-  
+
       this._peerConnection.oniceconnectionstatechange = () => {
-        if (this._peerConnection?.iceConnectionState === "failed") {
-          console.error("[RTSP] ICE connection failed.");
+        const state = this._peerConnection?.iceConnectionState;
+        console.log(`[RTSP] ICE Connection State: ${state}`);
+        if (state === "failed") {
+          console.error("[RTSP] ICE connection failed. Check your mtx_ice_host setting or NAT configuration.");
+          pubsub.publish(UI_EVENTS.SHOW_ERROR, { messageKey: "wsDisconnected", message: "RTSP Connection Failed (ICE). Check network settings." });
         }
       };
-  
+
       const streamPromise = new Promise<MediaStream>((streamResolve, streamReject) => {
         if (!this._peerConnection) {
           streamReject(new Error("PeerConnection is null during track event setup."));
           return;
         }
-        
+
         const cleanupAndReject = (error: Error) => {
             this.#clearTrackTimeout();
             streamReject(error);
@@ -65,6 +69,8 @@ export class RtspConnector {
 
         this._peerConnection.ontrack = (event: RTCTrackEvent) => {
           this.#clearTrackTimeout();
+          console.log(`[RTSP] Received track: ${event.track.kind}, ID: ${event.track.id}`);
+          
           if (event.track.kind === "video" && event.streams?.[0]) {
             if (!this._stream) {
               this._stream = event.streams[0];
@@ -76,47 +82,57 @@ export class RtspConnector {
         this.#trackTimeoutTimer = window.setTimeout(() => {
           if (!this._stream) {
             console.error(`[RTSP] Timeout waiting for track for path: ${pathName}.`);
-            cleanupAndReject(new WebcamError("RTSP_TRACK_TIMEOUT", `Timeout waiting for video track.`));
+            // Specific hint about H.265 which is a common cause for this timeout
+            const h265Hint = "This often happens if the camera is sending H.265 video, which browsers do not support via WebRTC. Please switch your camera to H.264.";
+            console.warn(h265Hint);
+            
+            // Notify user via UI
+            pubsub.publish(UI_EVENTS.SHOW_ERROR, { message: `RTSP Timeout: ${h265Hint}`, type: "warning" });
+            
+            cleanupAndReject(new WebcamError("RTSP_TRACK_TIMEOUT", `Timeout waiting for video track. ${h265Hint}`));
           }
         }, TRACK_TIMEOUT_MS);
       });
-  
+
       this._peerConnection.addTransceiver("video", { direction: "recvonly" });
       const offer = await this._peerConnection.createOffer();
       await this._peerConnection.setLocalDescription(offer);
-      
+
       const metaEnv = import.meta.env;
       const isProdLike = metaEnv.MODE === 'production' || metaEnv.MODE === 'apk';
       const whepBase = isProdLike ? (window.runtimeConfig?.WHEP_BASE_URL || metaEnv.VITE_PROD_WHEP_BASE_URL || '') : '/whep-proxy';
-      const fullWhepUrl = `${whepBase.replace(/\/$/, "")}/${pathName.replace(/^\//, "")}/whep`;
       
+      const fullWhepUrl = `${whepBase.replace(/\/$/, "")}/${pathName.replace(/^\//, "")}/whep`;
+      console.log(`[RTSP] Requesting WHEP stream from: ${fullWhepUrl}`);
+
       const response = await fetch(fullWhepUrl, {
         method: "POST",
         headers: { "Content-Type": "application/sdp" },
         body: this._peerConnection.localDescription!.sdp,
         signal,
       });
-  
+
       if (!response.ok) {
         const errorText = await response.text().catch(() => `Status ${response.status}`);
         throw new WebcamError("RTSP_WHEP_REQUEST_FAILED", `WHEP request failed: ${response.status}. ${errorText}`);
       }
-      
+
       const answerSdp = await response.text();
       if (!answerSdp) throw new WebcamError("RTSP_WHEP_NO_ANSWER", "Empty SDP answer received.");
-  
+      
       if (this.#abortController?.signal.aborted) throw new DOMException("Aborted after WHEP response.", "AbortError");
-      
+
       await this._peerConnection.setRemoteDescription({ type: "answer", sdp: answerSdp });
-      
       return await streamPromise;
-  
+
     } catch (error) {
       this.#clearTrackTimeout(); // Ensure timeout is cleared on any failure
       this.disconnect();
+      
       if ((error as Error).name === "AbortError") throw error;
-  
+
       if (this._connectionAttempts < MAX_CONNECTION_ATTEMPTS) {
+        console.warn(`[RTSP] Connection attempt ${this._connectionAttempts} failed. Retrying...`);
         await new Promise(resolve => setTimeout(resolve, 1000 * this._connectionAttempts));
         return this._attemptConnection(pathName);
       } else {
@@ -125,14 +141,14 @@ export class RtspConnector {
       }
     }
   }
-  
+
   #clearTrackTimeout(): void {
     if (this.#trackTimeoutTimer) {
       clearTimeout(this.#trackTimeoutTimer);
       this.#trackTimeoutTimer = null;
     }
   }
-  
+
   disconnect(): void {
     this.#clearTrackTimeout();
     if (this._peerConnection) {
