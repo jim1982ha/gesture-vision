@@ -1,3 +1,6 @@
+## 4.2.17 (2026-03-05)
+- Add description for configuration panel
+
 ## 4.2.16 (2026-03-05)
 - Add description for configuration panel
 

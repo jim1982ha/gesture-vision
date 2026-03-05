@@ -1,24 +1,25 @@
 /* FILE: packages/backend/src/mtx-api-helpers.ts */
-const MTX_API_ADDRESS_VAR = process.env.MTX_APIADDRESS || "0.0.0.0:9997";
+// Use 127.0.0.1 for internal loopback connection by default, robust for Docker containers.
+const MTX_API_ADDRESS_VAR = process.env.MTX_APIADDRESS || "127.0.0.1:9997";
+
 const [rawHost, rawPort] = MTX_API_ADDRESS_VAR.includes(':')
     ? MTX_API_ADDRESS_VAR.split(':', 2) // Split only on the first colon
-    : ["0.0.0.0", MTX_API_ADDRESS_VAR]; // Assume it's just a port if no colon
+    : ["127.0.0.1", MTX_API_ADDRESS_VAR]; // Assume it's just a port if no colon
 
-const MTX_API_HOST = rawHost === "" ? "0.0.0.0" : rawHost; // Default to 0.0.0.0 if host part is empty (e.g. from ":9997")
+// Ensure we don't try to connect to 0.0.0.0 as a destination, map it to localhost
+const MTX_API_HOST = (rawHost === "" || rawHost === "0.0.0.0") ? "127.0.0.1" : rawHost;
 const MTX_API_PORT = rawPort || "9997"; // Default port if not specified
-const MTX_API_BASE_URL = `http://${MTX_API_HOST}:${MTX_API_PORT}`;
 
+const MTX_API_BASE_URL = `http://${MTX_API_HOST}:${MTX_API_PORT}`;
 const MAX_RETRIES = 5;
 const RETRY_DELAY_MS = 1000;
 
 export async function callMtxApi<T = unknown>(endpoint: string, method: string = 'GET', body: unknown = null): Promise<T | null> {
     const url = `${MTX_API_BASE_URL}${endpoint}`;
-
     const options: RequestInit = {
         method: method,
         headers: {},
     };
-
     if (body !== null) {
         options.body = JSON.stringify(body);
         (options.headers as Record<string, string>)['Content-Type'] = 'application/json';
@@ -57,7 +58,7 @@ export async function callMtxApi<T = unknown>(endpoint: string, method: string =
                  console.error(`[MTX API Helper] FAILED ${method} ${url}: ${response.status}`, responseBody);
                  throw new Error(errMsg);
              }
-    
+
             if (typeof responseBody === 'object' && responseBody !== null) {
                 return responseBody as T;
             } else if (response.ok && !canHaveBody) {
@@ -65,12 +66,14 @@ export async function callMtxApi<T = unknown>(endpoint: string, method: string =
             } else {
                 return responseBody as T;
             }
+
         } catch (error: unknown) {
             clearTimeout(timeoutId);
             const typedError = error as Error & { cause?: { code?: string } };
             const causeCode = typedError.cause?.code;
-
-            const isRetryable = causeCode === 'ECONNREFUSED' || typedError.name === 'AbortError';
+            
+            // Handle common connection errors
+            const isRetryable = causeCode === 'ECONNREFUSED' || typedError.name === 'AbortError' || typedError.message.includes('fetch failed');
 
             if (isRetryable && attempt < MAX_RETRIES) {
                 console.warn(`[MTX API Helper] Attempt ${attempt} failed to connect to ${url} (${typedError.name}/${causeCode}). Retrying in ${RETRY_DELAY_MS / 1000}s...`);
@@ -80,6 +83,7 @@ export async function callMtxApi<T = unknown>(endpoint: string, method: string =
 
             const message = typedError.message || String(error);
             const name = typedError.name || 'UnknownError';
+            
             console.error(`[MTX API Helper] FETCH ERROR (Final Attempt) ${method} ${url}:`, name, message, causeCode);
 
             if (name === 'AbortError') {
@@ -91,7 +95,6 @@ export async function callMtxApi<T = unknown>(endpoint: string, method: string =
             }
         }
     }
-
     // This path should not be reached if the loop logic is correct.
     throw new Error(`MediaMTX API call to ${url} failed after ${MAX_RETRIES} attempts.`);
 }

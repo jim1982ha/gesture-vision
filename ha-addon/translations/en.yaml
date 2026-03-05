@@ -1,0 +1,7 @@
+configuration:
+  mtx_ice_host:
+    name: "MediaMTX ICE Host (LAN IP)"
+    description: "REQUIRED for Video Streaming. Enter the Local LAN IP address of your Home Assistant server (e.g., 192.168.1.100). Do not use 'localhost' or '0.0.0.0'."
+  log_level:
+    name: "Log Level"
+    description: "Controls the verbosity of the add-on logs."
