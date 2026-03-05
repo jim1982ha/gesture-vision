@@ -155,7 +155,9 @@ export class PluginUIService {
                          const loaded = await import(/* @vite-ignore */ devPath);
                          module = loaded.default;
                          if (module) break;
-                     } catch (_e) { }
+                     } catch (_e) {
+                         // Ignored
+                     }
                  }
                  if (!module) {
                      console.error(`[PluginUIService] Failed to load plugin '${pluginId}' via Vite FS.`);

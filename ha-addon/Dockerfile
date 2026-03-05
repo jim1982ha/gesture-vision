@@ -1,6 +1,7 @@
-# Dockerfile - Standalone Production & Development
-FROM node:22-bookworm AS base
-WORKDIR /app
+# Dockerfile - Home Assistant Add-on
+FROM node:22-bookworm
+
+# Install dependencies
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     curl \
@@ -38,7 +39,24 @@ RUN echo "Cloning GestureVision core (branch: ${BUILD_VERSION})..." && \
     git clone https://github.com/jim1982ha/gesture-vision.git . && \
     (git checkout ${BUILD_VERSION} || git checkout main)
 
-# --- 2. Install & Build Core App ---
+# --- 2. Fetch Bundled Plugins (Generic Logic) ---
+RUN mkdir -p extensions/plugins
+
+# Copy the configuration file that lists the plugins
+# This file must exist in the 'ha-addon' directory on the host machine
+COPY bundled_plugins.txt /tmp/
+
+# Iterate over the list and clone each plugin. 
+RUN while read -r url; do \
+      if [ -n "$url" ] && [ "${url:0:1}" != "#" ]; then \
+        name=$(basename "$url" .git); \
+        echo "Bundling plugin: $name"; \
+        rm -rf "extensions/plugins/$name"; \
+        git clone --depth 1 "$url" "extensions/plugins/$name"; \
+      fi \
+    done < /tmp/bundled_plugins.txt
+
+# --- 3. Install & Build ---
 RUN npm install --include=dev
 
 # Override base path for Ingress compatibility
@@ -55,22 +73,34 @@ RUN npm run build:umd
 RUN npm run build:app
 RUN npm prune --omit=dev
 
-# --- 3. Prepare Runtime Files ---
+# --- 4. Prepare Runtime Files ---
 # Nginx setup
 RUN rm -f /etc/nginx/sites-enabled/default
-COPY config/nginx.conf /etc/nginx/nginx.conf
+# FIX: Copy config from the source inside /app (current stage), NOT from the external build context
+RUN cp config/nginx.conf /etc/nginx/nginx.conf
 
 # Move frontend build to Nginx webroot
 RUN rm -rf /usr/share/nginx/html/* && \
     cp -r packages/frontend/dist/* /usr/share/nginx/html/
 
-# Create plugin directory structure
+# Plugin Assets Setup for Nginx
 RUN mkdir -p /usr/share/nginx/html/plugins && \
-    mkdir -p extensions/plugins
+    chmod -R 755 /usr/share/nginx/html
 
-# FIX: Copy renamed config file and entrypoint
-COPY config/gesturevision.example.json /app/config.default.json
-COPY ha-addon/docker-entrypoint.sh /usr/local/bin/
+RUN for plugin_dir in extensions/plugins/*; do \
+      if [ -d "$plugin_dir" ]; then \
+        plugin_id=$(basename "$plugin_dir"); \
+        dest_dir="/usr/share/nginx/html/plugins/$plugin_id"; \
+        mkdir -p "$dest_dir"; \
+        if [ -d "$plugin_dir/frontend" ]; then cp -r "$plugin_dir/frontend" "$dest_dir/"; fi; \
+        if [ -d "$plugin_dir/locales" ]; then cp -r "$plugin_dir/locales" "$dest_dir/"; fi; \
+        if [ -f "$plugin_dir/plugin.json" ]; then cp "$plugin_dir/plugin.json" "$dest_dir/"; fi; \
+      fi; \
+    done
+
+# Copy config and entrypoint from the source inside /app
+RUN cp config/gesturevision.example.json /app/config.default.json
+RUN cp ha-addon/docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 # Runtime Environment
