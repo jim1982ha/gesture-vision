@@ -1,71 +1,95 @@
 #!/bin/bash
+set -e
+
 CONFIG_FILE="/app/config.json"
-# FIX: Updated to new example config name
 DEFAULT_CONFIG_FILE="/app/config.default.json"
 DATA_CONFIG_FILE="/data/config.json"
-# Paths
-APP_PLUGINS_DIR="/app/extensions/plugins"
-DATA_PLUGINS_DIR="/data/plugins"
-NGINX_PLUGINS_DIR="/usr/share/nginx/html/plugins"
-HA_PLUGIN_ID="gesture-vision-plugin-home-assistant"
 
-# Default plugins to install if data is empty (Universal fallback)
-DEFAULT_PLUGINS=(
-    "https://github.com/jim1982ha/gesture-vision-plugin-home-assistant.git"
-    "https://github.com/jim1982ha/gesture-vision-plugin-dashboard.git"
-    "https://github.com/jim1982ha/gesture-vision-plugin-gesture-studio.git"
-    "https://github.com/jim1982ha/gesture-vision-plugin-webhook.git"
-    "https://github.com/jim1982ha/gesture-vision-plugin-os-command.git"
-)
+# Paths
+APP_EXTENSIONS_DIR="/app/extensions"
+DATA_EXTENSIONS_DIR="/data/extensions"
+
+# Nginx Webroot
+NGINX_PLUGINS_LINK="/usr/share/nginx/html/plugins"
+
+# Mandatory Plugin Definition
+HA_PLUGIN_ID="gesture-vision-plugin-home-assistant"
+HA_PLUGIN_REPO="https://github.com/jim1982ha/gesture-vision-plugin-home-assistant"
 
 echo "--- GestureVision HA Add-on Starting ---"
 
 if [ -n "$SUPERVISOR_TOKEN" ]; then
-    echo "[HA Mode] Supervisor detected."
+    echo "[HA Mode] Supervisor detected. Configuring persistence..."
+
+    # --- 1. Prepare Persistent Extension Directory ---
+    if [ ! -d "$DATA_EXTENSIONS_DIR" ]; then
+        echo "[HA Mode] Creating persistent extensions directory..."
+        mkdir -p "$DATA_EXTENSIONS_DIR/plugins"
+    fi
     
-    # --- 0. Initialize Persistent Plugins ---
-    if [ ! -d "$DATA_PLUGINS_DIR" ]; then
-        echo "[HA Mode] Creating persistent plugins directory..."
-        mkdir -p "$DATA_PLUGINS_DIR"
+    # Ensure plugins subdir exists
+    if [ ! -d "$DATA_EXTENSIONS_DIR/plugins" ]; then
+         mkdir -p "$DATA_EXTENSIONS_DIR/plugins"
     fi
 
-    # Check if plugins directory is empty. If so, seed defaults.
-    if [ -z "$(ls -A "$DATA_PLUGINS_DIR")" ]; then
-        echo "[HA Mode] Plugins directory is empty. Seeding default plugins..."
-        for url in "${DEFAULT_PLUGINS[@]}"; do
-            plugin_name=$(basename "$url" .git)
-            echo "  - Cloning $plugin_name..."
-            git clone --depth 1 "$url" "$DATA_PLUGINS_DIR/$plugin_name"
-        done
-        echo "[HA Mode] Default plugins installed."
-    fi
-
-    # --- CRITICAL: Link Persistence to App and Nginx ---
+    # --- 2. Check/Install Mandatory Home Assistant Plugin ---
+    HA_PLUGIN_PATH="$DATA_EXTENSIONS_DIR/plugins/$HA_PLUGIN_ID"
     
-    # 1. Link for Backend (Node.js) access
-    if [ -d "$APP_PLUGINS_DIR" ] && [ ! -L "$APP_PLUGINS_DIR" ]; then
-        echo "[HA Mode] Symlinking app plugins dir to persistent storage..."
-        rm -rf "$APP_PLUGINS_DIR"
-        ln -s "$DATA_PLUGINS_DIR" "$APP_PLUGINS_DIR"
+    if [ ! -d "$HA_PLUGIN_PATH" ]; then
+        echo "[HA Mode] Mandatory HA Plugin missing. Installing from GitHub..."
+        # We use git clone to fetch the plugin since it's missing
+        if git clone --depth 1 "$HA_PLUGIN_REPO" "$HA_PLUGIN_PATH"; then
+             echo "[HA Mode] HA Plugin installed successfully."
+             # Cleanup git folder to save space/cleanliness (optional, but good for add-ons)
+             rm -rf "$HA_PLUGIN_PATH/.git"
+        else
+             echo "[HA Mode] ERROR: Failed to clone HA Plugin from GitHub."
+             # We don't exit here, we try to proceed, though functionality will be limited.
+        fi
+    else
+        echo "[HA Mode] HA Plugin detected in persistence. Skipping installation."
     fi
 
-    # 2. Link for Frontend (Nginx) access
-    if [ -d "$NGINX_PLUGINS_DIR" ]; then
-        echo "[HA Mode] Symlinking Nginx plugins dir to persistent storage..."
-        rm -rf "$NGINX_PLUGINS_DIR"
-        ln -s "$DATA_PLUGINS_DIR" "$NGINX_PLUGINS_DIR"
+    # --- 3. Link Persistence to Application ---
+    # This enables the "Install from URL" feature in the UI to write to /data/extensions
+    
+    # 3a. Link /app/extensions -> /data/extensions (For Backend/Node.js)
+    if [ -d "$APP_EXTENSIONS_DIR" ] && [ ! -L "$APP_EXTENSIONS_DIR" ]; then
+        rm -rf "$APP_EXTENSIONS_DIR"
+    fi
+    if [ ! -L "$APP_EXTENSIONS_DIR" ]; then
+        echo "[HA Mode] Symlinking app extensions to persistent storage..."
+        ln -s "$DATA_EXTENSIONS_DIR" "$APP_EXTENSIONS_DIR"
     fi
 
-    # Link node_modules for plugins to resolve dependencies
+    # 3b. Link /usr/share/nginx/html/plugins -> /data/extensions/plugins (For Frontend/Nginx)
+    if [ -d "$NGINX_PLUGINS_LINK" ] && [ ! -L "$NGINX_PLUGINS_LINK" ]; then
+        rm -rf "$NGINX_PLUGINS_LINK"
+    fi
+    if [ ! -L "$NGINX_PLUGINS_LINK" ]; then
+        echo "[HA Mode] Symlinking Nginx plugins to persistent storage..."
+        ln -s "$DATA_EXTENSIONS_DIR/plugins" "$NGINX_PLUGINS_LINK"
+    fi
+
+    # 3c. Link node_modules for plugins (Shared dependencies)
     if [ -d "/app/node_modules" ]; then
-        rm -rf "$DATA_PLUGINS_DIR/node_modules" 
-        ln -s "/app/node_modules" "$DATA_PLUGINS_DIR/node_modules"
+        # Cleanup old dir if exists
+        if [ -d "$DATA_EXTENSIONS_DIR/plugins/node_modules" ] && [ ! -L "$DATA_EXTENSIONS_DIR/plugins/node_modules" ]; then
+            rm -rf "$DATA_EXTENSIONS_DIR/plugins/node_modules"
+        fi
+        # Create link if missing
+        if [ ! -L "$DATA_EXTENSIONS_DIR/plugins/node_modules" ]; then
+            echo "[HA Mode] Linking node_modules for plugins..."
+            ln -s "/app/node_modules" "$DATA_EXTENSIONS_DIR/plugins/node_modules"
+        fi
     fi
 
-    # --- 1. Configure HA Plugin ---
-    HA_PLUGIN_CONFIG_FILE="$APP_PLUGINS_DIR/$HA_PLUGIN_ID/config.home-assistant.json"
-    if [ -d "$APP_PLUGINS_DIR/$HA_PLUGIN_ID" ]; then
+    # --- 4. Auto-Configure Home Assistant Plugin ---
+    HA_PLUGIN_CONFIG_FILE="$DATA_EXTENSIONS_DIR/plugins/$HA_PLUGIN_ID/config.home-assistant.json"
+    
+    if [ -d "$DATA_EXTENSIONS_DIR/plugins/$HA_PLUGIN_ID" ]; then
         echo "[HA Mode] Configuring Home Assistant Plugin..."
+        # Always overwrite HA config to ensure valid Supervisor token is used
         cat > "$HA_PLUGIN_CONFIG_FILE" <<EOF
 {
   "url": "http://supervisor/core",
@@ -73,18 +97,17 @@ if [ -n "$SUPERVISOR_TOKEN" ]; then
 }
 EOF
         chmod 644 "$HA_PLUGIN_CONFIG_FILE"
-    else
-        echo "[HA Mode] WARNING: Home Assistant plugin not found. Auto-configuration skipped."
     fi
 
-    # --- 2. Persistent Config Logic ---
+    # --- 5. Persistent Main Config ---
     if [ ! -f "$DATA_CONFIG_FILE" ]; then
+        echo "[HA Mode] Initializing main config..."
         if [ -f "$DEFAULT_CONFIG_FILE" ]; then cp "$DEFAULT_CONFIG_FILE" "$DATA_CONFIG_FILE";
         elif [ -f "$CONFIG_FILE" ]; then cp "$CONFIG_FILE" "$DATA_CONFIG_FILE";
         else echo "{}" > "$DATA_CONFIG_FILE"; fi
     fi
 
-    # --- 3. Apply Options ---
+    # --- 6. Apply Add-on Options ---
     if [ -f "/data/options.json" ]; then
         ICE_HOST=$(jq -r '.mtx_ice_host // empty' /data/options.json)
         if [ -n "$ICE_HOST" ]; then export MTX_WEBRTC_ADDITIONAL_HOSTS="$ICE_HOST"; fi
@@ -92,9 +115,11 @@ EOF
         export MTX_LOGLEVEL="$LOG_LEVEL"
     fi
 
-    # --- 4. Link Config ---
-    if [ ! -L "$CONFIG_FILE" ]; then
+    # --- 7. Link Main Config ---
+    if [ -f "$CONFIG_FILE" ] && [ ! -L "$CONFIG_FILE" ]; then
         rm -f "$CONFIG_FILE"
+    fi
+    if [ ! -L "$CONFIG_FILE" ]; then
         ln -s "$DATA_CONFIG_FILE" "$CONFIG_FILE"
     fi
 fi

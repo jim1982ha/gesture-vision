@@ -1,3 +1,4 @@
+// --- packages/backend/src/services/plugin-manager.service.ts --- (complete version) ---
 /* FILE: packages/backend/src/services/plugin-manager.service.ts */
 import { watchFile, unwatchFile, watch, type FSWatcher, type StatWatcher } from 'fs';
 import path from 'path';
@@ -97,7 +98,6 @@ export class PluginManagerService {
         await this.#loadAndRegisterPlugin(manifest);
       }
     }));
-
     console.log('[PluginManager Watcher] Resync complete.');
     pubsub.publish(BACKEND_INTERNAL_EVENTS.REQUEST_MANIFESTS_BROADCAST);
   }
@@ -105,7 +105,18 @@ export class PluginManagerService {
   async #copyPluginAssetsToWebroot(pluginId: string): Promise<void> {
     const sourceDir = path.join(PLUGINS_DIR, pluginId);
     const destDir = path.join(NGINX_PLUGIN_WEBROOT, pluginId);
+
     try {
+      // Resolve real paths to check if they point to the same location (symlinked environment)
+      const realSource = await fs.realpath(sourceDir).catch(() => sourceDir);
+      const realDest = await fs.realpath(destDir).catch(() => destDir);
+
+      if (realSource === realDest) {
+        // Source and destination are the same location (likely due to symlinks in HA Add-on mode)
+        // No copy needed.
+        return;
+      }
+
       await fs.cp(sourceDir, destDir, { recursive: true });
     } catch (error) {
       console.error(`[PluginManager] Failed to copy assets for plugin '${pluginId}':`, error);
@@ -114,7 +125,24 @@ export class PluginManagerService {
 
   async #removePluginAssetsFromWebroot(pluginId: string): Promise<void> {
     const destDir = path.join(NGINX_PLUGIN_WEBROOT, pluginId);
+    
     try {
+      // Resolve real paths to check overlap
+      const sourceDir = path.join(PLUGINS_DIR, pluginId);
+      const realSource = await fs.realpath(sourceDir).catch(() => sourceDir);
+      const realDest = await fs.realpath(destDir).catch(() => destDir);
+
+      if (realSource === realDest) {
+        // If source and dest resolve to the same path, 'removing assets' would delete the installed plugin!
+        // In symlinked environments (HA Add-on), "removing assets" is conceptually separate from deleting the plugin.
+        // If we are just disabling it, we typically don't want to delete the files from storage.
+        // However, this method is called when disabling OR uninstalling.
+        
+        // If uninstalling, the source dir is deleted anyway, so this check is moot for deletion.
+        // If disabling, we don't want to delete the source files.
+        return;
+      }
+
       await fs.rm(destDir, { recursive: true, force: true });
     } catch (error) {
       console.warn(`[PluginManager] Could not remove assets for plugin '${pluginId}' (this is often normal):`, error);
@@ -123,7 +151,6 @@ export class PluginManagerService {
 
   async #loadAndRegisterPlugin(manifest: PluginManifest): Promise<void> {
     if (this.#plugins.has(manifest.id)) {
-      // If already loaded, just update locale if needed, but don't warn noisily
       return;
     }
 
@@ -137,6 +164,7 @@ export class PluginManagerService {
     }
 
     manifest.status = this.#disabledPluginIds.has(manifest.id) ? 'disabled' : 'enabled';
+    
     if (manifest.status === 'disabled') {
       this.#plugins.set(manifest.id, { manifest, instance: new BaseBackendPlugin(manifest), globalConfig: null, configPath: null });
       return;
@@ -166,7 +194,7 @@ export class PluginManagerService {
     this.#plugins.set(manifest.id, { manifest, instance, globalConfig, configPath });
 
     if (configPath) this.#startWatchingPluginConfig(manifest.id, configPath);
-
+    
     const context: BackendPluginContext = {
       getPluginGlobalConfig: <T>() => this.getPluginGlobalConfig<T>(manifest.id),
     };
@@ -185,6 +213,7 @@ export class PluginManagerService {
   async #reloadPluginConfig(pluginId: string, configPath: string) {
     const plugin = this.#plugins.get(pluginId);
     if (!plugin) return;
+
     console.log(`[PluginManager] Config change detected for '${pluginId}'. Reloading...`);
     try {
       const schema = plugin.instance.getGlobalConfigValidationSchema?.();
@@ -219,7 +248,7 @@ export class PluginManagerService {
           }
           return manifest;
       });
-
+    
     for (const manifest of manifests) {
       manifest.locales = await this.#loaderService.getPluginLocales(manifest.id);
     }
@@ -239,7 +268,7 @@ export class PluginManagerService {
     return plugin?.globalConfig as T | null;
   }
 
-  public async savePluginGlobalConfig(pluginId: string, newConfig: unknown): Promise<{ success: boolean; message?: string; validationErrors?: SectionValidationResult; }> {
+  public async savePluginGlobalConfig(pluginId: string, newConfig: unknown): Promise<{ success: boolean; message?: string; config?: unknown; validationErrors?: SectionValidationResult; }> {
     const plugin = this.#plugins.get(pluginId);
     if (!plugin || !plugin.configPath || !plugin.manifest.capabilities.hasGlobalSettings) {
       return { success: false, message: `Plugin '${pluginId}' not found or does not support global settings.` };
@@ -270,8 +299,11 @@ export class PluginManagerService {
 
     try {
       await execAsync(`git clone --depth 1 ${repoUrl} ${targetDir}`);
-      await this.#copyPluginAssetsToWebroot(pluginId);
       
+      // In HA environment, this copy step might be redundant due to symlinks,
+      // but the updated logic in copyPluginAssetsToWebroot handles that.
+      await this.#copyPluginAssetsToWebroot(pluginId);
+
       // FIX: Explicitly load and register the new plugin immediately
       const manifestPath = path.join(targetDir, 'plugin.json');
       const manifestContent = await fs.readFile(manifestPath, 'utf-8');
@@ -281,12 +313,11 @@ export class PluginManagerService {
       manifest.id = pluginId;
       
       await this.#loadAndRegisterPlugin(manifest);
-      
+
       // FIX: Broadcast update to frontend immediately
       pubsub.publish(BACKEND_INTERNAL_EVENTS.REQUEST_MANIFESTS_BROADCAST);
       
       return { success: true, message: `Plugin '${pluginId}' installed successfully.` };
-
     } catch (e) {
       console.error(`[PluginManager] Failed to install plugin from ${repoUrl}:`, e);
       await fs.rm(targetDir, { recursive: true, force: true }).catch(() => { /* No-op */ });
@@ -326,18 +357,17 @@ export class PluginManagerService {
       console.log(`[PluginManager] Finalizing uninstall for ${pluginId}, deleting files...`);
       // Unload first
       await this.#unloadAndDeregisterPlugin(pluginId);
-      
       const result = await this._performPluginDeletion(pluginId);
-      this.#pluginsPendingDeletion.delete(pluginId);
       
+      this.#pluginsPendingDeletion.delete(pluginId);
       // Notify frontend
       pubsub.publish(BACKEND_INTERNAL_EVENTS.REQUEST_MANIFESTS_BROADCAST);
-      
       return result;
   }
 
   private async _performPluginDeletion(pluginId: string): Promise<{success:boolean; message:string}> {
     const pluginDir = path.join(PLUGINS_DIR, pluginId);
+
     try {
       await fs.access(pluginDir);
       await this.#removePluginAssetsFromWebroot(pluginId);
@@ -347,7 +377,6 @@ export class PluginManagerService {
         this.#disabledPluginIds.delete(pluginId);
         await this.#loaderService.saveDisabledPluginIds(this.#disabledPluginIds);
       }
-      
       return { success: true, message: `Plugin '${pluginId}' uninstalled successfully.` };
     } catch (e) {
       if ((e as NodeJS.ErrnoException).code === 'ENOENT') {
@@ -361,7 +390,7 @@ export class PluginManagerService {
     if (this.#isHaAddonEnvironment && pluginId === HA_PLUGIN_ID && state === 'disabled') {
         return { success: false, message: `Disabling '${pluginId}' is restricted in Home Assistant Add-on mode.` };
     }
-    
+
     if (!this.#plugins.has(pluginId)) return { success: false, message: `Plugin '${pluginId}' not found.` };
 
     if (state === 'enabled') {
@@ -371,7 +400,7 @@ export class PluginManagerService {
       this.#disabledPluginIds.add(pluginId);
       await this.#removePluginAssetsFromWebroot(pluginId);
     }
-    
+
     await this.#loaderService.saveDisabledPluginIds(this.#disabledPluginIds);
     
     // Update local state and notify frontend
@@ -379,9 +408,8 @@ export class PluginManagerService {
     if (plugin) {
         plugin.manifest.status = state;
     }
-    
     pubsub.publish(BACKEND_INTERNAL_EVENTS.REQUEST_MANIFESTS_BROADCAST);
-    
+
     return { success: true, message: `Plugin '${pluginId}' has been ${state}.` };
   }
 
