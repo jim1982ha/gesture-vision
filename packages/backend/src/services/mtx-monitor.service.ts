@@ -1,4 +1,3 @@
-// --- packages/backend/src/services/mtx-monitor.service.ts --- (complete version) ---
 /* FILE: packages/backend/src/services/mtx-monitor.service.ts */
 import { BACKEND_INTERNAL_EVENTS, pubsub, normalizeNameForMtx, type FullConfiguration, type RtspSourceConfig, type StreamStatusPayload } from '#shared/index.js';
 import { callMtxApi } from '../mtx-api-helpers.js';
@@ -11,8 +10,13 @@ interface MtxPathConfPayload {
     sourceOnDemandCloseAfter?: string; runOnReady?: string; runOnNotReady?: string;
 }
 type BroadcastStreamStatusFn = (payload: StreamStatusPayload) => void;
-const BACKEND_SERVICE_NAME = process.env.NODE_ENV === 'development' ? 'localhost' : 'gesturevision';
-const BACKEND_SERVICE_PORT = process.env.DEV_BACKEND_API_PORT_INTERNAL || '9001';
+
+// FIX: In HA Add-on mode (and generally for single-container setups), we should refer to localhost.
+// 'gesturevision' service name only works in Docker Compose networks between separate containers.
+const IS_HA_ADDON = !!process.env.SUPERVISOR_TOKEN;
+const BACKEND_SERVICE_NAME = process.env.NODE_ENV === 'development' ? 'localhost' : (IS_HA_ADDON ? '127.0.0.1' : 'gesturevision');
+const BACKEND_SERVICE_PORT = process.env.BACKEND_API_PORT_INTERNAL || process.env.DEV_BACKEND_API_PORT_INTERNAL || '9001';
+
 export class MtxMonitorService {
     private isRunning = false;
     private streamStatusBroadcaster: BroadcastStreamStatusFn | null = null;

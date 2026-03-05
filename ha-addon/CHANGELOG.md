@@ -1,3 +1,6 @@
+## 4.2.19 (2026-03-05)
+- ensure the backend uses 127.0.0.1 or localhost when generating internal webhooks for the Add-on environment
+
 ## 4.2.18 (2026-03-05)
 - Explicitly enable the MediaMTX API via environment variables
 
