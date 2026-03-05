@@ -1,3 +1,6 @@
+## 4.2.25 (2026-03-05)
+- Fix PLugin refresh
+
 ## 4.2.24 (2026-03-05)
 - Fix copy Path
 

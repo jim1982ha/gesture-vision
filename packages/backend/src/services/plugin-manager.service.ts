@@ -1,4 +1,4 @@
-// --- packages/backend/src/services/plugin-manager.service.ts --- (complete version) ---
+/* FILE: packages/backend/src/services/plugin-manager.service.ts */
 import { watchFile, unwatchFile, watch, type FSWatcher, type StatWatcher } from 'fs';
 import path from 'path';
 import type { ZodType } from 'zod';
@@ -91,11 +91,13 @@ export class PluginManagerService {
     await Promise.all(manifestsOnDisk.map(async manifest => {
       const existingPlugin = this.#plugins.get(manifest.id);
       const newStatus = this.#disabledPluginIds.has(manifest.id) ? 'disabled' : 'enabled';
+      
       if (!existingPlugin || existingPlugin.manifest.status !== newStatus) {
         await this.#unloadAndDeregisterPlugin(manifest.id);
         await this.#loadAndRegisterPlugin(manifest);
       }
     }));
+
     console.log('[PluginManager Watcher] Resync complete.');
     pubsub.publish(BACKEND_INTERNAL_EVENTS.REQUEST_MANIFESTS_BROADCAST);
   }
@@ -121,10 +123,10 @@ export class PluginManagerService {
 
   async #loadAndRegisterPlugin(manifest: PluginManifest): Promise<void> {
     if (this.#plugins.has(manifest.id)) {
-      console.warn(`[PluginManager] Duplicate plugin ID '${manifest.id}'. Skipping.`);
+      // If already loaded, just update locale if needed, but don't warn noisily
       return;
     }
-    
+
     // Force enable HA plugin if in HA environment
     if (this.#isHaAddonEnvironment && manifest.id === HA_PLUGIN_ID) {
         if (this.#disabledPluginIds.has(manifest.id)) {
@@ -135,7 +137,6 @@ export class PluginManagerService {
     }
 
     manifest.status = this.#disabledPluginIds.has(manifest.id) ? 'disabled' : 'enabled';
-
     if (manifest.status === 'disabled') {
       this.#plugins.set(manifest.id, { manifest, instance: new BaseBackendPlugin(manifest), globalConfig: null, configPath: null });
       return;
@@ -171,6 +172,7 @@ export class PluginManagerService {
     };
 
     await instance.init?.(context);
+    console.log(`[PluginManager] Loaded plugin: ${manifest.id}`);
   }
 
   #startWatchingPluginConfig(pluginId: string, configPath: string): void {
@@ -187,6 +189,7 @@ export class PluginManagerService {
     try {
       const schema = plugin.instance.getGlobalConfigValidationSchema?.();
       const newConfig = await this.#configRepository.readPluginConfigFile(configPath, schema as ZodType | undefined);
+      
       if (JSON.stringify(plugin.globalConfig) !== JSON.stringify(newConfig)) {
         plugin.globalConfig = newConfig;
         await plugin.instance.onGlobalConfigUpdate?.(newConfig);
@@ -216,7 +219,7 @@ export class PluginManagerService {
           }
           return manifest;
       });
-    
+
     for (const manifest of manifests) {
       manifest.locales = await this.#loaderService.getPluginLocales(manifest.id);
     }
@@ -241,6 +244,7 @@ export class PluginManagerService {
     if (!plugin || !plugin.configPath || !plugin.manifest.capabilities.hasGlobalSettings) {
       return { success: false, message: `Plugin '${pluginId}' not found or does not support global settings.` };
     }
+
     const schema = plugin.instance.getGlobalConfigValidationSchema?.();
     if (schema) {
       const result = schema.safeParse(newConfig);
@@ -249,6 +253,7 @@ export class PluginManagerService {
         return { success: false, message: 'Validation failed.', validationErrors: { isValid: false, errors } };
       }
     }
+
     const success = await this.#configRepository.writePluginConfigFile(plugin.configPath, newConfig, schema as ZodType | undefined);
     if (success) {
       plugin.globalConfig = newConfig;
@@ -260,12 +265,28 @@ export class PluginManagerService {
   public async installPlugin(repoUrl: string): Promise<{success:boolean; message:string}> {
     const pluginId = path.basename(repoUrl, '.git');
     const targetDir = path.join(PLUGINS_DIR, pluginId);
+
     try { await fs.access(targetDir); return { success: false, message: `Plugin '${pluginId}' already exists.` }; } catch { /* Continue */ }
-    
+
     try {
       await execAsync(`git clone --depth 1 ${repoUrl} ${targetDir}`);
       await this.#copyPluginAssetsToWebroot(pluginId);
+      
+      // FIX: Explicitly load and register the new plugin immediately
+      const manifestPath = path.join(targetDir, 'plugin.json');
+      const manifestContent = await fs.readFile(manifestPath, 'utf-8');
+      const manifest: PluginManifest = JSON.parse(manifestContent);
+      
+      // Ensure ID matches directory name
+      manifest.id = pluginId;
+      
+      await this.#loadAndRegisterPlugin(manifest);
+      
+      // FIX: Broadcast update to frontend immediately
+      pubsub.publish(BACKEND_INTERNAL_EVENTS.REQUEST_MANIFESTS_BROADCAST);
+      
       return { success: true, message: `Plugin '${pluginId}' installed successfully.` };
+
     } catch (e) {
       console.error(`[PluginManager] Failed to install plugin from ${repoUrl}:`, e);
       await fs.rm(targetDir, { recursive: true, force: true }).catch(() => { /* No-op */ });
@@ -280,15 +301,17 @@ export class PluginManagerService {
     if (!this.#plugins.has(pluginId)) {
         return { success: false, message: `Plugin '${pluginId}' not found.` };
     }
+
     this.#pluginsPendingDeletion.add(pluginId);
     pubsub.publish(BACKEND_INTERNAL_EVENTS.REQUEST_MANIFESTS_BROADCAST);
-    
+
     setTimeout(() => {
         if (this.#pluginsPendingDeletion.has(pluginId)) {
             console.warn(`[PluginManager] Finalize uninstall for '${pluginId}' not triggered by frontend within 5s. Forcing cleanup.`);
             this.finalizePluginUninstall(pluginId);
         }
     }, 5000).unref();
+
     return { success: true, message: `Uninstall initiated for '${pluginId}'.` };
   }
 
@@ -299,9 +322,17 @@ export class PluginManagerService {
       if (!this.#pluginsPendingDeletion.has(pluginId)) {
           console.log(`[PluginManager] Finalize request for '${pluginId}' received, but it was not pending deletion in this instance. Proceeding with deletion check.`);
       }
+
       console.log(`[PluginManager] Finalizing uninstall for ${pluginId}, deleting files...`);
+      // Unload first
+      await this.#unloadAndDeregisterPlugin(pluginId);
+      
       const result = await this._performPluginDeletion(pluginId);
       this.#pluginsPendingDeletion.delete(pluginId);
+      
+      // Notify frontend
+      pubsub.publish(BACKEND_INTERNAL_EVENTS.REQUEST_MANIFESTS_BROADCAST);
+      
       return result;
   }
 
@@ -311,10 +342,12 @@ export class PluginManagerService {
       await fs.access(pluginDir);
       await this.#removePluginAssetsFromWebroot(pluginId);
       await fs.rm(pluginDir, { recursive: true, force: true });
+      
       if (this.#disabledPluginIds.has(pluginId)) {
         this.#disabledPluginIds.delete(pluginId);
         await this.#loaderService.saveDisabledPluginIds(this.#disabledPluginIds);
       }
+      
       return { success: true, message: `Plugin '${pluginId}' uninstalled successfully.` };
     } catch (e) {
       if ((e as NodeJS.ErrnoException).code === 'ENOENT') {
@@ -328,8 +361,9 @@ export class PluginManagerService {
     if (this.#isHaAddonEnvironment && pluginId === HA_PLUGIN_ID && state === 'disabled') {
         return { success: false, message: `Disabling '${pluginId}' is restricted in Home Assistant Add-on mode.` };
     }
-    if (!this.#plugins.has(pluginId)) return { success: false, message: `Plugin '${pluginId}' not found.` };
     
+    if (!this.#plugins.has(pluginId)) return { success: false, message: `Plugin '${pluginId}' not found.` };
+
     if (state === 'enabled') {
       this.#disabledPluginIds.delete(pluginId);
       await this.#copyPluginAssetsToWebroot(pluginId);
@@ -337,7 +371,17 @@ export class PluginManagerService {
       this.#disabledPluginIds.add(pluginId);
       await this.#removePluginAssetsFromWebroot(pluginId);
     }
+    
     await this.#loaderService.saveDisabledPluginIds(this.#disabledPluginIds);
+    
+    // Update local state and notify frontend
+    const plugin = this.#plugins.get(pluginId);
+    if (plugin) {
+        plugin.manifest.status = state;
+    }
+    
+    pubsub.publish(BACKEND_INTERNAL_EVENTS.REQUEST_MANIFESTS_BROADCAST);
+    
     return { success: true, message: `Plugin '${pluginId}' has been ${state}.` };
   }
 

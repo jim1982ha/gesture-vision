@@ -34,10 +34,15 @@ export async function generateMtxConfig(): Promise<void> {
             const webhookUrlReady = `http://${BACKEND_HOST}:${BACKEND_PORT}/api/mtx-hook/ready/${encodeURIComponent(key)}`;
             const webhookUrlNotReady = `http://${BACKEND_HOST}:${BACKEND_PORT}/api/mtx-hook/notReady/${encodeURIComponent(key)}`;
             
+            // FIX: Added retry logic to curl. 
+            // --retry 10: Try 10 times
+            // --retry-connrefused: Retry even if connection is refused (Server starting up)
+            // --retry-delay 1: Wait 1 second between retries
+            // --max-time 5: Timeout each request after 5 seconds
             return `  ${key}:
     source: ${JSON.stringify(source.url)}
-    runOnReady: sh -c "curl -sS -X POST ${webhookUrlReady}"
-    runOnNotReady: sh -c "curl -sS -X POST ${webhookUrlNotReady}"`;
+    runOnReady: sh -c "curl -sS --retry 10 --retry-connrefused --retry-delay 1 --max-time 5 -X POST ${webhookUrlReady}"
+    runOnNotReady: sh -c "curl -sS --retry 10 --retry-connrefused --retry-delay 1 --max-time 5 -X POST ${webhookUrlNotReady}"`;
           }
         )
         .join('\n');

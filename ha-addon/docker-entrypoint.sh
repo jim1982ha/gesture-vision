@@ -1,5 +1,6 @@
 #!/bin/bash
 CONFIG_FILE="/app/config.json"
+# FIX: Updated to new example config name
 DEFAULT_CONFIG_FILE="/app/config.default.json"
 DATA_CONFIG_FILE="/data/config.json"
 # Paths
@@ -42,7 +43,6 @@ if [ -n "$SUPERVISOR_TOKEN" ]; then
     # --- CRITICAL: Link Persistence to App and Nginx ---
     
     # 1. Link for Backend (Node.js) access
-    # We remove the empty directory created in Dockerfile and link to /data
     if [ -d "$APP_PLUGINS_DIR" ] && [ ! -L "$APP_PLUGINS_DIR" ]; then
         echo "[HA Mode] Symlinking app plugins dir to persistent storage..."
         rm -rf "$APP_PLUGINS_DIR"
