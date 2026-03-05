@@ -1,5 +1,5 @@
 name: "GestureVision"
-version: "4.2.22"
+version: "4.2.23"
 slug: "ha-addon"
 description: "AI-Powered Gesture Control using Webcams or RTSP cameras."
 url: "https://github.com/jim1982ha/gesture-vision"
@@ -19,8 +19,7 @@ ingress: true
 ingress_port: 80
 panel_icon: mdi:hand-wave
 
-# Security & Permissions
-# apparmor: true enforces AppArmor profile (Security Rating +1)
+# Security
 apparmor: true
 homeassistant_api: true
 hassio_api: true

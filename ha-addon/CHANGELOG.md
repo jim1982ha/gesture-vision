@@ -1,3 +1,6 @@
+## 4.2.23 (2026-03-05)
+- Standard Add-on Structure
+
 ## 4.2.22 (2026-03-05)
 - Standard Add-on Structure
 

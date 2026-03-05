@@ -8,42 +8,41 @@ DATA_PLUGINS_DIR="/data/plugins"
 NGINX_PLUGINS_DIR="/usr/share/nginx/html/plugins"
 HA_PLUGIN_ID="gesture-vision-plugin-home-assistant"
 
+# Default plugins to install if data is empty (Universal fallback)
+DEFAULT_PLUGINS=(
+    "https://github.com/jim1982ha/gesture-vision-plugin-home-assistant.git"
+    "https://github.com/jim1982ha/gesture-vision-plugin-dashboard.git"
+    "https://github.com/jim1982ha/gesture-vision-plugin-gesture-studio.git"
+    "https://github.com/jim1982ha/gesture-vision-plugin-webhook.git"
+    "https://github.com/jim1982ha/gesture-vision-plugin-os-command.git"
+)
+
 echo "--- GestureVision HA Add-on Starting ---"
 
 if [ -n "$SUPERVISOR_TOKEN" ]; then
     echo "[HA Mode] Supervisor detected."
     
-    # --- 0. Setup/Sync Persistent Plugins Directory ---
+    # --- 0. Initialize Persistent Plugins ---
     if [ ! -d "$DATA_PLUGINS_DIR" ]; then
-        echo "[HA Mode] Initializing persistent plugins directory..."
+        echo "[HA Mode] Creating persistent plugins directory..."
         mkdir -p "$DATA_PLUGINS_DIR"
     fi
 
-    # Sync built-in plugins from Image to Persistence
-    if [ -d "$APP_PLUGINS_DIR" ]; then
-        echo "[HA Mode] Syncing built-in plugins to persistent storage..."
-        for p in "$APP_PLUGINS_DIR"/*; do
-            [ -e "$p" ] || continue
-            plugin_name=$(basename "$p")
-            if [ "$plugin_name" == "common" ] || [[ "$plugin_name" == .* ]]; then continue; fi
-
-            target_plugin_path="$DATA_PLUGINS_DIR/$plugin_name"
-            if [ ! -d "$target_plugin_path" ]; then
-                cp -r "$p" "$DATA_PLUGINS_DIR/"
-            else
-                # Smart update: update code but preserve config
-                [ -d "$p/frontend" ] && rm -rf "$target_plugin_path/frontend" && cp -r "$p/frontend" "$target_plugin_path/"
-                [ -d "$p/locales" ] && rm -rf "$target_plugin_path/locales" && cp -r "$p/locales" "$target_plugin_path/"
-                [ -f "$p/plugin.json" ] && cp "$p/plugin.json" "$target_plugin_path/"
-                ls "$p"/*.ts 1> /dev/null 2>&1 && cp "$p"/*.ts "$target_plugin_path/"
-                [ -d "$p/helpers" ] && rm -rf "$target_plugin_path/helpers" && cp -r "$p/helpers" "$target_plugin_path/"
-            fi
+    # Check if plugins directory is empty. If so, seed defaults.
+    if [ -z "$(ls -A "$DATA_PLUGINS_DIR")" ]; then
+        echo "[HA Mode] Plugins directory is empty. Seeding default plugins..."
+        for url in "${DEFAULT_PLUGINS[@]}"; do
+            plugin_name=$(basename "$url" .git)
+            echo "  - Cloning $plugin_name..."
+            git clone --depth 1 "$url" "$DATA_PLUGINS_DIR/$plugin_name"
         done
+        echo "[HA Mode] Default plugins installed."
     fi
 
     # --- CRITICAL: Link Persistence to App and Nginx ---
     
     # 1. Link for Backend (Node.js) access
+    # We remove the empty directory created in Dockerfile and link to /data
     if [ -d "$APP_PLUGINS_DIR" ] && [ ! -L "$APP_PLUGINS_DIR" ]; then
         echo "[HA Mode] Symlinking app plugins dir to persistent storage..."
         rm -rf "$APP_PLUGINS_DIR"
@@ -57,15 +56,15 @@ if [ -n "$SUPERVISOR_TOKEN" ]; then
         ln -s "$DATA_PLUGINS_DIR" "$NGINX_PLUGINS_DIR"
     fi
 
-    # REMOVED: node_modules symlink creation. 
-    # This was causing HA Backup failures because it pointed outside the /data volume.
-    # We now use NODE_OPTIONS="--preserve-symlinks" in Dockerfile to handle resolution.
+    # Link node_modules for plugins to resolve dependencies
+    if [ -d "/app/node_modules" ]; then
+        rm -rf "$DATA_PLUGINS_DIR/node_modules" 
+        ln -s "/app/node_modules" "$DATA_PLUGINS_DIR/node_modules"
+    fi
 
     # --- 1. Configure HA Plugin ---
     HA_PLUGIN_CONFIG_FILE="$APP_PLUGINS_DIR/$HA_PLUGIN_ID/config.home-assistant.json"
-    if [ ! -d "$APP_PLUGINS_DIR/$HA_PLUGIN_ID" ]; then
-         echo "[HA Mode] ERROR: Home Assistant plugin not found after sync."
-    else
+    if [ -d "$APP_PLUGINS_DIR/$HA_PLUGIN_ID" ]; then
         echo "[HA Mode] Configuring Home Assistant Plugin..."
         cat > "$HA_PLUGIN_CONFIG_FILE" <<EOF
 {
@@ -74,6 +73,8 @@ if [ -n "$SUPERVISOR_TOKEN" ]; then
 }
 EOF
         chmod 644 "$HA_PLUGIN_CONFIG_FILE"
+    else
+        echo "[HA Mode] WARNING: Home Assistant plugin not found. Auto-configuration skipped."
     fi
 
     # --- 2. Persistent Config Logic ---
