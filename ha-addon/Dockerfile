@@ -59,7 +59,8 @@ RUN npm prune --omit=dev
 # --- 3. Prepare Runtime Files ---
 # Nginx setup
 RUN rm -f /etc/nginx/sites-enabled/default
-COPY config/nginx.conf /etc/nginx/nginx.conf
+# FIX: Copy config from the CLONED source inside /app, NOT from the external build context
+RUN cp config/nginx.conf /etc/nginx/nginx.conf
 
 # Move frontend build to Nginx webroot
 RUN rm -rf /usr/share/nginx/html/* && \
@@ -69,9 +70,9 @@ RUN rm -rf /usr/share/nginx/html/* && \
 RUN mkdir -p /usr/share/nginx/html/plugins && \
     mkdir -p extensions/plugins
 
-# Copy config and entrypoint
-COPY config/config.example.json /app/config.default.json
-COPY ha-addon/docker-entrypoint.sh /usr/local/bin/
+# Copy config and entrypoint from CLONED source
+RUN cp config/config.example.json /app/config.default.json
+RUN cp ha-addon/docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 # Runtime Environment

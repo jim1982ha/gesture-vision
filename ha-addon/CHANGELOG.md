@@ -1,3 +1,6 @@
+## 4.2.24 (2026-03-05)
+- Fix copy Path
+
 ## 4.2.23 (2026-03-05)
 - Standard Add-on Structure
 
