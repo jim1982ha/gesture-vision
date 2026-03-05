@@ -119,7 +119,13 @@ COPY --from=builder /app/ha-addon/docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 # Environment settings
+# 1. Allow plugins to find node_modules in /app even if linked from /data
 ENV NODE_OPTIONS="--preserve-symlinks"
+
+# 2. MediaMTX Configuration for Add-on
+# FIX: Explicitly enable MediaMTX API so the backend can manage streams
+ENV MTX_API="yes"
+ENV MTX_APIADDRESS="127.0.0.1:9997"
 
 EXPOSE 80 8888 1935
 CMD ["npm", "run", "start:prod"]

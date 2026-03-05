@@ -1,3 +1,6 @@
+## 4.2.18 (2026-03-05)
+- Explicitly enable the MediaMTX API via environment variables
+
 ## 4.2.17 (2026-03-05)
 - Add description for configuration panel
 
