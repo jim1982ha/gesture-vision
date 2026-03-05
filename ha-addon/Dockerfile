@@ -34,10 +34,19 @@ RUN chmod +x /usr/local/bin/mediamtx
 
 WORKDIR /app
 
-# --- 1. Copy Source Code ---
-COPY . .
+# --- 1. Fetch Core Source Code ---
+# HA Supervisor restricts build context to the add-on folder.
+# We must clone the repo to get the root package.json and app code.
+ARG BUILD_VERSION=main
+RUN echo "Cloning GestureVision core (branch: ${BUILD_VERSION})..." && \
+    git clone --depth 1 -b ${BUILD_VERSION} https://github.com/jim1982ha/gesture-vision.git .
 
-# --- 2. Install & Build ---
+# --- 2. Overlay Add-on Context ---
+# Copy the files from the build context (ha-addon dir) over the cloned ha-addon dir.
+# This ensures we use the specific config/entrypoint being built.
+COPY . ha-addon/
+
+# --- 3. Install & Build ---
 RUN npm install --include=dev
 
 # Override base path for Ingress compatibility
@@ -54,8 +63,8 @@ RUN npm run build:umd
 RUN npm run build:app
 RUN npm prune --omit=dev
 
-# --- 3. Cleanup Build Artifacts & Prepare Runtime ---
-# Ensure local extension folders are empty/ready for runtime linking
+# --- 4. Cleanup Build Artifacts & Prepare Runtime ---
+# Ensure local extension folders are empty so they can be linked to /data at runtime
 RUN rm -rf extensions/plugins/*
 
 # Nginx setup
@@ -72,6 +81,7 @@ RUN mkdir -p /usr/share/nginx/html/plugins && \
 
 # Copy config and entrypoint
 RUN cp config/gesturevision.example.json /app/config.default.json
+# Ensure we copy the entrypoint from the overlayed ha-addon folder
 RUN cp ha-addon/docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 RUN cp ha-addon/apparmor.txt /usr/share/apparmor/gesture-vision
