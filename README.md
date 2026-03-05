@@ -15,6 +15,12 @@
   <a href="#-contributing">Contributing</a> •
   <a href="#-license">License</a>
 </p>
+<p align="center">
+    <img src="https://img.shields.io/github/v/release/jim1982ha/gesture-vision?label=Latest%20Release" alt="Latest Release" />
+    <img src="https://img.shields.io/badge/Security-7-blue" alt="Security Rating" />
+    <img src="https://img.shields.io/badge/aarch64-yes-green.svg" alt="aarch64 Support" />
+    <img src="https://img.shields.io/badge/amd64-yes-green.svg" alt="amd64 Support" />
+</p>
 
 ---
 

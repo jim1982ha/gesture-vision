@@ -1,5 +1,5 @@
 name: "GestureVision"
-version: "4.2.20"
+version: "4.2.21"
 slug: "ha-addon"
 description: "AI-Powered Gesture Control using Webcams or RTSP cameras."
 url: "https://github.com/jim1982ha/gesture-vision"

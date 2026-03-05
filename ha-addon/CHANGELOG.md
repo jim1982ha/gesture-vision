@@ -1,3 +1,6 @@
+## 4.2.21 (2026-03-05)
+- Fix RTSP feed connection for AddOns
+
 ## 4.2.20 (2026-03-05)
 - make sure the RtspConnector isn't silently failing
 

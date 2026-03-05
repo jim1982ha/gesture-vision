@@ -1,10 +1,16 @@
 /* FILE: packages/backend/src/utils/mtx-config-generator.ts */
 import fs from 'fs/promises';
-
 import type { RtspSourceConfig } from '#shared/index.js';
 import { normalizeNameForMtx } from '#shared/index.js';
 
 const MTX_CONFIG_PATH = '/tmp/generated_mediamtx.yml';
+
+// FIX: Determine correct backend host for internal callbacks.
+// In HA Add-on or single-container mode, this must be localhost/127.0.0.1.
+// In Docker Compose, it might be the service name 'gesturevision'.
+const IS_HA_ADDON = !!process.env.SUPERVISOR_TOKEN;
+const BACKEND_HOST = process.env.NODE_ENV === 'development' ? 'localhost' : (IS_HA_ADDON ? '127.0.0.1' : 'gesturevision');
+const BACKEND_PORT = process.env.BACKEND_API_PORT_INTERNAL || '9001';
 
 /**
  * Generates the mediamtx.yml configuration file based on the application's config.
@@ -23,10 +29,16 @@ export async function generateMtxConfig(): Promise<void> {
           (source) => source?.name && source.url && source.sourceOnDemand !== true
         )
         .map(
-          (source) =>
-            `  ${normalizeNameForMtx(source.name)}:\n    source: ${JSON.stringify(
-              source.url
-            )}`
+          (source) => {
+            const key = normalizeNameForMtx(source.name);
+            const webhookUrlReady = `http://${BACKEND_HOST}:${BACKEND_PORT}/api/mtx-hook/ready/${encodeURIComponent(key)}`;
+            const webhookUrlNotReady = `http://${BACKEND_HOST}:${BACKEND_PORT}/api/mtx-hook/notReady/${encodeURIComponent(key)}`;
+            
+            return `  ${key}:
+    source: ${JSON.stringify(source.url)}
+    runOnReady: sh -c "curl -sS -X POST ${webhookUrlReady}"
+    runOnNotReady: sh -c "curl -sS -X POST ${webhookUrlNotReady}"`;
+          }
         )
         .join('\n');
 

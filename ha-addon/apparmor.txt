@@ -1,0 +1,41 @@
+#include <tunables/global>
+
+profile gesture-vision flags=(attach_disconnected,complain) {
+  #include <abstractions/base>
+  #include <abstractions/node>
+  #include <abstractions/nameservice>
+  #include <abstractions/user-tmp>
+
+  # --- Device Access (Webcam/V4L2) ---
+  /dev/video* rw,
+
+  # --- Network Access ---
+  # Allow all network access for MediaMTX, Nginx, and Node
+  network,
+
+  # --- Application Files ---
+  /app/** r,
+  /app/** ix,
+  /app/** m,
+  /data/** rw,
+  /data/** ix,
+  /data/** m,
+  /run/** rw,
+  /tmp/** rw,
+  /var/log/nginx/** rw,
+  /var/lib/nginx/** rw,
+  /usr/local/bin/mediamtx ix,
+  /usr/local/bin/docker-entrypoint.sh ix,
+  /usr/bin/node ix,
+  /usr/sbin/nginx ix,
+
+  # --- Signal Handling ---
+  signal (receive, send) set=("kill", "term", "int", "hup", "usr1", "usr2", "cont", "stop"),
+
+  # --- Capabilities (MediaMTX might need these for binding ports/sockets) ---
+  capability net_bind_service,
+  capability chown,
+  capability setgid,
+  capability setuid,
+  capability dac_override,
+}

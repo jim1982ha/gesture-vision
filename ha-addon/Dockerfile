@@ -118,6 +118,9 @@ COPY --from=builder /app/config/config.example.json /app/config.default.json
 COPY --from=builder /app/ha-addon/docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
+# Copy AppArmor profile
+COPY --from=builder /app/ha-addon/apparmor.txt /usr/share/apparmor/gesture-vision
+
 # Environment settings
 # 1. Allow plugins to find node_modules in /app even if linked from /data
 ENV NODE_OPTIONS="--preserve-symlinks"
