@@ -1,9 +1,6 @@
-# Dockerfile - Home Assistant Add-on
+# Dockerfile - Standalone Production & Development
 FROM node:22-bookworm AS base
-
-# Install dependencies
-# 'git' is essential here to fetch the app source code, as HA Add-on build context
-# is limited to the 'ha-addon' subdirectory and cannot access '../packages'.
+WORKDIR /app
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     curl \
@@ -15,96 +12,77 @@ RUN apt-get update && \
     jq && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
-
-# Install MediaMTX
 ARG MEDIAMTX_VERSION=v1.12.0
-ARG TARGETARCH
-# Map Docker's target arch to MediaMTX's arch naming
-RUN ARCH="${TARGETARCH}"; \
-    if [ "$ARCH" = "arm64" ]; then ARCH="arm64v8"; fi; \
-    echo "Downloading MediaMTX for ${ARCH}..." && \
-    curl -Ls "https://github.com/bluenviron/mediamtx/releases/download/${MEDIAMTX_VERSION}/mediamtx_${MEDIAMTX_VERSION}_linux_${ARCH}.tar.gz" | tar -xz -C /usr/local/bin/
+ARG TARGETARCH=amd64
+RUN curl -Ls https://github.com/bluenviron/mediamtx/releases/download/${MEDIAMTX_VERSION}/mediamtx_${MEDIAMTX_VERSION}_linux_${TARGETARCH}.tar.gz | tar -xz -C /usr/local/bin/
 RUN chmod +x /usr/local/bin/mediamtx
 
+FROM base AS deps
 WORKDIR /app
-
-# --- 1. Fetch Source Code ---
-# We must clone the repo because the build context is restricted to the 'ha-addon' folder.
-# We cannot use COPY ../packages etc.
-ARG BUILD_VERSION=main
-RUN echo "Cloning GestureVision core (branch: ${BUILD_VERSION})..." && \
-    git clone https://github.com/jim1982ha/gesture-vision.git . && \
-    (git checkout ${BUILD_VERSION} || git checkout main)
-
-# --- 2. Fetch Core Plugins ---
-# Plugins are git-ignored in the main repo, so we must clone them explicitly
-# to ensure they are available for the frontend build.
-RUN mkdir -p extensions/plugins
-
-# Home Assistant Plugin
-RUN echo "Cloning HA Plugin..." && \
-    rm -rf extensions/plugins/gesture-vision-plugin-home-assistant && \
-    git clone --depth 1 https://github.com/jim1982ha/gesture-vision-plugin-home-assistant.git extensions/plugins/gesture-vision-plugin-home-assistant
-
-# Dashboard Plugin
-RUN echo "Cloning Dashboard Plugin..." && \
-    rm -rf extensions/plugins/gesture-vision-plugin-dashboard && \
-    git clone --depth 1 https://github.com/jim1982ha/gesture-vision-plugin-dashboard.git extensions/plugins/gesture-vision-plugin-dashboard
-
-# --- 3. Install & Build ---
+COPY package.json package-lock.json* ./
 RUN npm install --include=dev
 
-# Override the base path for Ingress compatibility (must happen before build)
-RUN sed -i 's|const appBase = "/";|const appBase = "./";|' packages/frontend/vite.config.js
-
-# Pass build args if they were provided (though HA usually handles ingress dynamic vars at runtime)
+FROM base AS builder
+WORKDIR /app
 ARG VITE_PROD_WHEP_BASE_URL
 ARG VITE_PROD_HA_DEFAULT_URL
-ENV NODE_ENV=production
+COPY --from=deps /app/node_modules ./node_modules
+COPY package.json package-lock.json* ./
+COPY tsconfig.json ./tsconfig.json
+COPY packages/ ./packages/
+# Only copy local extensions. We DO NOT hardcode external clones here.
+# Any built-in plugins must be present in the local filesystem before build context creation.
+COPY extensions/ ./extensions/
+COPY config/config.example.json ./config/config.example.json
 
 RUN npm run build:backend
 RUN npm run build:umd
 RUN npm run build:app
+ENV NODE_ENV=production
 RUN npm prune --omit=dev
 
-# --- 4. Prepare Runtime Files ---
-# Clean Nginx webroot and copy built assets
-RUN rm -rf /usr/share/nginx/html/* && \
-    cp -r packages/frontend/dist/* /usr/share/nginx/html/
+FROM base AS development
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY package.json package-lock.json* ./
+COPY tsconfig.json ./tsconfig.json
+COPY packages/ ./packages/
+COPY extensions/ ./extensions/
+RUN npm run build:umd
+RUN npm run copy:wasm
+COPY --from=base /usr/local/bin/mediamtx /usr/local/bin/mediamtx
+COPY config/config.example.json /app/config.default.json
+EXPOSE 8000 8889 8554 9001
+CMD ["npm", "run", "dev"]
 
-# Plugin Frontend Asset Setup
+FROM base AS production
+WORKDIR /app
+COPY --from=builder /app/node_modules ./node_modules
+COPY package.json .
+COPY tsconfig.json .
+COPY --from=builder /app/packages ./packages
+COPY --from=builder /app/extensions ./extensions
+COPY --from=builder /app/packages/frontend/dist /usr/share/nginx/html/
+
+# Prepare webroot for plugins, but do not pre-populate it aggressively.
+# The entrypoint script will handle symlinking to persistent data.
 RUN mkdir -p /usr/share/nginx/html/plugins && \
     chmod -R 755 /usr/share/nginx/html
 
-RUN for plugin_dir in extensions/plugins/*; do \
-      if [ -d "$plugin_dir" ]; then \
-        plugin_id=$(basename "$plugin_dir"); \
-        dest_dir="/usr/share/nginx/html/plugins/$plugin_id"; \
-        mkdir -p "$dest_dir"; \
-        if [ -d "$plugin_dir/frontend" ]; then cp -r "$plugin_dir/frontend" "$dest_dir/"; fi; \
-        if [ -d "$plugin_dir/locales" ]; then cp -r "$plugin_dir/locales" "$dest_dir/"; fi; \
-        if [ -f "$plugin_dir/plugin.json" ]; then cp "$plugin_dir/plugin.json" "$dest_dir/"; fi; \
-      fi; \
-    done
-
 # Internal Copy of Configs
-# We use the files from the CLONED repo, not from COPY command, because of context limits.
 RUN rm -f /etc/nginx/sites-enabled/default
-RUN cp config/nginx.conf /etc/nginx/nginx.conf
-RUN cp config/config.example.json /app/config.default.json
-
-# Copy the entrypoint script.
-# Since the build context is the 'ha-addon' folder, the file is at the root of the context.
-COPY docker-entrypoint.sh /usr/local/bin/
+COPY config/nginx.conf /etc/nginx/nginx.conf
+COPY --from=base /usr/local/bin/mediamtx /usr/local/bin/mediamtx
+COPY config/config.example.json /app/config.default.json
+COPY ha-addon/docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-ARG BUILD_VERSION
-LABEL \
-    io.hass.name="GestureVision" \
-    io.hass.description="AI-Powered Gesture Control for your Smart Home" \
-    io.hass.type="addon" \
-    io.hass.version="${BUILD_VERSION}"
+# CRITICAL FIX for HA Backups & Plugin Resolution
+# 1. We removed the symlink of /data/plugins/node_modules -> /app/node_modules to fix backup errors.
+# 2. We enable --preserve-symlinks so Node resolves plugins via their symlinked path in /app/extensions/plugins.
+#    This makes Node look for dependencies in /app/extensions/plugins/node_modules (fail), 
+#    then /app/extensions/node_modules (fail), then /app/node_modules (SUCCESS!).
+ENV NODE_OPTIONS="--preserve-symlinks"
 
-EXPOSE 80 8888 1935 8554
-ENTRYPOINT ["docker-entrypoint.sh"]
+EXPOSE 80 8888 1935
 CMD ["npm", "run", "start:prod"]

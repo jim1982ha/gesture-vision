@@ -51,18 +51,15 @@ if [ -n "$SUPERVISOR_TOKEN" ]; then
     fi
 
     # 2. Link for Frontend (Nginx) access
-    # This ensures files downloaded to /data/plugins are servable via /plugins/ URL
     if [ -d "$NGINX_PLUGINS_DIR" ]; then
         echo "[HA Mode] Symlinking Nginx plugins dir to persistent storage..."
         rm -rf "$NGINX_PLUGINS_DIR"
         ln -s "$DATA_PLUGINS_DIR" "$NGINX_PLUGINS_DIR"
     fi
 
-    # Link node_modules for plugins to resolve dependencies
-    if [ -d "/app/node_modules" ]; then
-        rm -rf "$DATA_PLUGINS_DIR/node_modules" 
-        ln -s "/app/node_modules" "$DATA_PLUGINS_DIR/node_modules"
-    fi
+    # REMOVED: node_modules symlink creation. 
+    # This was causing HA Backup failures because it pointed outside the /data volume.
+    # We now use NODE_OPTIONS="--preserve-symlinks" in Dockerfile to handle resolution.
 
     # --- 1. Configure HA Plugin ---
     HA_PLUGIN_CONFIG_FILE="$APP_PLUGINS_DIR/$HA_PLUGIN_ID/config.home-assistant.json"

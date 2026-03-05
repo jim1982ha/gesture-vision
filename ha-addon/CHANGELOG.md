@@ -1,3 +1,6 @@
+## 4.2.13 (2026-03-05)
+- Fix symbolic link to allow backup
+
 ## 4.2.12 (2026-03-04)
 - New Fix for HA AddOns
 
