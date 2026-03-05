@@ -1,3 +1,6 @@
+## 4.2.27 (2026-03-05)
+- Fix AddOn entrypoint
+
 ## 4.2.26 (2026-03-05)
 - Fix AddOn entrypoint
 

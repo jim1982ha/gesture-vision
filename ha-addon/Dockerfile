@@ -42,10 +42,6 @@ RUN echo "Cloning GestureVision core (branch: ${BUILD_VERSION})..." && \
 # --- 2. Fetch Bundled Plugins (Generic Logic) ---
 RUN mkdir -p extensions/plugins
 
-# Copy the configuration file that lists the plugins
-# This file must exist in the 'ha-addon' directory on the host machine
-COPY bundled_plugins.txt /tmp/
-
 # Iterate over the list and clone each plugin. 
 RUN while read -r url; do \
       if [ -n "$url" ] && [ "${url:0:1}" != "#" ]; then \
