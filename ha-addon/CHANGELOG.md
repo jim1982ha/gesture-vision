@@ -1,3 +1,6 @@
+## 4.2.14 (2026-03-05)
+- Stop trying to COPY files from the local build context
+
 ## 4.2.13 (2026-03-05)
 - Fix symbolic link to allow backup
 
