@@ -37,9 +37,13 @@ WORKDIR /app
 # --- 1. Fetch Core Source Code ---
 # HA Supervisor restricts build context to the add-on folder.
 # We must clone the repo to get the root package.json and app code.
+# LOGIC: Try exact version -> Try 'v' prefixed version -> Fallback to main
 ARG BUILD_VERSION=main
-RUN echo "Cloning GestureVision core (branch: ${BUILD_VERSION})..." && \
-    git clone --depth 1 -b ${BUILD_VERSION} https://github.com/jim1982ha/gesture-vision.git .
+RUN echo "Cloning GestureVision core (target: ${BUILD_VERSION})..." && \
+    (git clone --depth 1 -b "${BUILD_VERSION}" https://github.com/jim1982ha/gesture-vision.git . || \
+     git clone --depth 1 -b "v${BUILD_VERSION}" https://github.com/jim1982ha/gesture-vision.git . || \
+     (echo "Warning: Version '${BUILD_VERSION}' not found. Falling back to 'main' branch." && \
+      git clone --depth 1 -b main https://github.com/jim1982ha/gesture-vision.git .))
 
 # --- 2. Overlay Add-on Context ---
 # Copy the files from the build context (ha-addon dir) over the cloned ha-addon dir.
