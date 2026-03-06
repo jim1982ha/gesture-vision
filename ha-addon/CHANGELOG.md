@@ -1,3 +1,6 @@
+## 4.2.31 (2026-03-06)
+- Fix github link
+
 ## 4.2.30 (2026-03-06)
 - Fix github link
 

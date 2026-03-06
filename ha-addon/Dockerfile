@@ -1,3 +1,4 @@
+// --- ha-addon/Dockerfile --- (complete version) ---
 # Dockerfile - Home Assistant Add-on
 FROM node:22-bookworm
 
@@ -88,7 +89,8 @@ RUN cp config/gesturevision.example.json /app/config.default.json
 # Ensure we copy the entrypoint from the overlayed ha-addon folder
 RUN cp ha-addon/docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
-RUN cp ha-addon/apparmor.txt /usr/share/apparmor/gesture-vision
+# Fix: Create parent directory before copying apparmor.txt
+RUN mkdir -p /usr/share/apparmor && cp ha-addon/apparmor.txt /usr/share/apparmor/gesture-vision
 
 # Runtime Environment
 ENV NODE_OPTIONS="--preserve-symlinks"
