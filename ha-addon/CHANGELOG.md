@@ -1,3 +1,6 @@
+## 4.2.35 (2026-03-06)
+-y
+
 ## 4.2.34 (2026-03-06)
 ## Improvements
 - Fixed WebSocket connection
@@ -41,7 +44,7 @@
 - Standard Add-on Structure
 
 ## 4.2.21 (2026-03-05)
-- Fix RTSP feed connection for AddOns
+- Fix RTSP feed connection for AddOns (last working)
 
 ## 4.2.20 (2026-03-05)
 - make sure the RtspConnector isn't silently failing

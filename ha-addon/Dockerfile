@@ -69,11 +69,13 @@ RUN npm prune --omit=dev
 
 # --- 4. Cleanup Build Artifacts & Prepare Runtime ---
 # CRITICAL CHANGE: Move bundled plugins to a staging area instead of deleting them.
-# This allows the entrypoint script to sync them to /data (persistence) on startup,
-# ensuring the Add-on always runs with the matching version of the plugins.
+# Fix: Use 'cp -r extensions/plugins/.' instead of '*' to avoid "no such file" errors 
+# if the directory contains only hidden files (like .gitkeep) or shell globbing fails.
+# We also wipe and recreate the directory structure for runtime linking.
 RUN mkdir -p /app/bundled_plugins && \
-    cp -r extensions/plugins/* /app/bundled_plugins/ && \
-    rm -rf extensions/plugins/*
+    if [ -d "extensions/plugins" ]; then cp -r extensions/plugins/. /app/bundled_plugins/; fi && \
+    rm -rf extensions/plugins && \
+    mkdir -p extensions/plugins
 
 # Nginx setup
 RUN rm -f /etc/nginx/sites-enabled/default
