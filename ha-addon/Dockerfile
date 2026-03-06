@@ -1,4 +1,3 @@
-// --- ha-addon/Dockerfile --- (complete version) ---
 # Dockerfile - Home Assistant Add-on
 FROM node:22-bookworm
 
