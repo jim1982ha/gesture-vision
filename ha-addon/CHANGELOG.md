@@ -1,3 +1,9 @@
+## 4.2.34 (2026-03-06)
+## Improvements
+- Fixed WebSocket connection
+- Updated Nginx config
+- Better error handling
+
 ## 4.2.33 (2026-03-06)
 - - Fix: Bundle plugins in Add-on image to prevent missing dependencies and ensure version match.- Fix: Robust plugin syncing logic in entrypoint to support persistence and updates.
 
