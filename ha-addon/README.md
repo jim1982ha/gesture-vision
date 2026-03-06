@@ -2,7 +2,6 @@
 
 ![Supports aarch64 Architecture](https://img.shields.io/badge/aarch64-yes-green.svg)
 ![Supports amd64 Architecture](https://img.shields.io/badge/amd64-yes-green.svg)
-![Security Rating](https://img.shields.io/badge/Security-7-blue)
 
 **Intuitive Gesture Control for a Smarter World.**
 
