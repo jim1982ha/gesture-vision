@@ -1,41 +1,66 @@
 #include <tunables/global>
+#include <abstractions/base>
+#include <abstractions/nameservice>
+#include <abstractions/user-tmp>
 
-profile gesture-vision flags=(attach_disconnected,complain) {
-  #include <abstractions/base>
-  #include <abstractions/node>
-  #include <abstractions/nameservice>
-  #include <abstractions/user-tmp>
+# Network Access
+network inet stream,
+network inet6 stream,
+network inet dgram,
+network inet6 dgram,
+network raw,
+network packet,
 
-  # --- Device Access (Webcam/V4L2) ---
-  /dev/video* rw,
+# Device Access (Webcams)
+/dev/video* rw,
 
-  # --- Network Access ---
-  # Allow all network access for MediaMTX, Nginx, and Node
-  network,
+# File Access - App Structure
+/app/** r,
+/app/** ix,
+/app/** m,
+/data/** rwk,
+/config/** rwk,
+/run/** rw,
+/tmp/** rwk,
 
-  # --- Application Files ---
-  /app/** r,
-  /app/** ix,
-  /app/** m,
-  /data/** rw,
-  /data/** ix,
-  /data/** m,
-  /run/** rw,
-  /tmp/** rw,
-  /var/log/nginx/** rw,
-  /var/lib/nginx/** rw,
-  /usr/local/bin/mediamtx ix,
-  /usr/local/bin/docker-entrypoint.sh ix,
-  /usr/bin/node ix,
-  /usr/sbin/nginx ix,
+# Nginx specific
+/var/log/nginx/** rw,
+/var/lib/nginx/** rw,
+/etc/nginx/** r,
 
-  # --- Signal Handling ---
-  signal (receive, send) set=("kill", "term", "int", "hup", "usr1", "usr2", "cont", "stop"),
+# System Binaries required by Node/Scripts/Plugins
+/usr/local/bin/mediamtx ixr,
+/usr/local/bin/docker-entrypoint.sh ixr,
+/usr/sbin/nginx ixr,
+/usr/local/bin/node ixr,
+/usr/bin/git ixr,
+/usr/bin/curl ixr,
+/bin/dash ixr,
+/bin/bash ixr,
+/bin/sh ixr,
+/bin/mkdir ixr,
+/bin/cp ixr,
+/bin/rm ixr,
+/bin/ln ixr,
+/bin/ls ixr,
+/bin/cat ixr,
+/bin/chmod ixr,
+/bin/basename ixr,
+/usr/bin/jq ixr,
+/usr/bin/rsync ixr,
 
-  # --- Capabilities (MediaMTX might need these for binding ports/sockets) ---
-  capability net_bind_service,
-  capability chown,
-  capability setgid,
-  capability setuid,
-  capability dac_override,
-}
+# Shared Libraries
+/lib/** mr,
+/usr/lib/** mr,
+
+# Capabilities
+capability net_bind_service,
+capability chown,
+capability setgid,
+capability setuid,
+capability dac_override,
+capability sys_admin,
+
+# Process Management
+signal,
+ptrace,

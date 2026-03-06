@@ -1,3 +1,6 @@
+## 4.2.23 (2026-03-06)
+Fixing apparmor.txt file
+
 ## 4.2.22 (2026-03-06)
 working version
 
