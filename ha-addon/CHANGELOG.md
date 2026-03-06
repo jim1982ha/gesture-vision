@@ -1,3 +1,6 @@
+## 4.2.33 (2026-03-06)
+- - Fix: Bundle plugins in Add-on image to prevent missing dependencies and ensure version match.- Fix: Robust plugin syncing logic in entrypoint to support persistence and updates.
+
 ## 4.2.32 (2026-03-06)
 - Fix github link
 
