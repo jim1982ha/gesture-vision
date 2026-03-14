@@ -91,4 +91,4 @@ ENV MTX_API="yes"
 ENV MTX_APIADDRESS="127.0.0.1:9997"
 
 EXPOSE 80 8888 1935
-CMD["npm", "run", "start:prod"]
+CMD ["npm", "run", "start:prod"]
