@@ -10,8 +10,8 @@ DATA_PLUGINS_DIR="/data/plugins"
 NGINX_PLUGINS_DIR="/usr/share/nginx/html/plugins"
 HA_PLUGIN_ID="gesture-vision-plugin-home-assistant"
 
-# Dynamically fetch the version
-APP_VERSION=$(node -p "require('./package.json').version" 2>/dev/null || echo "Unknown")
+# Dynamically fetch the version using jq (safer/faster than spinning up Node here)
+APP_VERSION=$(jq -r '.version' /app/package.json 2>/dev/null || echo "Unknown")
 
 echo "--- GestureVision HA Add-on Starting (v${APP_VERSION}) ---"
 
@@ -35,8 +35,7 @@ if [ -n "$SUPERVISOR_TOKEN" ]; then
             if [ ! -d "$target_plugin_path" ]; then
                 cp -r "$p" "$DATA_PLUGINS_DIR/"
             else
-                # Smart update: update code but preserve config [ -d "$p/frontend" ] && rm -rf "$target_plugin_path/frontend" && cp -r "$p/frontend" "$target_plugin_path/"
-                [ -d "$p/locales" ] && rm -rf "$target_plugin_path/locales" && cp -r "$p/locales" "$target_plugin_path/"
+                # Smart update: update code but preserve config[ -d "$p/frontend" ] && rm -rf "$target_plugin_path/frontend" && cp -r "$p/frontend" "$target_plugin_path/"[ -d "$p/locales" ] && rm -rf "$target_plugin_path/locales" && cp -r "$p/locales" "$target_plugin_path/"
                 [ -f "$p/plugin.json" ] && cp "$p/plugin.json" "$target_plugin_path/"
                 ls "$p"/*.ts 1> /dev/null 2>&1 && cp "$p"/*.ts "$target_plugin_path/"[ -d "$p/helpers" ] && rm -rf "$target_plugin_path/helpers" && cp -r "$p/helpers" "$target_plugin_path/"
             fi
@@ -45,7 +44,7 @@ if [ -n "$SUPERVISOR_TOKEN" ]; then
 
     # --- CRITICAL: Link Persistence to App and Nginx ---
     # 1. Link for Backend (Node.js) access
-    if [ -d "$APP_PLUGINS_DIR" ] && [ ! -L "$APP_PLUGINS_DIR" ]; then
+    if [ -d "$APP_PLUGINS_DIR" ] &&[ ! -L "$APP_PLUGINS_DIR" ]; then
         echo "[HA Mode] Symlinking app plugins dir to persistent storage..."
         rm -rf "$APP_PLUGINS_DIR"
         ln -s "$DATA_PLUGINS_DIR" "$APP_PLUGINS_DIR"

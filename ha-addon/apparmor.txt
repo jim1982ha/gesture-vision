@@ -17,17 +17,28 @@ profile gesturevision flags=(attach_disconnected,mediate_deleted) {
   /dev/video* rw,
 
   # File Access - App Structure
-  # Granting Read, Write, Lock, Map, and Execute within safe container bounds
+  # Granting Read, Write, Lock, Map, and Execute on directories and contents
+  /app/ rwk,
   /app/** rwkmix,
+  /data/ rwk,
   /data/** rwkmix,
+  /config/ rwk,
   /config/** rwkmix,
+  /run/ rwk,
   /run/** rwkmix,
+  /tmp/ rwk,
   /tmp/** rwkmix,
+
+  # System Configs & SSL (Required by Node.js 22+)
+  /etc/ssl/** r,
+  /etc/ca-certificates/** r,
+  /usr/share/ca-certificates/** r,
 
   # Nginx specific
   /var/log/nginx/** rw,
   /var/lib/nginx/** rw,
   /etc/nginx/** r,
+  /usr/share/nginx/html/ rwk,
   /usr/share/nginx/html/** rwkmix,
 
   # System Binaries required by Node/Scripts/Plugins
