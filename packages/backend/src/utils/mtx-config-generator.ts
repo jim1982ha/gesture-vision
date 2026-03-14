@@ -5,11 +5,9 @@ import { normalizeNameForMtx } from '#shared/index.js';
 
 const MTX_CONFIG_PATH = '/tmp/generated_mediamtx.yml';
 
-// FIX: Determine correct backend host for internal callbacks.
-// In HA Add-on or single-container mode, this must be localhost/127.0.0.1.
-// In Docker Compose, it might be the service name 'gesturevision'.
-const IS_HA_ADDON = !!process.env.SUPERVISOR_TOKEN;
-const BACKEND_HOST = process.env.NODE_ENV === 'development' ? 'localhost' : (IS_HA_ADDON ? '127.0.0.1' : 'gesturevision');
+// FIX: Internal callbacks always use 127.0.0.1 since MediaMTX and Node run in the same container.
+// This ensures reliable webhook delivery independent of Docker network modes (host, bridge) or HA.
+const BACKEND_HOST = process.env.NODE_ENV === 'development' ? 'localhost' : '127.0.0.1';
 const BACKEND_PORT = process.env.BACKEND_API_PORT_INTERNAL || '9001';
 
 /**

@@ -5,17 +5,19 @@ import { callMtxApi } from '../mtx-api-helpers.js';
 interface MtxPathConf {
     name?: string; source?: string; sourceOnDemand?: boolean; runOnReady?: string; runOnNotReady?: string;
 }
+
 interface MtxPathConfList { items?: MtxPathConf[] }
+
 interface MtxPathConfPayload {
     source?: string; sourceOnDemand?: boolean; sourceOnDemandStartTimeout?: string;
     sourceOnDemandCloseAfter?: string; runOnReady?: string; runOnNotReady?: string;
 }
+
 type BroadcastStreamStatusFn = (payload: StreamStatusPayload) => void;
 
-// FIX: In HA Add-on mode (and generally for single-container setups), we should refer to localhost.
-// 'gesturevision' service name only works in Docker Compose networks between separate containers.
-const IS_HA_ADDON = !!process.env.SUPERVISOR_TOKEN;
-const BACKEND_SERVICE_NAME = process.env.NODE_ENV === 'development' ? 'localhost' : (IS_HA_ADDON ? '127.0.0.1' : 'gesturevision');
+// FIX: Internal callbacks always use 127.0.0.1 since MediaMTX and Node run in the same container.
+// This avoids relying on Docker DNS which can fail depending on the orchestrator.
+const BACKEND_SERVICE_NAME = process.env.NODE_ENV === 'development' ? 'localhost' : '127.0.0.1';
 const BACKEND_SERVICE_PORT = process.env.BACKEND_API_PORT_INTERNAL || process.env.DEV_BACKEND_API_PORT_INTERNAL || '9001';
 
 export class MtxMonitorService {
@@ -64,18 +66,19 @@ export class MtxMonitorService {
         }
 
         try {
-            const desiredPaths = new Map((rtspSources || []).filter(s => s?.name && s.url).map(s => [normalizeNameForMtx(s.name), s]));
+            const desiredPaths = new Map((rtspSources ||[]).filter(s => s?.name && s.url).map(s =>[normalizeNameForMtx(s.name), s]));
             const mtxPathsData = await callMtxApi<MtxPathConfList>('/v3/config/paths/list');
-            const currentPaths = new Map((mtxPathsData?.items || []).filter(p => p.name).map(p => [p.name!, p]));
-            
+            const currentPaths = new Map((mtxPathsData?.items ||[]).filter(p => p.name).map(p => [p.name!, p]));
+
             const pathsToRemove = Array.from(currentPaths.keys()).filter(key => !desiredPaths.has(key));
-            
             // Always sync all desired paths to ensure their configuration is up-to-date.
             const pathsToSync = Array.from(desiredPaths.keys());
 
             for (const key of pathsToRemove) await this.deletePathConfig(key);
             for (const key of pathsToSync) await this.addOrUpdatePathConfig(key, desiredPaths.get(key)!);
+
         } catch (e) { console.error("[MtxMonitorService] Critical error during stream/path sync:", (e as Error).message); }
+        
         console.log("[MtxMonitorService SYNC_END] Finished sync.");
     }
 
@@ -86,7 +89,7 @@ export class MtxMonitorService {
                 // Simple health check call
                 await callMtxApi('/v3/paths/list'); 
                 return true;
-            } catch (_e) { // Renamed unused variable to _e
+            } catch (_e) { 
                 if (i === retries - 1) return false;
                 await new Promise(r => setTimeout(r, delay));
             }
@@ -96,7 +99,6 @@ export class MtxMonitorService {
 
     private createPayload(source: RtspSourceConfig, key: string): MtxPathConfPayload {
         const getWebhookUrl = (status: 'ready' | 'notReady') => `http://${BACKEND_SERVICE_NAME}:${BACKEND_SERVICE_PORT}/api/mtx-hook/${status}/${encodeURIComponent(key)}`;
-        
         const basePayload: MtxPathConfPayload = { source: source.url, sourceOnDemand: !!source.sourceOnDemand };
         
         if (basePayload.sourceOnDemand) {

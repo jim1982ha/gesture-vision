@@ -70,7 +70,6 @@ export class RtspConnector {
         this._peerConnection.ontrack = (event: RTCTrackEvent) => {
           this.#clearTrackTimeout();
           console.log(`[RTSP] Received track: ${event.track.kind}, ID: ${event.track.id}`);
-          
           if (event.track.kind === "video" && event.streams?.[0]) {
             if (!this._stream) {
               this._stream = event.streams[0];
@@ -85,16 +84,15 @@ export class RtspConnector {
             // Specific hint about H.265 which is a common cause for this timeout
             const h265Hint = "This often happens if the camera is sending H.265 video, which browsers do not support via WebRTC. Please switch your camera to H.264.";
             console.warn(h265Hint);
-            
             // Notify user via UI
             pubsub.publish(UI_EVENTS.SHOW_ERROR, { message: `RTSP Timeout: ${h265Hint}`, type: "warning" });
-            
             cleanupAndReject(new WebcamError("RTSP_TRACK_TIMEOUT", `Timeout waiting for video track. ${h265Hint}`));
           }
         }, TRACK_TIMEOUT_MS);
       });
 
       this._peerConnection.addTransceiver("video", { direction: "recvonly" });
+
       const offer = await this._peerConnection.createOffer();
       await this._peerConnection.setLocalDescription(offer);
 
@@ -102,7 +100,14 @@ export class RtspConnector {
       const isProdLike = metaEnv.MODE === 'production' || metaEnv.MODE === 'apk';
       const whepBase = isProdLike ? (window.runtimeConfig?.WHEP_BASE_URL || metaEnv.VITE_PROD_WHEP_BASE_URL || '') : '/whep-proxy';
       
-      const fullWhepUrl = `${whepBase.replace(/\/$/, "")}/${pathName.replace(/^\//, "")}/whep`;
+      let fullWhepUrl: string;
+      if (whepBase) {
+          fullWhepUrl = `${whepBase.replace(/\/$/, "")}/${pathName.replace(/^\//, "")}/whep`;
+      } else {
+          // Use relative path for Ingress compatibility to prevent dropping the HA Supervisor proxy path
+          fullWhepUrl = `${pathName.replace(/^\//, "")}/whep`;
+      }
+
       console.log(`[RTSP] Requesting WHEP stream from: ${fullWhepUrl}`);
 
       const response = await fetch(fullWhepUrl, {
@@ -119,16 +124,17 @@ export class RtspConnector {
 
       const answerSdp = await response.text();
       if (!answerSdp) throw new WebcamError("RTSP_WHEP_NO_ANSWER", "Empty SDP answer received.");
-      
+
       if (this.#abortController?.signal.aborted) throw new DOMException("Aborted after WHEP response.", "AbortError");
 
       await this._peerConnection.setRemoteDescription({ type: "answer", sdp: answerSdp });
+
       return await streamPromise;
 
     } catch (error) {
       this.#clearTrackTimeout(); // Ensure timeout is cleared on any failure
       this.disconnect();
-      
+
       if ((error as Error).name === "AbortError") throw error;
 
       if (this._connectionAttempts < MAX_CONNECTION_ATTEMPTS) {
