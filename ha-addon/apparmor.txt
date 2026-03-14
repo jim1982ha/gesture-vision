@@ -30,15 +30,16 @@ profile gesturevision flags=(attach_disconnected,mediate_deleted) {
   /tmp/** rwkmix,
   /var/run/** rwkmix,
 
-  # System Configs & SSL (Required by Node.js 22+)
+  # System Configs, SSL, and Perl (Required by Node.js 22+ and Nginx)
   /etc/ssl/** r,
   /etc/ca-certificates/** r,
-  /usr/share/ca-certificates/** r,
+  /etc/perl/** r,
 
-  # Nginx specific (giving access to linked modules)
+  # Nginx specific (giving access to linked modules and shared resources)
   /var/log/nginx/** rw,
   /var/lib/nginx/** rw,
   /etc/nginx/** rwkmix,
+  /usr/share/** r,
   /usr/share/nginx/** rwkmix,
 
   # System Binaries required by Node/Scripts/Plugins
