@@ -24,7 +24,7 @@ RUN if [ -z "$BUILD_ARCH" ]; then \
     else \
       ARCH=$BUILD_ARCH; \
     fi; \
-    if [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then MTX_ARCH="arm64v8"; \
+    if [ "$ARCH" = "aarch64" ] ||[ "$ARCH" = "arm64" ]; then MTX_ARCH="arm64v8"; \
     elif [ "$ARCH" = "armv7" ]; then MTX_ARCH="armv7"; \
     elif [ "$ARCH" = "amd64" ] || [ "$ARCH" = "x86_64" ]; then MTX_ARCH="amd64"; \
     else echo "Unsupported Architecture: $ARCH" && exit 1; fi; \
@@ -37,9 +37,12 @@ WORKDIR /app
 # --- 1. Fetch Core Source Code ---
 # HA Supervisor restricts build context to the add-on folder.
 # We must clone the repo to get the root package.json and app code.
+# Added fallback logic: tries exact version, then v-prefixed version, then main.
 ARG BUILD_VERSION=main
-RUN echo "Cloning GestureVision core (branch: ${BUILD_VERSION})..." && \
-    git clone --depth 1 -b ${BUILD_VERSION} https://github.com/jim1982ha/gesture-vision.git .
+RUN echo "Cloning GestureVision core (target: ${BUILD_VERSION})..." && \
+    (git clone --depth 1 -b ${BUILD_VERSION} https://github.com/jim1982ha/gesture-vision.git . || \
+     git clone --depth 1 -b v${BUILD_VERSION} https://github.com/jim1982ha/gesture-vision.git . || \
+     (echo "Fallback to main branch..." && git clone --depth 1 -b main https://github.com/jim1982ha/gesture-vision.git .))
 
 # --- 2. Overlay Add-on Context ---
 # Copy the files from the build context (ha-addon dir) over the cloned ha-addon dir.
