@@ -1,6 +1,7 @@
-# Dockerfile - Standalone Production & Development
-FROM node:22-bookworm AS base
-WORKDIR /app
+# Dockerfile - Home Assistant Add-on
+FROM node:22-bookworm
+
+# Install dependencies
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     curl \
@@ -9,126 +10,85 @@ RUN apt-get update && \
     iputils-ping \
     nginx-extras \
     git \
-    jq && \
+    jq \
+    rsync && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# Install MediaMTX with robust Architecture Detection for HA Supervisor
+# Install MediaMTX
 ARG MEDIAMTX_VERSION=v1.12.0
-# BUILD_ARCH is automatically passed by HA Supervisor (amd64, aarch64, armv7)
 ARG BUILD_ARCH
-
-RUN if [ -z "$BUILD_ARCH" ]; then \
-      # Fallback for standalone Docker builds (outside HA)
+# Robust architecture detection
+RUN if[ -z "$BUILD_ARCH" ]; then \
       ARCH=$(dpkg --print-architecture); \
     else \
       ARCH=$BUILD_ARCH; \
     fi; \
-    # Map Architecture to MediaMTX naming convention
     if [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then MTX_ARCH="arm64v8"; \
     elif [ "$ARCH" = "armv7" ]; then MTX_ARCH="armv7"; \
-    elif [ "$ARCH" = "amd64" ] || [ "$ARCH" = "x86_64" ]; then MTX_ARCH="amd64"; \
+    elif[ "$ARCH" = "amd64" ] || [ "$ARCH" = "x86_64" ]; then MTX_ARCH="amd64"; \
     else echo "Unsupported Architecture: $ARCH" && exit 1; fi; \
-    \
     echo "Downloading MediaMTX for architecture: $MTX_ARCH (System: $ARCH)..."; \
     curl -f -Ls "https://github.com/bluenviron/mediamtx/releases/download/${MEDIAMTX_VERSION}/mediamtx_${MEDIAMTX_VERSION}_linux_${MTX_ARCH}.tar.gz" | tar -xz -C /usr/local/bin/
-
 RUN chmod +x /usr/local/bin/mediamtx
 
-FROM base AS deps
 WORKDIR /app
-# Context is limited in HA build, dependency install happens in builder
-COPY package.json package-lock.json* ./
-RUN npm install --include=dev
 
-FROM base AS builder
-WORKDIR /app
-ARG VITE_PROD_WHEP_BASE_URL
-ARG VITE_PROD_HA_DEFAULT_URL
-
-# --- 1. Fetch Source Code via Git ---
+# --- 1. Fetch Core Source Code ---
+# HA Supervisor restricts build context to the add-on folder.
+# We must clone the repo to get the root package.json and app code.
 ARG BUILD_VERSION=main
 RUN echo "Cloning GestureVision core (branch: ${BUILD_VERSION})..." && \
-    git clone https://github.com/jim1982ha/gesture-vision.git . && \
-    (git checkout ${BUILD_VERSION} || git checkout main)
+    git clone --depth 1 -b ${BUILD_VERSION} https://github.com/jim1982ha/gesture-vision.git .
 
-# --- 2. Fetch Core Plugins ---
-RUN mkdir -p extensions/plugins
-
-# Home Assistant Plugin
-RUN if [ ! -d "extensions/plugins/gesture-vision-plugin-home-assistant" ]; then \
-      git clone --depth 1 https://github.com/jim1982ha/gesture-vision-plugin-home-assistant.git extensions/plugins/gesture-vision-plugin-home-assistant; \
-    fi
-
-# Dashboard Plugin
-RUN if [ ! -d "extensions/plugins/gesture-vision-plugin-dashboard" ]; then \
-      git clone --depth 1 https://github.com/jim1982ha/gesture-vision-plugin-dashboard.git extensions/plugins/gesture-vision-plugin-dashboard; \
-    fi
+# --- 2. Overlay Add-on Context ---
+# Copy the files from the build context (ha-addon dir) over the cloned ha-addon dir.
+# This ensures we use the specific config/entrypoint being built.
+COPY . ha-addon/
 
 # --- 3. Install & Build ---
 RUN npm install --include=dev
 
-# Override base path for Ingress
+# Override base path for Ingress compatibility
 RUN sed -i 's|const appBase = "/";|const appBase = "./";|' packages/frontend/vite.config.js
 
+# Environment variables for build
+ARG VITE_PROD_WHEP_BASE_URL
+ARG VITE_PROD_HA_DEFAULT_URL
 ENV NODE_ENV=production
+
+# Build backend and frontend
 RUN npm run build:backend
 RUN npm run build:umd
 RUN npm run build:app
 RUN npm prune --omit=dev
 
-FROM base AS development
-WORKDIR /app
-CMD ["npm", "run", "dev"]
+# --- 4. Cleanup Build Artifacts & Prepare Runtime ---
+# Ensure local extension folders are empty so they can be linked to /data at runtime
+RUN rm -rf extensions/plugins/*
 
-FROM base AS production
-WORKDIR /app
+# Nginx setup
+RUN rm -f /etc/nginx/sites-enabled/default
+RUN cp config/nginx.conf /etc/nginx/nginx.conf
 
-# --- 4. Copy Artifacts FROM BUILDER ---
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package.json .
-COPY --from=builder /app/tsconfig.json .
-COPY --from=builder /app/packages ./packages
-COPY --from=builder /app/extensions ./extensions
-COPY --from=builder /app/packages/frontend/dist /usr/share/nginx/html/
+# Move frontend build to Nginx webroot
+RUN rm -rf /usr/share/nginx/html/* && \
+    cp -r packages/frontend/dist/* /usr/share/nginx/html/
 
-# Prepare webroot for plugins
+# Ensure plugin webroot directory exists (will be linked at runtime)
 RUN mkdir -p /usr/share/nginx/html/plugins && \
     chmod -R 755 /usr/share/nginx/html
 
-# Populate plugin assets for Nginx
-RUN for plugin_dir in extensions/plugins/*; do \
-      if [ -d "$plugin_dir" ]; then \
-        plugin_id=$(basename "$plugin_dir"); \
-        dest_dir="/usr/share/nginx/html/plugins/$plugin_id"; \
-        mkdir -p "$dest_dir"; \
-        if [ -d "$plugin_dir/frontend" ]; then cp -r "$plugin_dir/frontend" "$dest_dir/"; fi; \
-        if [ -d "$plugin_dir/locales" ]; then cp -r "$plugin_dir/locales" "$dest_dir/"; fi; \
-        if [ -f "$plugin_dir/plugin.json" ]; then cp "$plugin_dir/plugin.json" "$dest_dir/"; fi; \
-      fi; \
-    done
-
-# Internal Copy of Configs
-RUN rm -f /etc/nginx/sites-enabled/default
-COPY --from=builder /app/config/nginx.conf /etc/nginx/nginx.conf
-COPY --from=base /usr/local/bin/mediamtx /usr/local/bin/mediamtx
-COPY --from=builder /app/config/config.example.json /app/config.default.json
-
-# Entrypoint - sourced from builder's cloned repo path
-COPY --from=builder /app/ha-addon/docker-entrypoint.sh /usr/local/bin/
+# Copy config and entrypoint
+RUN cp config/gesturevision.example.json /app/config.default.json
+# Ensure we copy the entrypoint from the overlayed ha-addon folder
+RUN cp ha-addon/docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-# Copy AppArmor profile
-COPY --from=builder /app/ha-addon/apparmor.txt /usr/share/apparmor/gesture-vision
-
-# Environment settings
-# 1. Allow plugins to find node_modules in /app even if linked from /data
+# Runtime Environment
 ENV NODE_OPTIONS="--preserve-symlinks"
-
-# 2. MediaMTX Configuration for Add-on
-# FIX: Explicitly enable MediaMTX API so the backend can manage streams
 ENV MTX_API="yes"
 ENV MTX_APIADDRESS="127.0.0.1:9997"
 
 EXPOSE 80 8888 1935
-CMD ["npm", "run", "start:prod"]
+CMD["npm", "run", "start:prod"]
