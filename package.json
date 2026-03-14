@@ -1,7 +1,7 @@
 {
   "name": "gesture-vision",
   "private": true,
-  "version": "4.2.30",
+  "version": "4.2.31",
   "type": "module",
   "scripts": {
     "copy:wasm": "mkdir -p packages/frontend/public/wasm && cp -r node_modules/@mediapipe/tasks-vision/wasm/* packages/frontend/public/wasm/",

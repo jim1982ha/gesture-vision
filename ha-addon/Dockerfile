@@ -18,18 +18,25 @@ RUN apt-get update && \
 # Install MediaMTX
 ARG MEDIAMTX_VERSION=v1.12.0
 ARG BUILD_ARCH
-# Robust architecture detection
+
+# Robust architecture detection (reformatted for strict spacing safety)
 RUN if [ -z "$BUILD_ARCH" ]; then \
       ARCH=$(dpkg --print-architecture); \
     else \
       ARCH=$BUILD_ARCH; \
     fi; \
-    if [ "$ARCH" = "aarch64" ] ||[ "$ARCH" = "arm64" ]; then MTX_ARCH="arm64v8"; \
-    elif [ "$ARCH" = "armv7" ]; then MTX_ARCH="armv7"; \
-    elif [ "$ARCH" = "amd64" ] || [ "$ARCH" = "x86_64" ]; then MTX_ARCH="amd64"; \
-    else echo "Unsupported Architecture: $ARCH" && exit 1; fi; \
+    if [ "$ARCH" = "aarch64" ] ||[ "$ARCH" = "arm64" ]; then \
+      MTX_ARCH="arm64v8"; \
+    elif [ "$ARCH" = "armv7" ]; then \
+      MTX_ARCH="armv7"; \
+    elif [ "$ARCH" = "amd64" ] ||[ "$ARCH" = "x86_64" ]; then \
+      MTX_ARCH="amd64"; \
+    else \
+      echo "Unsupported Architecture: $ARCH" && exit 1; \
+    fi; \
     echo "Downloading MediaMTX for architecture: $MTX_ARCH (System: $ARCH)..."; \
     curl -f -Ls "https://github.com/bluenviron/mediamtx/releases/download/${MEDIAMTX_VERSION}/mediamtx_${MEDIAMTX_VERSION}_linux_${MTX_ARCH}.tar.gz" | tar -xz -C /usr/local/bin/
+
 RUN chmod +x /usr/local/bin/mediamtx
 
 WORKDIR /app
@@ -37,7 +44,6 @@ WORKDIR /app
 # --- 1. Fetch Core Source Code ---
 # HA Supervisor restricts build context to the add-on folder.
 # We must clone the repo to get the root package.json and app code.
-# Added fallback logic: tries exact version, then v-prefixed version, then main.
 ARG BUILD_VERSION=main
 RUN echo "Cloning GestureVision core (target: ${BUILD_VERSION})..." && \
     (git clone --depth 1 -b ${BUILD_VERSION} https://github.com/jim1982ha/gesture-vision.git . || \
@@ -82,11 +88,13 @@ RUN rm -rf /usr/share/nginx/html/* && \
 RUN mkdir -p /usr/share/nginx/html/plugins && \
     chmod -R 755 /usr/share/nginx/html
 
-# Copy config and entrypoint
+# Copy config and entrypoint (ONLY checking for gesturevision.example.json)
 RUN cp config/gesturevision.example.json /app/config.default.json
+
 # Ensure we copy the entrypoint from the overlayed ha-addon folder
 RUN cp ha-addon/docker-entrypoint.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+RUN cp ha-addon/apparmor.txt /usr/share/apparmor/gesture-vision
 
 # Runtime Environment
 ENV NODE_OPTIONS="--preserve-symlinks"
