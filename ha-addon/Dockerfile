@@ -25,11 +25,11 @@ RUN if [ -z "$BUILD_ARCH" ]; then \
     else \
       ARCH=$BUILD_ARCH; \
     fi; \
-    if [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then \
+    if [ "$ARCH" = "aarch64" ] ||[ "$ARCH" = "arm64" ]; then \
       MTX_ARCH="arm64v8"; \
     elif [ "$ARCH" = "armv7" ]; then \
       MTX_ARCH="armv7"; \
-    elif [ "$ARCH" = "amd64" ] || [ "$ARCH" = "x86_64" ]; then \
+    elif [ "$ARCH" = "amd64" ] ||[ "$ARCH" = "x86_64" ]; then \
       MTX_ARCH="amd64"; \
     else \
       echo "Unsupported Architecture: $ARCH" && exit 1; \
@@ -49,6 +49,13 @@ RUN echo "Cloning GestureVision core (target: ${BUILD_VERSION})..." && \
     (git clone --depth 1 -b ${BUILD_VERSION} https://github.com/jim1982ha/gesture-vision.git . || \
      git clone --depth 1 -b v${BUILD_VERSION} https://github.com/jim1982ha/gesture-vision.git . || \
      (echo "Fallback to main branch..." && git clone --depth 1 -b main https://github.com/jim1982ha/gesture-vision.git .))
+
+# --- 1.5 Fetch Mandatory Plugins for HA Add-on ---
+# The HA plugin is mandatory in the Add-on. Since it's in a separate repo and ignored by the core 
+# .gitignore, we must explicitly clone it here before building so Vite and TypeScript can bundle it.
+RUN echo "Fetching mandatory Home Assistant plugin..." && \
+    git clone --depth 1 https://github.com/jim1982ha/gesture-vision-plugin-home-assistant.git extensions/plugins/gesture-vision-plugin-home-assistant && \
+    rm -rf extensions/plugins/gesture-vision-plugin-home-assistant/.git
 
 # --- 2. Overlay Add-on Context ---
 # Copy the files from the build context (ha-addon dir) over the cloned ha-addon dir.
@@ -72,7 +79,7 @@ RUN npm run build:umd
 RUN npm run build:app
 RUN npm prune --omit=dev
 
-# --- 4. Cleanup Build Artifacts & Prepare Runtime ---
+# --- 4. Prepare Runtime ---
 # Nginx setup
 RUN rm -f /etc/nginx/sites-enabled/default
 RUN cp config/nginx.conf /etc/nginx/nginx.conf
