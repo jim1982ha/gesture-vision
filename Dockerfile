@@ -1,4 +1,3 @@
-# --- Dockerfile --- (complete version) ---
 # Dockerfile - Standalone Production & Development
 FROM node:22-bookworm AS base
 WORKDIR /app
@@ -30,7 +29,7 @@ COPY package.json package-lock.json* ./
 COPY tsconfig.json ./tsconfig.json
 COPY packages/ ./packages/
 COPY extensions/ ./extensions/
-COPY config/config.example.json ./config/config.example.json
+COPY config/gesturevision.example.json ./config/gesturevision.example.json
 RUN npm run build:backend
 RUN npm run build:umd
 RUN npm run build:app
@@ -47,7 +46,7 @@ COPY extensions/ ./extensions/
 RUN npm run build:umd
 RUN npm run copy:wasm
 COPY --from=base /usr/local/bin/mediamtx /usr/local/bin/mediamtx
-COPY config/config.example.json /app/config.default.json
+COPY config/gesturevision.example.json /app/config.default.json
 EXPOSE 8000 8889 8554 9001
 CMD ["npm", "run", "dev"]
 
@@ -73,7 +72,7 @@ RUN for plugin_dir in /app/extensions/plugins/*; do \
 RUN chmod -R 755 /usr/share/nginx/html/*
 COPY config/nginx.conf /etc/nginx/nginx.conf
 COPY --from=base /usr/local/bin/mediamtx /usr/local/bin/mediamtx
-COPY config/config.example.json /app/config.default.json
+COPY config/gesturevision.example.json /app/config.default.json
 
 EXPOSE 80 8888 1935
 CMD ["npm", "run", "start:prod"]

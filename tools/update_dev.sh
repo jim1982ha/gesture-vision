@@ -1,6 +1,7 @@
 #!/bin/bash
 # FILE: tools/update_dev.sh
 # updating development docker container with more options
+
 # Navigate to the project root (parent directory of this script)
 cd "$(dirname "$0")/.." || exit 1
 
@@ -14,6 +15,7 @@ get_env_var() {
         local value
         value=$(echo "$line" | sed -e "s/^[^=]*=//")
         value=$(echo "$value" | sed -e "s/^[[:space:]]*//" -e "s/[[:space:]]*$//")
+        
         if [[ "$value" == \"*\" && "$value" == *\" ]]; then
             value=$(echo "$value" | sed -e 's/^"//' -e 's/"$//')
         elif [[ "$value" == \'*\' && "$value" == *\' ]]; then
@@ -54,7 +56,7 @@ sync_lockfile() {
 display_help() {
     local script_name
     script_name=$(basename "$0")
-    echo "Usage: ./tools/${script_name} [options]"
+    echo "Usage: ./tools/${script_name}[options]"
     echo
     echo "This script builds and runs the GestureVision development environment."
     echo
@@ -119,7 +121,7 @@ EXAMPLE_ENV_FILE="config/.env.dev.example"
 DOCKER_COMPOSE_FILE="docker-compose.dev.yaml"
 PROJECT_NAME="gesturevision_dev_project"
 CONFIG_DEV_FILE="config/config.dev.json"
-CONFIG_EXAMPLE_FILE="config/config.example.json"
+CONFIG_EXAMPLE_FILE="config/gesturevision.example.json"
 
 if [ ! -f "$EXAMPLE_ENV_FILE" ]; then echo "ERROR: '$EXAMPLE_ENV_FILE' not found." >&2; exit 1; fi
 if [ ! -f "$ENV_FILE" ]; then echo "INFO: '$ENV_FILE' not found. Copying from '$EXAMPLE_ENV_FILE'."; cp "$EXAMPLE_ENV_FILE" "$ENV_FILE"; fi
@@ -166,6 +168,7 @@ else
     echo "Evaluated image tag from .env.dev: $FINAL_IMAGE_TAG"
 fi
 export DEV_IMAGE_NAME="$FINAL_IMAGE_TAG"
+
 echo "Using image name for this session: $DEV_IMAGE_NAME (exported to environment)"
 echo
 
@@ -188,7 +191,6 @@ fi; echo
 
 if [ "$ACTION_BUILD" == "yes" ]; then
     sync_lockfile
-    
     echo "[Step 5/7] Building development image: $FINAL_IMAGE_TAG..."
     BUILD_ARGS_DEV=""
     if $NO_CACHE_BUILD; then BUILD_ARGS_DEV="--no-cache"; echo "Building with --no-cache flag."; fi
