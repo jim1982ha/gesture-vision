@@ -25,11 +25,11 @@ RUN if [ -z "$BUILD_ARCH" ]; then \
     else \
       ARCH=$BUILD_ARCH; \
     fi; \
-    if [ "$ARCH" = "aarch64" ] ||[ "$ARCH" = "arm64" ]; then \
+    if [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then \
       MTX_ARCH="arm64v8"; \
     elif [ "$ARCH" = "armv7" ]; then \
       MTX_ARCH="armv7"; \
-    elif [ "$ARCH" = "amd64" ] ||[ "$ARCH" = "x86_64" ]; then \
+    elif [ "$ARCH" = "amd64" ] || [ "$ARCH" = "x86_64" ]; then \
       MTX_ARCH="amd64"; \
     else \
       echo "Unsupported Architecture: $ARCH" && exit 1; \
@@ -73,9 +73,6 @@ RUN npm run build:app
 RUN npm prune --omit=dev
 
 # --- 4. Cleanup Build Artifacts & Prepare Runtime ---
-# Ensure local extension folders are empty so they can be linked to /data at runtime
-RUN rm -rf extensions/plugins/*
-
 # Nginx setup
 RUN rm -f /etc/nginx/sites-enabled/default
 RUN cp config/nginx.conf /etc/nginx/nginx.conf
@@ -88,7 +85,7 @@ RUN rm -rf /usr/share/nginx/html/* && \
 RUN mkdir -p /usr/share/nginx/html/plugins && \
     chmod -R 755 /usr/share/nginx/html
 
-# Copy config and entrypoint (ONLY checking for gesturevision.example.json)
+# Copy config and entrypoint
 RUN cp config/gesturevision.example.json /app/config.default.json
 
 # Ensure we copy the entrypoint from the overlayed ha-addon folder
