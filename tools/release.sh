@@ -197,6 +197,11 @@ if [ "$AUTO_CONFIRM" = false ]; then
     [[ ! "${confirm:-Y}" =~ ^[Yy]$ ]] && exit 0
 fi
 
-# Push HEAD to the specified target branch
-git push origin HEAD:"$TARGET_BRANCH"
-echo -e "${GREEN}Success! Pushed changes to $TARGET_BRANCH.${NC}"
+# FIX: Check if git push actually succeeds before reporting success
+if git push origin HEAD:"$TARGET_BRANCH"; then
+    echo -e "${GREEN}Success! Pushed changes to $TARGET_BRANCH.${NC}"
+else
+    echo -e "${RED}Error: Failed to push to $TARGET_BRANCH.${NC}"
+    echo -e "${YELLOW}Hint: If the remote contains work you do not have locally, run 'git pull --rebase origin $TARGET_BRANCH' and try pushing again.${NC}"
+    exit 1
+fi
