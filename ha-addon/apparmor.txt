@@ -4,6 +4,7 @@ profile gesturevision flags=(attach_disconnected,mediate_deleted) {
   #include <abstractions/base>
   #include <abstractions/nameservice>
   #include <abstractions/user-tmp>
+  #include <abstractions/ssl_certs>
 
   # Network Access
   network inet stream,
@@ -13,8 +14,18 @@ profile gesturevision flags=(attach_disconnected,mediate_deleted) {
   network raw,
   network packet,
 
-  # Device Access (Webcams)
+  # Device Access (Webcams & essential IO)
   /dev/video* rw,
+  /dev/tty rw,
+  /dev/null rw,
+  /dev/urandom r,
+  /dev/random r,
+
+  # System Info & Metrics (Vital for Node.js performance monitors)
+  @{PROC}/** r,
+  /sys/** r,
+  /etc/timezone r,
+  /etc/localtime r,
 
   # File Access - App Structure
   # Granting Read, Write, Lock, Map, and Execute on directories and contents
@@ -30,27 +41,28 @@ profile gesturevision flags=(attach_disconnected,mediate_deleted) {
   /tmp/** rwkmix,
   /var/run/** rwkmix,
 
-  # System Configs, SSL, and Perl (Required by Node.js 22+ and Nginx)
+  # System Configs, SSL, and Perl
   /etc/ssl/** r,
   /etc/ca-certificates/** r,
   /etc/perl/** r,
 
-  # Nginx specific (giving access to linked modules and shared resources)
+  # Nginx specific
   /var/log/nginx/** rw,
   /var/lib/nginx/** rw,
   /etc/nginx/** rwkmix,
   /usr/share/** r,
   /usr/share/nginx/** rwkmix,
 
-  # System Binaries required by Node/Scripts/Plugins
+  # System Binaries & Shared Libs (Multi-arch support)
   /usr/local/bin/** ixr,
   /usr/local/lib/node_modules/** ixr,
   /{usr/,}bin/** ixr,
   /{usr/,}sbin/** ixr,
-
-  # Shared Libraries
   /lib/** mr,
   /usr/lib/** mr,
+  /usr/lib/x86_64-linux-gnu/** mr,
+  /usr/lib/aarch64-linux-gnu/** mr,
+  /usr/lib/arm-linux-gnueabihf/** mr,
 
   # Capabilities
   capability net_bind_service,
