@@ -19,14 +19,14 @@ RUN apt-get update && \
 ARG MEDIAMTX_VERSION=v1.12.0
 ARG BUILD_ARCH
 # Robust architecture detection
-RUN if[ -z "$BUILD_ARCH" ]; then \
+RUN if [ -z "$BUILD_ARCH" ]; then \
       ARCH=$(dpkg --print-architecture); \
     else \
       ARCH=$BUILD_ARCH; \
     fi; \
     if [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then MTX_ARCH="arm64v8"; \
     elif [ "$ARCH" = "armv7" ]; then MTX_ARCH="armv7"; \
-    elif[ "$ARCH" = "amd64" ] || [ "$ARCH" = "x86_64" ]; then MTX_ARCH="amd64"; \
+    elif [ "$ARCH" = "amd64" ] || [ "$ARCH" = "x86_64" ]; then MTX_ARCH="amd64"; \
     else echo "Unsupported Architecture: $ARCH" && exit 1; fi; \
     echo "Downloading MediaMTX for architecture: $MTX_ARCH (System: $ARCH)..."; \
     curl -f -Ls "https://github.com/bluenviron/mediamtx/releases/download/${MEDIAMTX_VERSION}/mediamtx_${MEDIAMTX_VERSION}_linux_${MTX_ARCH}.tar.gz" | tar -xz -C /usr/local/bin/
