@@ -58,6 +58,12 @@ profile gesturevision flags=(attach_disconnected,mediate_deleted) {
   /usr/local/lib/node_modules/** ixr,
   /{usr/,}bin/** ixr,
   /{usr/,}sbin/** ixr,
+  
+  # Git helpers for HTTPS cloning (Required for Plugin Installation)
+  /usr/lib/git-core/** ixr,
+  /usr/libexec/git-core/** ixr,
+
+  # Shared Libraries
   /lib/** mr,
   /usr/lib/** mr,
   /usr/lib/x86_64-linux-gnu/** mr,

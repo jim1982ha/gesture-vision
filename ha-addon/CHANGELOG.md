@@ -1,3 +1,6 @@
+## 4.2.40 (2026-03-15)
+fix permissions
+
 ## 4.2.39 (2026-03-14)
 working version
 
