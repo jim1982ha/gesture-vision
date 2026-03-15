@@ -13,7 +13,7 @@ HA_PLUGIN_ID="gesture-vision-plugin-home-assistant"
 # Dynamically fetch the version using jq
 APP_VERSION=$(jq -r '.version' /app/package.json 2>/dev/null || echo "Unknown")
 
-echo ""
+echo " "
 echo "------------------------------------------------------"
 echo "--- GestureVision HA Add-on Starting (${APP_VERSION}) ---"
 echo "------------------------------------------------------"
