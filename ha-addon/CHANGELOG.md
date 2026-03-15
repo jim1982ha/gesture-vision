@@ -1,3 +1,6 @@
+## 4.2.41 (2026-03-15)
+fix plugin management for AddOns
+
 ## 4.2.40 (2026-03-15)
 fix permissions
 

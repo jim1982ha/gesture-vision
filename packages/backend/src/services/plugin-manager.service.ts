@@ -1,4 +1,3 @@
-// --- packages/backend/src/services/plugin-manager.service.ts --- (complete version) ---
 import { watchFile, unwatchFile, watch, type FSWatcher, type StatWatcher } from 'fs';
 import path from 'path';
 import type { ZodType } from 'zod';
@@ -12,6 +11,7 @@ import { PluginLoaderService } from './plugin-loader.service.js';
 import type { BackendPlugin, BackendPluginContext } from '#backend/types/index.js';
 
 const execAsync = promisify(exec);
+
 const PLUGINS_DIR = '/app/extensions/plugins';
 const NGINX_PLUGIN_WEBROOT = '/usr/share/nginx/html/plugins';
 const HA_PLUGIN_ID = 'gesture-vision-plugin-home-assistant';
@@ -96,11 +96,13 @@ export class PluginManagerService {
         await this.#loadAndRegisterPlugin(manifest);
       }
     }));
+
     console.log('[PluginManager Watcher] Resync complete.');
     pubsub.publish(BACKEND_INTERNAL_EVENTS.REQUEST_MANIFESTS_BROADCAST);
   }
 
   async #copyPluginAssetsToWebroot(pluginId: string): Promise<void> {
+    if (this.#isHaAddonEnvironment) return; // HA Addon uses symlinks, copying is dangerous
     const sourceDir = path.join(PLUGINS_DIR, pluginId);
     const destDir = path.join(NGINX_PLUGIN_WEBROOT, pluginId);
     try {
@@ -111,6 +113,7 @@ export class PluginManagerService {
   }
 
   async #removePluginAssetsFromWebroot(pluginId: string): Promise<void> {
+    if (this.#isHaAddonEnvironment) return; // HA Addon uses symlinks, deleting this deletes the actual source!
     const destDir = path.join(NGINX_PLUGIN_WEBROOT, pluginId);
     try {
       await fs.rm(destDir, { recursive: true, force: true });
@@ -124,7 +127,7 @@ export class PluginManagerService {
       console.warn(`[PluginManager] Duplicate plugin ID '${manifest.id}'. Skipping.`);
       return;
     }
-    
+
     // Force enable HA plugin if in HA environment
     if (this.#isHaAddonEnvironment && manifest.id === HA_PLUGIN_ID) {
         if (this.#disabledPluginIds.has(manifest.id)) {
@@ -158,6 +161,7 @@ export class PluginManagerService {
 
     const configPath = manifest.capabilities.hasGlobalSettings && manifest.globalConfigFileName ? path.join(PLUGINS_DIR, manifest.id, manifest.globalConfigFileName) : null;
     let globalConfig: unknown = null;
+
     if (configPath) {
       globalConfig = await this.#configRepository.readPluginConfigFile(configPath, instance.getGlobalConfigValidationSchema?.() as ZodType | undefined);
     }
@@ -169,13 +173,13 @@ export class PluginManagerService {
     const context: BackendPluginContext = {
       getPluginGlobalConfig: <T>() => this.getPluginGlobalConfig<T>(manifest.id),
     };
-
     await instance.init?.(context);
   }
 
   #startWatchingPluginConfig(pluginId: string, configPath: string): void {
     const plugin = this.#plugins.get(pluginId);
     if (!plugin) return;
+
     const listener = () => this.#reloadPluginConfig(pluginId, configPath);
     plugin._configWatcher = watchFile(configPath, { interval: 2000 }, listener);
   }
@@ -183,10 +187,12 @@ export class PluginManagerService {
   async #reloadPluginConfig(pluginId: string, configPath: string) {
     const plugin = this.#plugins.get(pluginId);
     if (!plugin) return;
+
     console.log(`[PluginManager] Config change detected for '${pluginId}'. Reloading...`);
     try {
       const schema = plugin.instance.getGlobalConfigValidationSchema?.();
       const newConfig = await this.#configRepository.readPluginConfigFile(configPath, schema as ZodType | undefined);
+
       if (JSON.stringify(plugin.globalConfig) !== JSON.stringify(newConfig)) {
         plugin.globalConfig = newConfig;
         await plugin.instance.onGlobalConfigUpdate?.(newConfig);
@@ -198,6 +204,7 @@ export class PluginManagerService {
   async #unloadAndDeregisterPlugin(pluginId: string): Promise<void> {
     const plugin = this.#plugins.get(pluginId);
     if (!plugin) return;
+
     if (plugin._configWatcher && plugin.configPath) unwatchFile(plugin.configPath);
     await plugin.instance.destroy?.();
     this.#plugins.delete(pluginId);
@@ -216,7 +223,7 @@ export class PluginManagerService {
           }
           return manifest;
       });
-    
+
     for (const manifest of manifests) {
       manifest.locales = await this.#loaderService.getPluginLocales(manifest.id);
     }
@@ -228,7 +235,9 @@ export class PluginManagerService {
   }
 
   public getPlugin = (id: string): LoadedPlugin | undefined => this.#plugins.get(id);
+
   public getPluginInstance = (id: string): BackendPlugin | undefined => this.#plugins.get(id)?.instance;
+
   public getPluginManifest = (id: string): PluginManifest | undefined => this.#plugins.get(id)?.manifest;
 
   public async getPluginGlobalConfig<T>(pluginId: string): Promise<T | null> {
@@ -241,6 +250,7 @@ export class PluginManagerService {
     if (!plugin || !plugin.configPath || !plugin.manifest.capabilities.hasGlobalSettings) {
       return { success: false, message: `Plugin '${pluginId}' not found or does not support global settings.` };
     }
+
     const schema = plugin.instance.getGlobalConfigValidationSchema?.();
     if (schema) {
       const result = schema.safeParse(newConfig);
@@ -249,6 +259,7 @@ export class PluginManagerService {
         return { success: false, message: 'Validation failed.', validationErrors: { isValid: false, errors } };
       }
     }
+
     const success = await this.#configRepository.writePluginConfigFile(plugin.configPath, newConfig, schema as ZodType | undefined);
     if (success) {
       plugin.globalConfig = newConfig;
@@ -260,11 +271,16 @@ export class PluginManagerService {
   public async installPlugin(repoUrl: string): Promise<{success:boolean; message:string}> {
     const pluginId = path.basename(repoUrl, '.git');
     const targetDir = path.join(PLUGINS_DIR, pluginId);
+
     try { await fs.access(targetDir); return { success: false, message: `Plugin '${pluginId}' already exists.` }; } catch { /* Continue */ }
-    
+
     try {
       await execAsync(`git clone --depth 1 ${repoUrl} ${targetDir}`);
       await this.#copyPluginAssetsToWebroot(pluginId);
+      
+      // EXPLICITLY RESYNC: Docker fs.watch is unreliable on symlinked mounts.
+      await this.#resyncPlugins();
+
       return { success: true, message: `Plugin '${pluginId}' installed successfully.` };
     } catch (e) {
       console.error(`[PluginManager] Failed to install plugin from ${repoUrl}:`, e);
@@ -277,18 +293,21 @@ export class PluginManagerService {
     if (this.#isHaAddonEnvironment && pluginId === HA_PLUGIN_ID) {
         return { success: false, message: `Uninstalling '${pluginId}' is restricted in Home Assistant Add-on mode.` };
     }
+
     if (!this.#plugins.has(pluginId)) {
         return { success: false, message: `Plugin '${pluginId}' not found.` };
     }
+
     this.#pluginsPendingDeletion.add(pluginId);
     pubsub.publish(BACKEND_INTERNAL_EVENTS.REQUEST_MANIFESTS_BROADCAST);
-    
+
     setTimeout(() => {
         if (this.#pluginsPendingDeletion.has(pluginId)) {
             console.warn(`[PluginManager] Finalize uninstall for '${pluginId}' not triggered by frontend within 5s. Forcing cleanup.`);
             this.finalizePluginUninstall(pluginId);
         }
     }, 5000).unref();
+
     return { success: true, message: `Uninstall initiated for '${pluginId}'.` };
   }
 
@@ -296,25 +315,34 @@ export class PluginManagerService {
       if (this.#isHaAddonEnvironment && pluginId === HA_PLUGIN_ID) {
           return { success: false, message: "Cannot uninstall system-managed plugin." };
       }
+
       if (!this.#pluginsPendingDeletion.has(pluginId)) {
           console.log(`[PluginManager] Finalize request for '${pluginId}' received, but it was not pending deletion in this instance. Proceeding with deletion check.`);
       }
+
       console.log(`[PluginManager] Finalizing uninstall for ${pluginId}, deleting files...`);
       const result = await this._performPluginDeletion(pluginId);
       this.#pluginsPendingDeletion.delete(pluginId);
+      
       return result;
   }
 
   private async _performPluginDeletion(pluginId: string): Promise<{success:boolean; message:string}> {
     const pluginDir = path.join(PLUGINS_DIR, pluginId);
+
     try {
       await fs.access(pluginDir);
       await this.#removePluginAssetsFromWebroot(pluginId);
       await fs.rm(pluginDir, { recursive: true, force: true });
+      
       if (this.#disabledPluginIds.has(pluginId)) {
         this.#disabledPluginIds.delete(pluginId);
         await this.#loaderService.saveDisabledPluginIds(this.#disabledPluginIds);
       }
+
+      // EXPLICITLY RESYNC
+      await this.#resyncPlugins();
+
       return { success: true, message: `Plugin '${pluginId}' uninstalled successfully.` };
     } catch (e) {
       if ((e as NodeJS.ErrnoException).code === 'ENOENT') {
@@ -328,8 +356,9 @@ export class PluginManagerService {
     if (this.#isHaAddonEnvironment && pluginId === HA_PLUGIN_ID && state === 'disabled') {
         return { success: false, message: `Disabling '${pluginId}' is restricted in Home Assistant Add-on mode.` };
     }
+
     if (!this.#plugins.has(pluginId)) return { success: false, message: `Plugin '${pluginId}' not found.` };
-    
+
     if (state === 'enabled') {
       this.#disabledPluginIds.delete(pluginId);
       await this.#copyPluginAssetsToWebroot(pluginId);
@@ -337,7 +366,12 @@ export class PluginManagerService {
       this.#disabledPluginIds.add(pluginId);
       await this.#removePluginAssetsFromWebroot(pluginId);
     }
+
     await this.#loaderService.saveDisabledPluginIds(this.#disabledPluginIds);
+    
+    // EXPLICITLY RESYNC to ensure instance is loaded/unloaded
+    await this.#resyncPlugins();
+
     return { success: true, message: `Plugin '${pluginId}' has been ${state}.` };
   }
 
