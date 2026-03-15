@@ -1,3 +1,6 @@
+## 4.2.43 (2026-03-16)
+fix plugin ui refresh for AddOns
+
 ## 4.2.42 (2026-03-15)
 fix plugin ui refresh for AddOns
 
