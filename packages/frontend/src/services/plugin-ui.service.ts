@@ -12,15 +12,13 @@ import * as actionDisplayUtils from '#frontend/ui/helpers/ui-helpers.js';
 import * as sharedUtils from '#shared/utils/index.js';
 
 const pluginModules = import.meta.glob('../../../../extensions/plugins/*/frontend/index.{js,ts,tsx}');
-
-const ENTRY_FILE_CANDIDATES = ['index.tsx', 'index.ts', 'index.jsx', 'index.js'];
+const ENTRY_FILE_CANDIDATES =['index.tsx', 'index.ts', 'index.jsx', 'index.js'];
 
 export class PluginUIService {
   #pluginManifests = new Map<string, PluginManifest>();
   #loadedFrontendModules = new Map<string, FrontendPluginModule>();
   #actionDisplayRenderers = new Map<string, ActionDisplayDetailsRendererFn>();
   #moduleLoadPromises = new Map<string, Promise<FrontendPluginModule | undefined>>();
-
   #appStore: AppStore;
   #translationService: TranslationService;
   #cameraServiceRef: CameraService | null = null;
@@ -30,7 +28,6 @@ export class PluginUIService {
   constructor(appStore: AppStore, translationService: TranslationService) {
     this.#appStore = appStore;
     this.#translationService = translationService;
-
     this.#unsubscribeStore = this.#appStore.subscribe((state, prevState) => {
       if (state.pluginManifests !== prevState.pluginManifests) {
         this.#handleManifestUpdate(state.pluginManifests).catch((e) => console.error(e));
@@ -59,16 +56,18 @@ export class PluginUIService {
     if (!manifests || !Array.isArray(manifests)) return;
 
     const oldManifestsMap = new Map(this.#pluginManifests);
-    const newManifestsMap = new Map(manifests.map(m =>[m.id, m]));
-    this.#pluginManifests = newManifestsMap;
+    const newManifestsMap = new Map(manifests.map(m => [m.id, m]));
     
+    this.#pluginManifests = newManifestsMap;
     this.#translationService.mergePluginTranslations(manifests);
+
     await this.#reconcilePluginComponents(newManifestsMap, oldManifestsMap);
     pubsub.publish(UI_EVENTS.PLUGINS_MANIFESTS_PROCESSED);
   }
 
   async #reconcilePluginComponents(newManifests: Map<string, PluginManifest>, oldManifests: Map<string, PluginManifest>): Promise<void> {
     const allIds = new Set([...newManifests.keys(), ...oldManifests.keys()]);
+
     for (const id of allIds) {
         const oldM = oldManifests.get(id);
         const newM = newManifests.get(id);
@@ -90,6 +89,7 @@ export class PluginUIService {
 
   async #deregisterPlugin(pluginId: string, wasUninstalled: boolean): Promise<void> {
     const loadedModule = this.#loadedFrontendModules.get(pluginId);
+    
     if (loadedModule && typeof loadedModule.destroy === 'function') {
       try {
         await loadedModule.destroy();
@@ -97,10 +97,10 @@ export class PluginUIService {
         console.error(`[PluginUIService] Error on destroying module for '${pluginId}':`, error);
       }
     }
+
     this.#loadedFrontendModules.delete(pluginId);
     this.#actionDisplayRenderers.delete(pluginId);
     this.#moduleLoadPromises.delete(pluginId);
-
     document.getElementById(`plugin-stylesheet-${pluginId}`)?.remove();
 
     if (wasUninstalled) webSocketService.sendMessage({ type: WEBSOCKET_EVENTS.FINALIZE_UNINSTALL, payload: { pluginId } });
@@ -125,17 +125,19 @@ export class PluginUIService {
 
   private injectStylesheet(pluginId: string, manifest: PluginManifest): void {
     if (!manifest.hasFrontendStyle) return;
+    
     const stylesheetId = `plugin-stylesheet-${pluginId}`;
     if (document.getElementById(stylesheetId)) return;
-
-    const { pathname } = window.location;
-    const basePath = pathname.replace(/\/index\.html$/, '').replace(/\/$/, '');
-
+    
+    // FIX: Accurately calculate the base path (resolves Ingress routing issues in HA)
+    const basePath = window.location.pathname.replace(/\/index\.html$/, '').replace(/\/$/, '');
+    
     const link = Object.assign(document.createElement('link'), {
         id: stylesheetId, rel: 'stylesheet', type: 'text/css',
         href: `${basePath}/plugins/${pluginId}/frontend/style.css?v=${manifest.version || Date.now()}`,
         onerror: () => link.remove()
     });
+    
     document.head.appendChild(link);
   }
 
@@ -143,40 +145,44 @@ export class PluginUIService {
     if (this.#loadedFrontendModules.has(pluginId)) return Promise.resolve(this.#loadedFrontendModules.get(pluginId));
     if (this.#moduleLoadPromises.has(pluginId)) return this.#moduleLoadPromises.get(pluginId)!;
 
-    const manifest = this.#appStore.getState().pluginManifests.find(m => m.id === pluginId);
+    const manifest = this.getPluginManifest(pluginId);
     if (!manifest?.frontendEntry) return Promise.resolve(undefined);
 
+    // 1. Try finding via Glob first (build-time index)
     const modulePath = Object.keys(pluginModules).find(p => p.includes(`/${pluginId}/frontend/index.`));
 
     const loadPromise = (async () => {
         let module: FrontendPluginModule | undefined;
-
+        
         if (modulePath) {
              const loaded = await pluginModules[modulePath]() as { default: FrontendPluginModule };
              module = loaded.default;
         } else {
+             // 2. Fallback: Dynamic import for runtime-added plugins
              if (import.meta.env.DEV) {
                  for (const ext of ENTRY_FILE_CANDIDATES) {
                      try {
-                         const devPath = `/@fs/app/extensions/plugins/${pluginId}/frontend/${ext}`;
+                         const devPath = `/@fs/app/extensions/plugins/${pluginId}/frontend/${ext}?t=${Date.now()}`;
                          const loaded = await import(/* @vite-ignore */ devPath);
                          module = loaded.default;
                          if (module) break;
-                     } catch (_e) { 
-                         // Suppress dev fallback errors
+                     } catch (_e) {
+                         // Ignored
                      }
                  }
+                 if (!module) {
+                     console.error(`[PluginUIService] Failed to load plugin '${pluginId}' via Vite FS.`);
+                 }
              } else {
+                 // PROD MODE: Expect a standard built file served by Nginx
                  try {
-                    const { protocol, host, pathname } = window.location;
-                    const basePath = pathname.replace(/\/index\.html$/, '').replace(/\/$/, '');
-                    const pluginUrl = `${protocol}//${host}${basePath}/plugins/${pluginId}/frontend/index.js?v=${manifest.version || Date.now()}`;
-                    
-                    const loaded = await import(/* @vite-ignore */ pluginUrl);
+                    // FIX: Ensure absolute path relative to current URL so it doesn't fail under chunks
+                    const basePath = window.location.pathname.replace(/\/index\.html$/, '').replace(/\/$/, '');
+                    const importPath = `${basePath}/plugins/${pluginId}/frontend/index.js?t=${Date.now()}`;
+                    const loaded = await import(/* @vite-ignore */ importPath);
                     module = loaded.default;
-                 } catch (_e) {
-                     console.error(`[PluginUIService] Production import failed for '${pluginId}'.`, _e);
-                     console.warn(`[PluginUIService] If this is a runtime-installed plugin, ensure the repository contains a pre-built 'frontend/index.js' file. Browsers cannot execute raw React/TSX files directly.`);
+                 } catch (e) {
+                     console.error(`[PluginUIService] Production import failed for '${pluginId}'.`, e);
                  }
              }
         }
@@ -208,24 +214,19 @@ export class PluginUIService {
 
     this.#moduleLoadPromises.set(pluginId, loadPromise);
     loadPromise.finally(() => this.#moduleLoadPromises.delete(pluginId));
-    
     return loadPromise;
   }
 
-  public getPluginManifest = (pluginId: string): PluginManifest | undefined => {
-      return this.#appStore.getState().pluginManifests.find(m => m.id === pluginId);
-  }
-
+  public getPluginManifest = (pluginId: string): PluginManifest | undefined => this.#pluginManifests.get(pluginId);
   public getActionDisplayDetailsRenderer = (pluginId: string): ActionDisplayDetailsRendererFn | undefined => this.#actionDisplayRenderers.get(pluginId);
 
   public async savePluginGlobalConfig(pluginId: string, config: unknown): Promise<{ success: boolean; message?: string; config?: unknown; validationErrors?: unknown; }> {
-    if (!this.getPluginManifest(pluginId)) return { success: false, message: `Plugin '${pluginId}' not registered.` };
+    if (!this.#pluginManifests.has(pluginId)) return { success: false, message: `Plugin '${pluginId}' not registered.` };
     return webSocketService.request('PATCH_PLUGIN_GLOBAL_CONFIG', { pluginId, config });
   }
 
   public async sendPluginTestConnectionRequest(pluginId: string, configToTest: unknown): Promise<PluginTestConnectionResultPayload | null> {
-    if (!this.getPluginManifest(pluginId)) return { pluginId, success: false, messageKey: 'pluginNotRegistered', error: { message: `Plugin '${pluginId}' not found.` } };
-
+    if (!this.#pluginManifests.has(pluginId)) return { pluginId, success: false, messageKey: 'pluginNotRegistered', error: { message: `Plugin '${pluginId}' not found.` } };
     try {
       const response = await fetch(`api/plugins/${pluginId}/test`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(configToTest), });
       return response.json() as Promise<PluginTestConnectionResultPayload>;
