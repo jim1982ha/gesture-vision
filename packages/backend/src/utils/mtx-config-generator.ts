@@ -1,5 +1,6 @@
 /* FILE: packages/backend/src/utils/mtx-config-generator.ts */
 import fs from 'fs/promises';
+import { CONFIG_PATH } from '../services/config/config.repository.js';
 import type { RtspSourceConfig } from '#shared/index.js';
 import { normalizeNameForMtx } from '#shared/index.js';
 
@@ -18,7 +19,7 @@ export async function generateMtxConfig(): Promise<void> {
   let configContent = 'paths: {}\n';
 
   try {
-    const fileContent = await fs.readFile('/app/config.json', 'utf-8');
+    const fileContent = await fs.readFile(CONFIG_PATH, 'utf-8');
     const config: { rtspSources?: RtspSourceConfig[] } = JSON.parse(fileContent);
 
     if (config && Array.isArray(config.rtspSources) && config.rtspSources.length > 0) {

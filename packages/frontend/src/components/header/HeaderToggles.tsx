@@ -86,12 +86,12 @@ export function HeaderToggles() {
 
     return (
         <div id="header-toggles-container" className="flex items-center gap-1">
-            <Dropdown id="header-features-dropdown" trigger={featuresTrigger}>
+             <Dropdown id="header-features-dropdown" trigger={featuresTrigger}>
                 {featureItems.map(item => (
                     <button key={item.id} id={`${item.id}-item`} onClick={item.handler} disabled={item.isDisabled} className={clsx('btn btn-secondary w-full justify-start', item.isActive && 'active')}>
                         <span ref={el => el && setIcon(el, item.iconKey)}></span>
                         <span>{item.labelKey}</span>
-                        {item.isActive && <span ref={el => el && setIcon(el, 'UI_CHECK_CIRCLE')} className="material-icons ml-auto text-primary"></span>}
+                        {item.isActive && <span ref={el => el && setIcon(el, 'UI_CHECK_CIRCLE')} className="ml-auto text-primary"></span>}
                     </button>
                 ))}
             </Dropdown>
@@ -100,7 +100,7 @@ export function HeaderToggles() {
                     <button key={item.id} id={`${item.id}-landmarks-item`} onClick={item.handler} disabled={item.isDisabled} className={clsx('btn btn-secondary w-full justify-start', item.isActive && 'active')}>
                         <span ref={el => el && setIcon(el, item.iconKey)}></span>
                         <span>{item.labelKey}</span>
-                         {item.isActive && <span ref={el => el && setIcon(el, 'UI_CHECK_CIRCLE')} className="material-icons ml-auto text-primary"></span>}
+                         {item.isActive && <span ref={el => el && setIcon(el, 'UI_CHECK_CIRCLE')} className="ml-auto text-primary"></span>}
                     </button>
                 ))}
             </Dropdown>

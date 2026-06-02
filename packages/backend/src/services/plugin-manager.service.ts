@@ -1,5 +1,5 @@
 /* FILE: packages/backend/src/services/plugin-manager.service.ts */
-import { watchFile, unwatchFile, watch, type FSWatcher, type StatWatcher } from 'fs';
+import { watchFile, unwatchFile, watch, existsSync, type FSWatcher, type StatWatcher } from 'fs';
 import path from 'path';
 import type { ZodType } from 'zod';
 import { exec } from 'child_process';
@@ -12,9 +12,10 @@ import { PluginLoaderService } from './plugin-loader.service.js';
 import type { BackendPlugin, BackendPluginContext } from '#backend/types/index.js';
 
 const execAsync = promisify(exec);
-const PLUGINS_DIR = '/app/extensions/plugins';
+const PLUGINS_DIR = process.env.PLUGINS_DIR || (existsSync(path.join(process.cwd(), 'extensions', 'plugins'))
+  ? path.resolve(process.cwd(), 'extensions', 'plugins')
+  : '/app/extensions/plugins');
 const NGINX_PLUGIN_WEBROOT = '/usr/share/nginx/html/plugins';
-const HA_PLUGIN_ID = 'gesture-vision-plugin-home-assistant';
 
 interface LoadedPlugin {
   manifest: PluginManifest;
@@ -37,12 +38,10 @@ export class PluginManagerService {
   #initializationPromise: Promise<void>;
   #pluginsDirWatcher: FSWatcher | null = null;
   #resyncDebounceTimer: NodeJS.Timeout | null = null;
-  #isHaAddonEnvironment = false;
 
   constructor(configRepository: ConfigRepository) {
     this.#configRepository = configRepository;
     this.#loaderService = new PluginLoaderService();
-    this.#isHaAddonEnvironment = !!process.env.SUPERVISOR_TOKEN;
     this.#initializationPromise = this._initialize();
   }
 
@@ -142,9 +141,9 @@ export class PluginManagerService {
       return;
     }
 
-    if (this.#isHaAddonEnvironment && manifest.id === HA_PLUGIN_ID) {
+    if (manifest.forceEnableIfEnv && process.env[manifest.forceEnableIfEnv]) {
         if (this.#disabledPluginIds.has(manifest.id)) {
-            console.log(`[PluginManager] Forcing enabling of ${HA_PLUGIN_ID} in HA environment.`);
+            console.log(`[PluginManager] Forcing enabling of ${manifest.id} due to environment variable ${manifest.forceEnableIfEnv}.`);
             this.#disabledPluginIds.delete(manifest.id);
             await this.#loaderService.saveDisabledPluginIds(this.#disabledPluginIds);
         }
@@ -187,6 +186,9 @@ export class PluginManagerService {
     };
 
     await instance.init?.(context);
+    if (manifest.status === 'enabled') {
+      await this.#copyPluginAssetsToWebroot(manifest.id);
+    }
     console.log(`[PluginManager] Loaded plugin: ${manifest.id}`);
   }
 
@@ -227,7 +229,7 @@ export class PluginManagerService {
       .filter(p => !this.#pluginsPendingDeletion.has(p.manifest.id))
       .map((p) => {
           const manifest = { ...p.manifest };
-          if (this.#isHaAddonEnvironment && manifest.id === HA_PLUGIN_ID) {
+          if (manifest.forceEnableIfEnv && process.env[manifest.forceEnableIfEnv]) {
               manifest.locked = true;
           }
           return manifest;
@@ -282,6 +284,7 @@ export class PluginManagerService {
     try { await fs.access(targetDir); return { success: false, message: `Plugin '${pluginId}' already exists.` }; } catch { /* Continue */ }
 
     try {
+      await fs.mkdir(PLUGINS_DIR, { recursive: true });
       await execAsync(`git clone --depth 1 ${repoUrl} ${targetDir}`);
       
       await this.#copyPluginAssetsToWebroot(pluginId);
@@ -304,10 +307,11 @@ export class PluginManagerService {
   }
 
   public async initiatePluginUninstall(pluginId: string): Promise<{success: boolean, message: string}> {
-    if (this.#isHaAddonEnvironment && pluginId === HA_PLUGIN_ID) {
-        return { success: false, message: `Uninstalling '${pluginId}' is restricted in Home Assistant Add-on mode.` };
+    const plugin = this.#plugins.get(pluginId);
+    if (plugin?.manifest.forceEnableIfEnv && process.env[plugin.manifest.forceEnableIfEnv]) {
+        return { success: false, message: `Uninstalling '${pluginId}' is restricted due to environment constraints.` };
     }
-    if (!this.#plugins.has(pluginId)) {
+    if (!plugin) {
         return { success: false, message: `Plugin '${pluginId}' not found.` };
     }
 
@@ -325,8 +329,9 @@ export class PluginManagerService {
   }
 
   public async finalizePluginUninstall(pluginId: string): Promise<{success: boolean, message: string}> {
-      if (this.#isHaAddonEnvironment && pluginId === HA_PLUGIN_ID) {
-          return { success: false, message: "Cannot uninstall system-managed plugin." };
+      const plugin = this.#plugins.get(pluginId);
+      if (plugin?.manifest.forceEnableIfEnv && process.env[plugin.manifest.forceEnableIfEnv]) {
+          return { success: false, message: "Cannot uninstall system-managed plugin due to environment constraints." };
       }
       
       // Unload first
@@ -360,11 +365,12 @@ export class PluginManagerService {
   }
 
   public async setPluginState(pluginId: string, state: 'enabled' | 'disabled'): Promise<{success:boolean; message:string}> {
-    if (this.#isHaAddonEnvironment && pluginId === HA_PLUGIN_ID && state === 'disabled') {
-        return { success: false, message: `Disabling '${pluginId}' is restricted in Home Assistant Add-on mode.` };
+    const plugin = this.#plugins.get(pluginId);
+    if (plugin?.manifest.forceEnableIfEnv && process.env[plugin.manifest.forceEnableIfEnv] && state === 'disabled') {
+        return { success: false, message: `Disabling '${pluginId}' is restricted due to environment constraints.` };
     }
 
-    if (!this.#plugins.has(pluginId)) return { success: false, message: `Plugin '${pluginId}' not found.` };
+    if (!plugin) return { success: false, message: `Plugin '${pluginId}' not found.` };
 
     if (state === 'enabled') {
       this.#disabledPluginIds.delete(pluginId);

@@ -37,7 +37,7 @@ export const ConfigCard = ({ config }: { config: EnrichedGestureConfig }) => {
     const handleEdit = () => actions.openOverlay('gestureForm', config);
 
     return (
-        <CardRoot id={`config-card-${gestureName}`} data-gesture-name={gestureName} onClick={handleEdit}>
+        <CardRoot id={`config-card-${gestureName}`} data-gesture-name={gestureName}>
             <CardHeader id={`config-card-header-${gestureName}`}>
                 <CardIcon id={`config-card-icon-${gestureName}`} iconKey={iconDetails.iconName} />
                 <CardTitle id={`config-card-title-${gestureName}`}>{translate(formattedName, { defaultValue: formattedName })}</CardTitle>

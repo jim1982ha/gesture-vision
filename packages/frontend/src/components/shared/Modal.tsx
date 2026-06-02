@@ -31,7 +31,7 @@ export const Modal = ({ id, title, iconKey, onClose, children, footer, size, sho
     <div id={id} className="modal visible" role="dialog" aria-modal="true">
       <div id={`${id}-content`} className={`modal-content ${modalContentClass}`}>
         <div id={`${id}-header`} className="modal-header">
-          <span ref={(el) => el && setIcon(el, iconKey)} className="material-icons header-icon"></span>
+          <span ref={(el) => el && setIcon(el, iconKey)} className="header-icon"></span>
           <span id={`${id}-title`} className="header-title">{title}</span>
           <button id={`${id}-close-button`} onClick={onClose} className="btn btn-icon header-close-btn" title="Close">
             <span ref={(el) => el && setIcon(el, 'UI_CLOSE')}></span>

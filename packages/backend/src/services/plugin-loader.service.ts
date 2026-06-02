@@ -1,9 +1,12 @@
 /* FILE: packages/backend/src/services/plugin-loader.service.ts */
 import fs from 'fs/promises';
+import { existsSync } from 'fs';
 import path from 'path';
 import type { PluginManifest } from '#shared/index.js';
 
-const PLUGINS_DIR = '/app/extensions/plugins';
+const PLUGINS_DIR = process.env.PLUGINS_DIR || (existsSync(path.join(process.cwd(), 'extensions', 'plugins'))
+  ? path.resolve(process.cwd(), 'extensions', 'plugins')
+  : '/app/extensions/plugins');
 const DISABLED_PLUGINS_FILE = path.join(PLUGINS_DIR, 'disabled-plugins.json');
 
 /**
@@ -34,6 +37,7 @@ export class PluginLoaderService {
   public async discoverPlugins(): Promise<PluginManifest[]> {
     const manifests: PluginManifest[] = [];
     try {
+      await fs.mkdir(PLUGINS_DIR, { recursive: true });
       const pluginDirs = await fs.readdir(PLUGINS_DIR, { withFileTypes: true });
       for (const dirent of pluginDirs) {
         if (!dirent.isDirectory() || dirent.name.startsWith('_') || dirent.name === 'common' || dirent.name === 'plugin-template') continue;

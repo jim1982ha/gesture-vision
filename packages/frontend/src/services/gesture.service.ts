@@ -44,6 +44,7 @@ export class GestureService {
   #holdState: Record<string, HoldState> = {};
   #globalCooldownEndTime = 0;
   #isActionDispatchSuppressed = false;
+  #lastTriggeredGestureName = '-';
   #subscriptions: (() => void)[] = [];
 
   constructor(appStore: AppStore, translationService: TranslationService) {
@@ -206,13 +207,14 @@ export class GestureService {
 
   #updateUIDisplay(primaryMatch: MatchedDetection | null, now: number, isCooldownActive: boolean): void {
     const feedbackState: FeedbackStateForUpdate = {
-        gestureName: '-', realtimeConfidence: 0, configuredThreshold: null,
+        gestureName: isCooldownActive ? this.#lastTriggeredGestureName : '-', realtimeConfidence: 0, configuredThreshold: null,
         holdPercent: 0, currentHoldMs: 0, requiredHoldMs: 0,
     };
 
     if (primaryMatch && !isCooldownActive && !this.#isActionDispatchSuppressed) {
         const { detection, config } = primaryMatch;
         feedbackState.gestureName = config.display.name;
+        this.#lastTriggeredGestureName = config.display.name;
         feedbackState.realtimeConfidence = detection.confidence;
         feedbackState.configuredThreshold = (config.confidence ?? 50) / 100.0;
         

@@ -14,16 +14,34 @@ services:
         - VITE_PROD_HA_DEFAULT_URL=${VITE_PROD_HA_DEFAULT_URL:-}
         - TARGETARCH=amd64
     container_name: gesturevision
+    
+    # Optional labels for deployment
+    # labels:
+    #   - "project=gesturevision"
+
+    # -------------------------------------------------------------------------
+    # NETWORK MODE CONFIGURATION:
+    # -------------------------------------------------------------------------
+    # Option A (DEFAULT): Host Network Mode.
+    # Exposes web UI, API, and MediaMTX streams directly on your host IP on their natural ports.
+    # (Nginx Web UI on host port 80, MediaMTX API on 9997, WebRTC on 8888, ICE on 8189, etc.)
+    # network_mode: "host"
+
+    # Option B: Custom NPM Bridge Network (RECOMMENDED when using Nginx Proxy Manager).
+    # This places GestureVision on the same network as your Nginx Proxy Manager,
+    # allowing NPM to resolve 'gesturevision' and route to 80, 9001, and 8888 with ZERO host port clashes.
+    # To use Option B instead of Option A:
+    # 1. Comment out 'network_mode: "host"' above.
+    # 2. Uncomment 'networks' block below.
+    # 3. If you need direct external streaming access, uncomment 'ports' block too.
+    #
     ports:
-      # Expose MediaMTX ports directly if needed for external access OUTSIDE NPM.
-      # Single variable now controls both host and container port mapping for simplicity.
-      - "${MTX_WEBRTC_PORT:-8888}:${MTX_WEBRTC_PORT:-8888}" # WHEP/WebRTC
       - "${MTX_ICE_UDP_PORT:-8189}:${MTX_ICE_UDP_PORT:-8189}/udp" # WebRTC ICE UDP
-      - "${MTX_RTMP_PORT:-1935}:${MTX_RTMP_PORT:-1935}" # Optional: RTMP
-      - "${MTX_RTSP_PORT:-8554}:${MTX_RTSP_PORT:-8554}" # Optional: RTSP
-      # Port 80 (Nginx) is NOT directly exposed; NPM connects to it via the proxy network.
+      - "${MTX_RTSP_PORT:-8554}:${MTX_RTSP_PORT:-8554}"           # Optional: Direct RTSP port
     networks:
-      npm_proxy_network: {}
+      app_network:
+        ipv4_address: ${DOCKER_IPV4_ADDRESS:-192.168.20.100}
+
     volumes:
       - ./config/config.prod.json:/app/config.json:rw
       - ./extensions:/app/extensions:rw
@@ -53,7 +71,19 @@ services:
 
     restart: unless-stopped
 
+# -----------------------------------------------------------------------------
+# NETWORK DEFINITION (For Option B: Custom NPM or Macvlan Integration)
+# -----------------------------------------------------------------------------
+# Un-comment the section below if you are using Option B above.
+# Define/reference your proxy/macvlan network here so Compose can bind the container.
+#
 networks:
-  npm_proxy_network:
-    name: ${NPM_NETWORK_NAME?Variable NPM_NETWORK_NAME is not set}
+  jw_admin:
+    name: ${NPM_NETWORK_NAME:-docker_network}
     external: true
+
+
+
+
+
+

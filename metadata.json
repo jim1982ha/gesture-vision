@@ -1,0 +1,6 @@
+{
+  "name": "GestureVision",
+  "description": "AI-Powered Gesture Control using Webcams or RTSP cameras. Intuitive Gesture Control for a Smarter World.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -24,7 +24,7 @@ export const GestureFeedback = () => {
                     </div>
                     {showHoldInfo && (
                         <div id="holdTimeMetric" className="timer-display flex items-center gap-1">
-                            <span ref={el => el && setIcon(el, 'UI_TIMER')} className="material-icons"></span>
+                            <span ref={el => el && setIcon(el, 'UI_TIMER')}></span>
                             <span id="holdTimeDisplay">{(state.currentHoldMs / 1000).toFixed(1)}/{(state.requiredHoldMs / 1000).toFixed(1)}s</span>
                         </div>
                     )}

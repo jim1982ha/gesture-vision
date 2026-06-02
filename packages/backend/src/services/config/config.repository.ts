@@ -1,9 +1,24 @@
 /* FILE: packages/backend/src/services/config/config.repository.ts */
 import fs from 'fs/promises';
 import path from 'path';
+import { existsSync } from 'fs';
 import type { ZodType, ZodError } from 'zod';
 
-const CONFIG_PATH = "/app/config.json";
+const LOCAL_DEV_CONFIG = path.resolve(process.cwd(), "config", "config.dev.json");
+const LOCAL_PROD_CONFIG = path.resolve(process.cwd(), "config", "config.prod.json");
+
+let resolvedConfigPath = "/app/config.json";
+try {
+  // If we are not running inside a container with /app directory or /app/config.json,
+  // fall back to local config files relative to process.cwd()
+  if (!existsSync("/app") && !existsSync("/app/config.json")) {
+    resolvedConfigPath = process.env.NODE_ENV === "production" ? LOCAL_PROD_CONFIG : LOCAL_DEV_CONFIG;
+  }
+} catch {
+  resolvedConfigPath = process.env.NODE_ENV === "production" ? LOCAL_PROD_CONFIG : LOCAL_DEV_CONFIG;
+}
+
+export const CONFIG_PATH = process.env.CONFIG_PATH || resolvedConfigPath;
 
 /**
  * Handles all direct file system interactions for configuration files.

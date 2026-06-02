@@ -2,12 +2,18 @@
 import forms from '@tailwindcss/forms';
 import typography from '@tailwindcss/typography';
 
+import path, { dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
 /** @type {import('tailwindcss').Config} */
 export default {
   content: [
-    './index.html',
-    './src/**/*.{js,ts,jsx,tsx,html}',
-    '../../extensions/plugins/**/frontend/**/*.{js,ts,jsx,tsx,html}',
+    path.join(__dirname, './index.html'),
+    path.join(__dirname, './src/**/*.{js,ts,jsx,tsx,html}'),
+    path.join(__dirname, '../../extensions/plugins/**/frontend/**/*.{js,ts,jsx,tsx,html}')
   ],
   darkMode: 'class',
   theme: {

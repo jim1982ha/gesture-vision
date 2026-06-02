@@ -1,3 +1,6 @@
+## 4.3.0 (2026-06-02)
+- Maintenance release.
+
 ## 4.2.44 (2026-03-16)
 fix plugin ui refresh for AddOns
 

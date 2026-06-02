@@ -29,7 +29,7 @@ export const ButtonGroup = ({ options, value, onChange, disabled = false, classN
                 disabled={disabled}
                 title={opt.title}
             >
-                <span ref={el => el && setIcon(el, opt.iconKey)} className="material-icons"></span>
+                <span ref={el => el && setIcon(el, opt.iconKey)}></span>
                 <span className="toggle-button-text">{opt.text}</span>
             </button>
         ))}

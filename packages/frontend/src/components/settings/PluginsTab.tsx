@@ -9,7 +9,10 @@ import { PluginInstall } from './forms/PluginInstall.js';
 
 export function PluginsTab() {
     const context = useContext(AppContext);
-    const manifests = useAppStore(state => state.pluginManifests);
+    const { manifests, actions } = useAppStore(state => ({
+        manifests: state.pluginManifests,
+        actions: state.actions
+    }));
     
     if (!context) return null;
     const { translate } = context.services.translationService;
@@ -39,7 +42,7 @@ export function PluginsTab() {
                     id="plugin-dev-info-link"
                     className="underline" 
                     type="button"
-                    onClick={() => pubsub.publish('docs:requestOpen', 'PLUGIN_DEV')}
+                    onClick={() => actions.openOverlay('docs', 'PLUGIN_DEV')}
                 >
                     {translate('pluginDevInfoLink')}
                 </button>

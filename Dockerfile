@@ -31,7 +31,6 @@ COPY packages/ ./packages/
 COPY extensions/ ./extensions/
 COPY config/gesturevision.example.json ./config/gesturevision.example.json
 RUN npm run build:backend
-RUN npm run build:umd
 RUN npm run build:app
 ENV NODE_ENV=production
 RUN npm prune --omit=dev
@@ -43,10 +42,14 @@ COPY package.json package-lock.json* ./
 COPY tsconfig.json ./tsconfig.json
 COPY packages/ ./packages/
 COPY extensions/ ./extensions/
-RUN npm run build:umd
 RUN npm run copy:wasm
 COPY --from=base /usr/local/bin/mediamtx /usr/local/bin/mediamtx
-COPY config/gesturevision.example.json /app/config.default.json
+COPY config/ ./config/
+RUN if [ -f "config/config.dev.json" ]; then \
+      cp config/config.dev.json /app/config.default.json; \
+    else \
+      cp config/gesturevision.example.json /app/config.default.json; \
+    fi
 EXPOSE 8000 8889 8554 9001
 CMD ["npm", "run", "dev"]
 
@@ -72,7 +75,12 @@ RUN for plugin_dir in /app/extensions/plugins/*; do \
 RUN chmod -R 755 /usr/share/nginx/html/*
 COPY config/nginx.conf /etc/nginx/nginx.conf
 COPY --from=base /usr/local/bin/mediamtx /usr/local/bin/mediamtx
-COPY config/gesturevision.example.json /app/config.default.json
+COPY config/ ./config/
+RUN if [ -f "config/config.prod.json" ]; then \
+      cp config/config.prod.json /app/config.default.json; \
+    else \
+      cp config/gesturevision.example.json /app/config.default.json; \
+    fi
 
 EXPOSE 80 8888 1935
 CMD ["npm", "run", "start:prod"]

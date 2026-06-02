@@ -49,10 +49,29 @@ if [ -n "$SUPERVISOR_TOKEN" ]; then
         ln -s "$DATA_PLUGINS_DIR" "$NGINX_PLUGINS_DIR"
     fi
 
-    # --- 1. Configure HA Plugin ---
+    # --- X. Apply Options ---
+    if [ -f "/data/options.json" ]; then
+        ICE_HOST=$(jq -r '.mtx_ice_host // empty' /data/options.json)
+        if [ -n "$ICE_HOST" ]; then export MTX_WEBRTC_ADDITIONAL_HOSTS="$ICE_HOST"; fi
+        
+        LOG_LEVEL=$(jq -r '.log_level // "info"' /data/options.json)
+        export MTX_LOGLEVEL="$LOG_LEVEL"
+
+        HA_PLUGIN_REPO_URL=$(jq -r '.ha_plugin_repo_url // "https://github.com/jim1982ha/gesture-vision-plugin-home-assistant.git"' /data/options.json)
+    else
+        HA_PLUGIN_REPO_URL="https://github.com/jim1982ha/gesture-vision-plugin-home-assistant.git"
+    fi
+
+    # --- 1. Bootstrap HA Plugin if missing ---
+    if [ ! -d "$DATA_PLUGINS_DIR/$HA_PLUGIN_ID" ]; then
+        echo "[HA Mode] Home Assistant plugin not found in persistent storage. Cloning from $HA_PLUGIN_REPO_URL..."
+        git clone "$HA_PLUGIN_REPO_URL" "$DATA_PLUGINS_DIR/$HA_PLUGIN_ID" || echo "[HA Mode] ERROR: Failed to clone HA plugin."
+    fi
+
+    # --- 1b. Configure HA Plugin ---
     HA_PLUGIN_CONFIG_FILE="$APP_PLUGINS_DIR/$HA_PLUGIN_ID/config.home-assistant.json"
     if [ ! -d "$APP_PLUGINS_DIR/$HA_PLUGIN_ID" ]; then
-         echo "[HA Mode] ERROR: Home Assistant plugin not found after sync."
+         echo "[HA Mode] ERROR: Home Assistant plugin not found after bootstrap."
     else
         echo "[HA Mode] Configuring Home Assistant Plugin..."
         cat > "$HA_PLUGIN_CONFIG_FILE" <<EOF
@@ -71,14 +90,7 @@ EOF
         else echo "{}" > "$DATA_CONFIG_FILE"; fi
     fi
 
-    # --- 3. Apply Options ---
-    if [ -f "/data/options.json" ]; then
-        ICE_HOST=$(jq -r '.mtx_ice_host // empty' /data/options.json)
-        if [ -n "$ICE_HOST" ]; then export MTX_WEBRTC_ADDITIONAL_HOSTS="$ICE_HOST"; fi
-        
-        LOG_LEVEL=$(jq -r '.log_level // "info"' /data/options.json)
-        export MTX_LOGLEVEL="$LOG_LEVEL"
-    fi
+    # --- 3. Duplicate Apply Options Removed ---
 
     # --- 4. Link Config ---
     if [ ! -L "$CONFIG_FILE" ]; then

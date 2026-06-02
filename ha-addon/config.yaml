@@ -1,5 +1,5 @@
 name: "GestureVision"
-version: "4.2.44"
+version: "4.3.0"
 slug: "gesturevision_ai"
 description: "AI-Powered Gesture Control using Webcams or RTSP cameras."
 url: "https://github.com/jim1982ha/gesture-vision"
@@ -34,6 +34,8 @@ ports:
 options:
   mtx_ice_host: ""
   log_level: "info"
+  ha_plugin_repo_url: "https://github.com/jim1982ha/gesture-vision-plugin-home-assistant.git"
 schema:
   mtx_ice_host: str?
   log_level: list(debug|info|warn|error)
+  ha_plugin_repo_url: str?

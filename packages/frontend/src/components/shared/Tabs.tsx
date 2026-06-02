@@ -51,7 +51,7 @@ export function Tabs({ tabs, onTabChange, activeTab }: TabsProps) {
             onClick={() => handleTabChange(tab.key)}
             disabled={tab.disabled}
           >
-            <span ref={el => el && setIcon(el, tab.icon)} className="material-icons"></span>
+            <span ref={el => el && setIcon(el, tab.icon)}></span>
             <span>{tab.label}</span>
           </button>
         ))}

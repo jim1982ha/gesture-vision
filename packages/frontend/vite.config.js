@@ -25,11 +25,13 @@ export default defineConfig(({ mode }) => {
   // under arbitrary Ingress paths (e.g., /api/hassio_ingress/token/...)
   const appBase = "./"; 
   
-  const backendInternalPort = env.DEV_BACKEND_API_PORT_INTERNAL || "9001";
+  const backendInternalPort = env.DEV_BACKEND_API_PORT_INTERNAL || process.env.PORT || "3000";
+
+  const isAiStudio = process.env.PORT === "3000" || env.PORT === "3000" || process.env.AISTUDIO === "true" || process.env.AI_STUDIO === "true" || process.env.AIS_ENV === "true";
 
   const plugins = [
     react({ include: "**/*.{ts,tsx}" }),
-    basicSsl(),
+    ...(isAiStudio ? [] : [basicSsl()]),
     visualizer({ filename: "./dist/stats.html", template: "treemap", open: false, gzipSize: true }),
   ];
 
@@ -60,7 +62,7 @@ export default defineConfig(({ mode }) => {
       ],
     },
     server: {
-      https: true,
+      https: !isAiStudio,
       host: "0.0.0.0",
       port: parseInt(env.DEV_VITE_PORT || "8001"),
       fs: { allow: [projectRoot] },

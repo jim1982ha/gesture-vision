@@ -30,6 +30,7 @@ export const PluginManifestSchema = z.object({
     sourceUrl: z.string().optional(),
     // NEW: Indicates if the plugin is system-managed/locked
     locked: z.boolean().optional(),
+    forceEnableIfEnv: z.string().optional(),
 });
 export type PluginManifest = z.infer<typeof PluginManifestSchema>;
 

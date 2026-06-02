@@ -60,10 +60,10 @@ export function MainContent() {
     <div className="main-content-wrapper flex-1 flex overflow-hidden relative">
       <main id="main-content" className={clsx("main-content group/main flex-1 flex flex-col p-4 relative overflow-y-auto px-4 desktop:px-main-x-desktop", isVideoExpanded && "video-is-expanded")}>
         <h2 id="liveFeedTitle" className="section-title">
-          <span ref={el => el && setIcon(el, 'UI_CAMERA_OUTLINE')} className="config-title-icon material-icons"></span>
+          <span ref={el => el && setIcon(el, 'UI_CAMERA_OUTLINE')} className="config-title-icon"></span>
           <span>{translate('liveFeedTitle')}</span>
           <button id="main-content-toggle-video-button" onClick={() => actions.toggleVideoVisibility()} className="btn btn-icon btn-icon-primary ml-auto" title={translate(isVideoVisible ? 'hideVideo' : 'showVideo')}>
-            <span ref={el => el && setIcon(el, isVideoVisible ? 'UI_VISIBILITY_OFF' : 'UI_VISIBILITY_ON')} className="material-icons"></span>
+            <span ref={el => el && setIcon(el, isVideoVisible ? 'UI_VISIBILITY_OFF' : 'UI_VISIBILITY_ON')}></span>
           </button>
         </h2>
         
@@ -84,11 +84,11 @@ export function MainContent() {
             <div id="configured-actions-section">
               <div className="flex items-center justify-between gap-2 mb-3 flex-shrink-0">
                 <h2 id="desktopConfigListTitle" className="section-title">
-                  <span ref={el => el && setIcon(el, 'UI_LIST_CHECK')} className="config-title-icon material-icons"></span>
+                  <span ref={el => el && setIcon(el, 'UI_LIST_CHECK')} className="config-title-icon"></span>
                   <span>{translate('configuredActionsTitle')}</span>
                 </h2>
                 <button id="addNewActionButton" className="btn btn-primary" onClick={() => actions.openOverlay('gestureForm', null)}>
-                  <span ref={el => el && setIcon(el, 'UI_ADD')} className="material-icons"></span>
+                  <span ref={el => el && setIcon(el, 'UI_ADD')}></span>
                   <span id="addNewActionButtonLabel">{translate('addNewAction')}</span>
                 </button>
               </div>

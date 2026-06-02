@@ -10,24 +10,32 @@ services:
       args:
         - TARGETARCH=amd64
     container_name: gesturevision-dev
-    # FIX: Use the same external network strategy as Production.
-    # This ensures the Dev container has the same routing/VLAN access (e.g. to Home Assistant)
-    # as the Prod container.
-    ports:
-      # Vite Dev Server
-      - "${DEV_VITE_PORT:-8001}:${DEV_VITE_PORT:-8001}"
-      # Backend API
-      - "${DEV_BACKEND_API_PORT_INTERNAL:-9001}:${DEV_BACKEND_API_PORT_INTERNAL:-9001}"
-      # MediaMTX WebRTC (TCP)
-      - "${MTX_DEV_WEBRTC_PORT:-8889}:${MTX_DEV_WEBRTC_PORT:-8889}"
-      # MediaMTX RTSP (TCP)
-      - "${MTX_DEV_RTSP_PORT:-8554}:${MTX_DEV_RTSP_PORT:-8554}"
-      # MediaMTX WebRTC ICE (UDP)
-      - "${MTX_DEV_ICE_UDP_PORT:-8189}:${MTX_DEV_ICE_UDP_PORT:-8189}/udp"
-      # MediaMTX API
-      - "${MTX_APIADDRESS_INTERNAL:-9997}:${MTX_APIADDRESS_INTERNAL:-9997}"
-    networks:
-      npm_proxy_network: {}
+    
+    # -------------------------------------------------------------------------
+    # NETWORK MODE CONFIGURATION:
+    # -------------------------------------------------------------------------
+    # Option A (DEFAULT): Host Network Mode.
+    # Exposes web UI, API, and MediaMTX streams directly on your host IP on their natural ports.
+    # (Vite Dev Server on 8001, NodeJS API on 9001, WebRTC on 8889, ICE on 8189, etc.)
+    network_mode: "host"
+
+    # Option B (ALTERNATIVE): Custom NPM or Macvlan network (e.g., 'docker_network').
+    # To use this instead of Host Network Mode:
+    # 1. Comment out the 'network_mode: "host"' line above.
+    # 2. Uncomment the 'ports' and 'networks' blocks below.
+    # 3. Ensure the 'networks' definition at the bottom of this file is also uncommented.
+    #
+    # ports:
+    #   - "${DEV_VITE_PORT:-8001}:${DEV_VITE_PORT:-8001}"                    # Vite Dev Server
+    #   - "${DEV_BACKEND_API_PORT_INTERNAL:-9001}:${DEV_BACKEND_API_PORT_INTERNAL:-9001}"  # Backend API
+    #   - "${MTX_DEV_WEBRTC_PORT:-8889}:${MTX_DEV_WEBRTC_PORT:-8889}"         # MediaMTX WebRTC (TCP)
+    #   - "${MTX_DEV_RTSP_PORT:-8554}:${MTX_DEV_RTSP_PORT:-8554}"             # MediaMTX RTSP (TCP)
+    #   - "${MTX_DEV_ICE_UDP_PORT:-8189}:${MTX_DEV_ICE_UDP_PORT:-8189}/udp"   # MediaMTX WebRTC ICE (UDP)
+    #   - "${MTX_APIADDRESS_INTERNAL:-9997}:${MTX_APIADDRESS_INTERNAL:-9997}" # MediaMTX API
+    # networks:
+    #   app_network:
+    #     ipv4_address: ${DOCKER_IPV4_ADDRESS:-192.168.20.101}                                # Map to desired host IP in your macvlan gateway subnet (e.g., 192.168.20.64/27)
+
     volumes:
       # Mount the entire packages directory for live editing of backend, frontend, shared
       - ./packages:/app/packages:rw
@@ -66,8 +74,17 @@ services:
       - VITE_DEV_HA_DEFAULT_URL=${VITE_DEV_HA_DEFAULT_URL:-}
     restart: unless-stopped
 
-networks:
-  npm_proxy_network:
-    # Use the variable from .env.dev, fallback to the known network name from your logs if missing
-    name: ${NPM_NETWORK_NAME:-docker_jw_net_admin}
-    external: true
+# -----------------------------------------------------------------------------
+# NETWORK DEFINITION (For Option B: Custom NPM or Macvlan Integration)
+# -----------------------------------------------------------------------------
+# Un-comment the section below if you are using Option B above.
+# Define/reference your proxy/macvlan network here so Compose can bind the container.
+#
+# networks:
+#   jw_admin:
+#     name: ${NPM_NETWORK_NAME:-docker_network}
+#     external: true
+
+
+
+

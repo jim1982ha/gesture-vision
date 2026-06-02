@@ -5,7 +5,7 @@ import {
   type PoseConfig, type StreamStatusPayload, type RtspSourceConfig,
   normalizeNameForMtx, FullConfigurationSchema
 } from '#shared/index.js';
-import { ConfigRepository } from './config/config.repository.js';
+import { ConfigRepository, CONFIG_PATH } from './config/config.repository.js';
 import { ConfigValidator } from './config/config.validator.js';
 
 const FILE_WATCH_INTERVAL_MS = 1000;
@@ -127,12 +127,12 @@ export class ConfigService {
       }
     };
     try {
-      this.fileWatcher = watchFile('/app/config.json', { interval: FILE_WATCH_INTERVAL_MS }, listener);
+      this.fileWatcher = watchFile(CONFIG_PATH, { interval: FILE_WATCH_INTERVAL_MS }, listener);
     } catch (e) { console.error('[ConfigService Watcher] Error starting watcher:', e); }
   }
 
   public stopFileWatcher(): void {
-    if (this.fileWatcher) { unwatchFile('/app/config.json'); this.fileWatcher = null; }
+    if (this.fileWatcher) { unwatchFile(CONFIG_PATH); this.fileWatcher = null; }
     if (this.fileWatchTimeout) clearTimeout(this.fileWatchTimeout);
   }
 
