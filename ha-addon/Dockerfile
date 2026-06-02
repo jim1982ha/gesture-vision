@@ -75,7 +75,6 @@ ENV NODE_ENV=production
 
 # Build backend and frontend
 RUN npm run build:backend
-RUN npm run build:umd
 RUN npm run build:app
 RUN npm prune --omit=dev
 

@@ -676,7 +676,6 @@ cmd_clean() {
     echo "Building Backend and Prerequisites..."
     npm run copy:wasm
     npm run copy:models
-    npm run build:umd
     npm run build:backend
     echo "Cleanup and rebuild complete."
 }
