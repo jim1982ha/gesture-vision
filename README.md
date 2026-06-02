@@ -19,7 +19,6 @@
   <a href="#-contributing">Contributing</a>
 </p>
 <p align="center">
-    <img src="https://img.shields.io/github/v/release/jim1982ha/gesture-vision?label=Latest%20Release" alt="Latest Release" />
     <img src="https://img.shields.io/badge/aarch64-yes-green.svg" alt="aarch64 Support" />
     <img src="https://img.shields.io/badge/amd64-yes-green.svg" alt="amd64 Support" />
 </p>
@@ -101,8 +100,8 @@ This project is managed as a monorepo. All commands should be run from the proje
     ```
 2.  **Run:**
     ```bash
-    chmod +x ./tools/update_prod.sh
-    ./tools/update_prod.sh
+    chmod +x ./tools/gv_cli.sh
+    ./tools/gv_cli.sh prod
     ```
 
 ### 3. Local Development
@@ -115,19 +114,22 @@ This project is managed as a monorepo. All commands should be run from the proje
     ```
 2.  **Run:**
     ```bash
-    chmod +x ./tools/update_dev.sh
-    ./tools/update_dev.sh
+    chmod +x ./tools/gv_cli.sh
+    ./tools/gv_cli.sh dev
     ```
 
 ## 🛠 Script Tools
 
-GestureVision provides various automation shell scripts in the `/tools` directory to streamline continuous lifecycle management and local testing:
+GestureVision provides a unified CLI script (`gv_cli.sh`) in the `/tools` directory to streamline continuous lifecycle management and local testing:
 
--   `update_dev.sh`: Intelligently cleans, builds, and launches the development docker orchestration. Evaluates necessary environment overrides safely without clobbering manual edits.
--   `update_prod.sh`: Cleans and starts the platform configured specifically for production network footprints.
--   `bump_version.sh`: Sweeps the monolith identifying config and package.json files, updating version tags consistently for deployments.
--   `release.sh`: Used by CI to package releases, attach github release tags, push docker templates, and trigger updates.
--   `update_images.sh`: Fetches or rebuilds baseline MediaPipe/MediaMTX dependent remote images to maintain compatibility.
+-   `./tools/gv_cli.sh dev`: Intelligently cleans, builds, and launches the development docker orchestration. Evaluates necessary environment overrides safely without clobbering manual edits.
+-   `./tools/gv_cli.sh prod`: Cleans and starts the platform configured specifically for production network footprints.
+-   `./tools/gv_cli.sh bump`: Sweeps the monolith identifying config and package.json files, updating version tags consistently for deployments.
+-   `./tools/gv_cli.sh release`: Automates releases, including bumping versions, adding changelogs, staging, committing, and pushing.
+-   `./tools/gv_cli.sh clean`: Removes build artifacts, dependencies, and rebuilds the project.
+-   `./tools/gv_cli.sh images`: Saves Docker SDK images to `.tar` archives.
+-   `./tools/gv_cli.sh filesize`: Analyzes source file line counts.
+-   `./tools/gv_cli.sh check`: Runs linting and static checks on the codebase.
 
 ## ❤️ Contributing
 
