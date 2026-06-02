@@ -1,3 +1,6 @@
+## 5.0.0 (2026-06-02)
+- Maintenance release.
+
 ## 4.3.0 (2026-06-02)
 - Maintenance release.
 
